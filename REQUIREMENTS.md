@@ -48,9 +48,9 @@ Tournaments have **no date**, only a state.
 `New` → `Round active` → `Waiting for next round` → `Round active` → … → `Closed`
 
 - **New**: being configured; players are added.
-- **Round active**: games are being played; results are being entered.
-- **Waiting for next round**: all results are in, the next round is already paired and visible on the dashboard, and the leader can start it or close the tournament.
-- **Closed**: final; standings are frozen.
+- **Round active**: games are being played; results are being entered. When the last result is entered, the round ends automatically and the tournament goes to *Waiting for next round*.
+- **Waiting for next round**: all results are in, the next round is already paired and visible on the dashboard, and the leader can start it or close the tournament. Results of the round just finished can still be corrected.
+- **Closed**: only the leader can close a tournament (from *New* or *Waiting for next round*). Final; standings are frozen.
 
 ### 5.3 Pairing rules
 - **Swiss**: players with similar scores play each other. Round 1 is seeded by rating (if present).
@@ -110,6 +110,7 @@ Manage the players in this tournament: pick from the central player list, create
 - Tournament dates / scheduling
 
 ## 10. Additional decisions
-- **Round robin:** players can only be added or removed before round 1. The tournament ends automatically once everyone has played everyone.
+- **Round robin:** players can only be added or removed before round 1. Once everyone has played everyone, no next round can be started; the leader closes the tournament (results of the last round can still be corrected until then).
+- **Closing:** a tournament is only ever closed by the leader, never automatically.
 - **Points for a bye:** extra tournament setting, default 1.
 - **Points for a forfeit:** the same as a normal win or loss.
