@@ -27,7 +27,11 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.Title</MudTd>
-        <MudTd>@L[$"State_{context.State}"]</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="Display.StateColor(context.State)" Class="ma-0">
+                @L[$"State_{context.State}"]
+            </MudChip>
+        </MudTd>
         <MudTd>@context.PlayerCount</MudTd>
         <MudTd>@context.RoundCount</MudTd>
     </RowTemplate>
@@ -41,7 +45,8 @@
     protected override async Task OnInitializedAsync()
     {
         Hub.TournamentListChanged += OnTournamentListChanged;
-        await Hub.EnsureStartedAsync();
+        Hub.Connected += OnTournamentListChanged;
+        Hub.EnsureStarted();
         await LoadAsync();
     }
 
@@ -68,5 +73,9 @@
         if (e.Key == "Enter") await CreateAsync();
     }
 
-    public void Dispose() => Hub.TournamentListChanged -= OnTournamentListChanged;
+    public void Dispose()
+    {
+        Hub.TournamentListChanged -= OnTournamentListChanged;
+        Hub.Connected -= OnTournamentListChanged;
+    }
 }

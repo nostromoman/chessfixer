@@ -30,7 +30,12 @@ if (app.Environment.IsDevelopment())
 app.MapStaticAssets();
 app.MapControllers();
 app.MapHub<TournamentHub>(TournamentHubContract.Path);
-app.MapFallbackToFile("index.html");
+// index.html refers to fingerprinted framework files, so it must never be served from cache:
+// after an update a stale copy would point to files that no longer exist and the app would hang.
+app.MapFallbackToFile("index.html", new StaticFileOptions
+{
+    OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
+});
 
 app.Run();
 

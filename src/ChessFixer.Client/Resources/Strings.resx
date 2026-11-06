@@ -16,25 +16,137 @@
   <!-- General -->
   <data name="AppTitle" xml:space="preserve"><value>ChessFixer</value></data>
   <data name="PageNotFound" xml:space="preserve"><value>Pagina niet gevonden.</value></data>
-  <data name="NotYetBuilt" xml:space="preserve"><value>Deze pagina wordt nog gebouwd.</value></data>
   <data name="Create" xml:space="preserve"><value>Aanmaken</value></data>
+  <data name="Save" xml:space="preserve"><value>Opslaan</value></data>
+  <data name="Saved" xml:space="preserve"><value>Opgeslagen.</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Annuleren</value></data>
 
-  <!-- Tournaments -->
+  <!-- Navigation -->
   <data name="Tournaments" xml:space="preserve"><value>Toernooien</value></data>
   <data name="Tournament" xml:space="preserve"><value>Toernooi</value></data>
   <data name="TournamentNotFound" xml:space="preserve"><value>Toernooi niet gevonden.</value></data>
+  <data name="Management" xml:space="preserve"><value>Beheer</value></data>
+  <data name="Players" xml:space="preserve"><value>Spelers</value></data>
+  <data name="Dashboard" xml:space="preserve"><value>Dashboard</value></data>
+
+  <!-- Tournament overview -->
   <data name="NewTournamentTitle" xml:space="preserve"><value>Titel nieuw toernooi</value></data>
   <data name="NoTournaments" xml:space="preserve"><value>Er zijn nog geen toernooien.</value></data>
   <data name="Title" xml:space="preserve"><value>Titel</value></data>
   <data name="State" xml:space="preserve"><value>Status</value></data>
-  <data name="Players" xml:space="preserve"><value>Spelers</value></data>
   <data name="Rounds" xml:space="preserve"><value>Rondes</value></data>
-  <data name="Management" xml:space="preserve"><value>Beheer</value></data>
-  <data name="Dashboard" xml:space="preserve"><value>Dashboard</value></data>
 
   <!-- Tournament states (key: State_{enum value}) -->
   <data name="State_New" xml:space="preserve"><value>Nieuw</value></data>
   <data name="State_RoundActive" xml:space="preserve"><value>Ronde bezig</value></data>
   <data name="State_WaitingForNextRound" xml:space="preserve"><value>Wacht op volgende ronde</value></data>
   <data name="State_Closed" xml:space="preserve"><value>Afgesloten</value></data>
+
+  <!-- Settings -->
+  <data name="Settings" xml:space="preserve"><value>Instellingen</value></data>
+  <data name="PairingSystem" xml:space="preserve"><value>Indelingssysteem</value></data>
+  <data name="PairingSystem_Swiss" xml:space="preserve"><value>Zwitsers</value></data>
+  <data name="PairingSystem_RoundRobin" xml:space="preserve"><value>Round robin (iedereen tegen iedereen)</value></data>
+  <data name="GameTime" xml:space="preserve"><value>Bedenktijd (minuten)</value></data>
+  <data name="Increment" xml:space="preserve"><value>Increment (seconden per zet)</value></data>
+  <data name="PointsForWin" xml:space="preserve"><value>Punten voor winst</value></data>
+  <data name="PointsForDraw" xml:space="preserve"><value>Punten voor remise</value></data>
+  <data name="PointsForLoss" xml:space="preserve"><value>Punten voor verlies</value></data>
+  <data name="PointsForBye" xml:space="preserve"><value>Punten voor een bye</value></data>
+  <data name="SettingsLockedInfo" xml:space="preserve"><value>De instellingen liggen vast omdat ronde 1 al gestart is. Alleen de titel kan nog gewijzigd worden.</value></data>
+  <data name="TimeControl" xml:space="preserve"><value>{0} min + {1} sec</value></data>
+
+  <!-- Tournament progress (management page) -->
+  <data name="Progress" xml:space="preserve"><value>Verloop</value></data>
+  <data name="StartRound" xml:space="preserve"><value>Start ronde {0}</value></data>
+  <data name="RoundStarted" xml:space="preserve"><value>Ronde {0} is gestart.</value></data>
+  <data name="CloseTournament" xml:space="preserve"><value>Toernooi afsluiten</value></data>
+  <data name="CloseConfirmTitle" xml:space="preserve"><value>Toernooi afsluiten?</value></data>
+  <data name="CloseConfirmText" xml:space="preserve"><value>Na het afsluiten kunnen er geen rondes en uitslagen meer worden ingevoerd. Dit kan niet ongedaan worden gemaakt.</value></data>
+  <data name="TournamentClosed" xml:space="preserve"><value>Het toernooi is afgesloten.</value></data>
+  <data name="NewInfo" xml:space="preserve"><value>Voeg spelers toe, controleer de instellingen en start ronde 1.</value></data>
+  <data name="RoundActiveInfo" xml:space="preserve"><value>Ronde {0} is bezig. Voer de uitslagen in op het dashboard.</value></data>
+  <data name="WaitingInfo" xml:space="preserve"><value>Ronde {0} is afgelopen. Start de volgende ronde of sluit het toernooi af.</value></data>
+  <data name="AllRoundsPlayedInfo" xml:space="preserve"><value>Alle rondes zijn gespeeld. Controleer de uitslagen en sluit het toernooi af.</value></data>
+  <data name="ClosedInfo" xml:space="preserve"><value>Dit toernooi is afgesloten.</value></data>
+  <data name="RoundOf" xml:space="preserve"><value>Ronde {0} van {1}</value></data>
+  <data name="PlayerCount" xml:space="preserve"><value>{0} spelers</value></data>
+
+  <!-- Players page -->
+  <data name="AddPlayer" xml:space="preserve"><value>Speler toevoegen</value></data>
+  <data name="SearchPlayer" xml:space="preserve"><value>Zoek een bestaande speler</value></data>
+  <data name="NoMatchingPlayers" xml:space="preserve"><value>Geen spelers gevonden. Maak hieronder een nieuwe speler aan.</value></data>
+  <data name="NewPlayer" xml:space="preserve"><value>Nieuwe speler</value></data>
+  <data name="Name" xml:space="preserve"><value>Naam</value></data>
+  <data name="Rating" xml:space="preserve"><value>Rating</value></data>
+  <data name="RatingOptional" xml:space="preserve"><value>Rating (optioneel)</value></data>
+  <data name="CreateAndAdd" xml:space="preserve"><value>Aanmaken en toevoegen</value></data>
+  <data name="Remove" xml:space="preserve"><value>Verwijderen</value></data>
+  <data name="Active" xml:space="preserve"><value>Doet mee</value></data>
+  <data name="Withdrawn" xml:space="preserve"><value>Teruggetrokken</value></data>
+  <data name="NoPlayers" xml:space="preserve"><value>Er doen nog geen spelers mee.</value></data>
+  <data name="PlayerAdded" xml:space="preserve"><value>{0} is toegevoegd.</value></data>
+  <data name="PlayerRemoved" xml:space="preserve"><value>{0} is verwijderd.</value></data>
+  <data name="PlayersLockedRound" xml:space="preserve"><value>Tijdens een ronde kunnen geen spelers worden toegevoegd of verwijderd.</value></data>
+  <data name="PlayersLockedRoundRobin" xml:space="preserve"><value>Bij round robin liggen de spelers vast zodra ronde 1 gestart is.</value></data>
+  <data name="PlayersLockedClosed" xml:space="preserve"><value>Dit toernooi is afgesloten.</value></data>
+  <data name="RemovedPlayerInfo" xml:space="preserve"><value>Een speler die al partijen gespeeld heeft blijft in de stand staan, maar wordt niet meer ingedeeld.</value></data>
+
+  <!-- Dashboard -->
+  <data name="Round" xml:space="preserve"><value>Ronde {0}</value></data>
+  <data name="PairingRound" xml:space="preserve"><value>Indeling ronde {0}</value></data>
+  <data name="ResultsRound" xml:space="preserve"><value>Uitslagen ronde {0}</value></data>
+  <data name="ResultsEntered" xml:space="preserve"><value>{0} van {1} uitslagen ingevoerd</value></data>
+  <data name="NoPairingYet" xml:space="preserve"><value>Nog geen indeling. Er zijn minimaal 2 spelers nodig.</value></data>
+  <data name="NoPairingPossible" xml:space="preserve"><value>Er kan geen volgende ronde worden ingedeeld.</value></data>
+  <data name="Board" xml:space="preserve"><value>Bord</value></data>
+  <data name="White" xml:space="preserve"><value>Wit</value></data>
+  <data name="Black" xml:space="preserve"><value>Zwart</value></data>
+  <data name="Result" xml:space="preserve"><value>Uitslag</value></data>
+  <data name="ByeOpponent" xml:space="preserve"><value>— vrij —</value></data>
+  <data name="ChangeResult" xml:space="preserve"><value>Uitslag wijzigen</value></data>
+  <data name="ClearResult" xml:space="preserve"><value>Uitslag wissen</value></data>
+  <data name="Forfeit" xml:space="preserve"><value>Reglementair</value></data>
+  <data name="Standings" xml:space="preserve"><value>Stand</value></data>
+  <data name="Rank" xml:space="preserve"><value>#</value></data>
+  <data name="PointsShort" xml:space="preserve"><value>Ptn</value></data>
+  <data name="BuchholzShort" xml:space="preserve"><value>WP</value></data>
+  <data name="BuchholzLong" xml:space="preserve"><value>Weerstandspunten (Buchholz)</value></data>
+  <data name="SonnebornBergerShort" xml:space="preserve"><value>SB</value></data>
+  <data name="SonnebornBergerLong" xml:space="preserve"><value>Sonneborn-Berger</value></data>
+  <data name="PlayedShort" xml:space="preserve"><value>Gesp.</value></data>
+  <data name="WinsShort" xml:space="preserve"><value>W</value></data>
+  <data name="DrawsShort" xml:space="preserve"><value>R</value></data>
+  <data name="LossesShort" xml:space="preserve"><value>V</value></data>
+
+  <!-- Results (key: Result_{enum value}) -->
+  <data name="Result_NotPlayed" xml:space="preserve"><value>-</value></data>
+  <data name="Result_WhiteWins" xml:space="preserve"><value>1 - 0</value></data>
+  <data name="Result_Draw" xml:space="preserve"><value>½ - ½</value></data>
+  <data name="Result_BlackWins" xml:space="preserve"><value>0 - 1</value></data>
+  <data name="Result_WhiteWinsByForfeit" xml:space="preserve"><value>1 - 0 (regl.)</value></data>
+  <data name="Result_BlackWinsByForfeit" xml:space="preserve"><value>0 - 1 (regl.)</value></data>
+  <data name="Result_Bye" xml:space="preserve"><value>vrij</value></data>
+
+  <!-- Errors (key: Error_{ApiErrorCode}) -->
+  <data name="Error_Unknown" xml:space="preserve"><value>Er ging iets mis. Probeer het opnieuw.</value></data>
+  <data name="Error_ServerUnavailable" xml:space="preserve"><value>De server is niet bereikbaar.</value></data>
+  <data name="Error_TournamentNotFound" xml:space="preserve"><value>Toernooi niet gevonden.</value></data>
+  <data name="Error_PlayerNotFound" xml:space="preserve"><value>Speler niet gevonden.</value></data>
+  <data name="Error_GameNotFound" xml:space="preserve"><value>Partij niet gevonden.</value></data>
+  <data name="Error_TitleRequired" xml:space="preserve"><value>Vul een titel in.</value></data>
+  <data name="Error_NameRequired" xml:space="preserve"><value>Vul een naam in.</value></data>
+  <data name="Error_InvalidSettings" xml:space="preserve"><value>Ongeldige instellingen: de bedenktijd moet groter dan 0 zijn en punten mogen niet negatief zijn.</value></data>
+  <data name="Error_InvalidResult" xml:space="preserve"><value>Ongeldige uitslag.</value></data>
+  <data name="Error_TournamentClosed" xml:space="preserve"><value>Dit toernooi is afgesloten.</value></data>
+  <data name="Error_RoundInProgress" xml:space="preserve"><value>Er is een ronde bezig. Wacht tot alle uitslagen zijn ingevoerd.</value></data>
+  <data name="Error_SettingsLocked" xml:space="preserve"><value>De instellingen kunnen niet meer gewijzigd worden nadat ronde 1 is gestart.</value></data>
+  <data name="Error_PlayerAlreadyInTournament" xml:space="preserve"><value>Deze speler doet al mee.</value></data>
+  <data name="Error_PlayerNotInTournament" xml:space="preserve"><value>Deze speler doet niet mee.</value></data>
+  <data name="Error_RoundRobinPlayersLocked" xml:space="preserve"><value>Bij round robin kunnen na de start van ronde 1 geen spelers meer worden toegevoegd of verwijderd.</value></data>
+  <data name="Error_ResultNotEditable" xml:space="preserve"><value>Deze uitslag kan niet meer gewijzigd worden.</value></data>
+  <data name="Error_NotEnoughPlayers" xml:space="preserve"><value>Er zijn minimaal 2 spelers nodig.</value></data>
+  <data name="Error_TooManyPlayers" xml:space="preserve"><value>Er zijn te veel spelers (maximaal 64).</value></data>
+  <data name="Error_NoValidPairing" xml:space="preserve"><value>Er is geen indeling mogelijk zonder dat spelers elkaar opnieuw treffen.</value></data>
+  <data name="Error_AllRoundsPlayed" xml:space="preserve"><value>Alle rondes zijn gespeeld.</value></data>
 </root>
