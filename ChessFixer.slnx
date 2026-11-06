@@ -7,5 +7,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ChessFixer.Core.Tests/ChessFixer.Core.Tests.csproj" />
+    <Project Path="tests/ChessFixer.Server.Tests/ChessFixer.Server.Tests.csproj" />
   </Folder>
 </Solution>

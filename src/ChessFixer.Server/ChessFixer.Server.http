@@ -1,16 +1,76 @@
 @host = http://localhost:5016
+@tournament = 1
 
-GET {{host}}/api/tournaments
-Accept: application/json
+### Central player list
+GET {{host}}/api/players
 
 ###
+POST {{host}}/api/players
+Content-Type: application/json
 
+{ "name": "Magnus", "rating": 2100 }
+
+###
+PUT {{host}}/api/players/1
+Content-Type: application/json
+
+{ "name": "Magnus C.", "rating": 2150 }
+
+### Tournaments
+GET {{host}}/api/tournaments
+
+###
 POST {{host}}/api/tournaments
 Content-Type: application/json
 
 { "title": "Clubavond rapid" }
 
 ###
+GET {{host}}/api/tournaments/{{tournament}}
 
-GET {{host}}/api/players
-Accept: application/json
+### Title + settings (settings are locked after round 1)
+PUT {{host}}/api/tournaments/{{tournament}}
+Content-Type: application/json
+
+{
+  "title": "Clubavond rapid",
+  "settings": {
+    "pairingSystem": "Swiss",
+    "gameTimeMinutes": 15,
+    "incrementSeconds": 10,
+    "pointsForWin": 1,
+    "pointsForDraw": 0.5,
+    "pointsForLoss": 0,
+    "pointsForBye": 1
+  }
+}
+
+### Players in the tournament
+GET {{host}}/api/tournaments/{{tournament}}/players
+
+###
+POST {{host}}/api/tournaments/{{tournament}}/players
+Content-Type: application/json
+
+{ "playerId": 1 }
+
+###
+DELETE {{host}}/api/tournaments/{{tournament}}/players/1
+
+### Rounds (last one has isStarted=false when it is the prepared next round)
+GET {{host}}/api/tournaments/{{tournament}}/rounds
+
+###
+POST {{host}}/api/tournaments/{{tournament}}/rounds/start
+
+### Result: NotPlayed, WhiteWins, Draw, BlackWins, WhiteWinsByForfeit, BlackWinsByForfeit
+PUT {{host}}/api/tournaments/{{tournament}}/games/1/result
+Content-Type: application/json
+
+{ "result": "WhiteWins" }
+
+###
+GET {{host}}/api/tournaments/{{tournament}}/standings
+
+###
+POST {{host}}/api/tournaments/{{tournament}}/close

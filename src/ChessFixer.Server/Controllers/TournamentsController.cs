@@ -1,52 +1,59 @@
-using ChessFixer.Server.Data;
-using ChessFixer.Server.Hubs;
+using ChessFixer.Server.Services;
 using ChessFixer.Shared.Dtos;
-using ChessFixer.Shared.Hubs;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ChessFixer.Server.Controllers;
 
 [ApiController]
 [Route("api/tournaments")]
-public class TournamentsController(ChessFixerDbContext db, IHubContext<TournamentHub> hub) : ControllerBase
+public class TournamentsController(TournamentService service) : ControllerBase
 {
     [HttpGet]
-    public async Task<List<TournamentSummaryDto>> GetAll() =>
-        await db.Tournaments
-            .OrderByDescending(t => t.Id)
-            .Select(t => new TournamentSummaryDto(
-                t.Id, t.Title, t.State, t.Players.Count(p => p.IsActive), t.Rounds.Count))
-            .ToListAsync();
+    public Task<List<TournamentSummaryDto>> GetAll() => service.GetAllAsync();
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<TournamentDto>> Get(int id)
-    {
-        var tournament = await db.Tournaments.Include(t => t.Rounds).FirstOrDefaultAsync(t => t.Id == id);
-        return tournament is null ? NotFound() : ToDto(tournament);
-    }
+    public Task<TournamentDto> Get(int id) => service.GetAsync(id);
 
     [HttpPost]
     public async Task<ActionResult<TournamentDto>> Create(CreateTournamentRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest("Titel is verplicht.");
-
-        var tournament = new Tournament { Title = request.Title.Trim() };
-        db.Tournaments.Add(tournament);
-        await db.SaveChangesAsync();
-
-        await hub.Clients.All.SendAsync(TournamentHubContract.TournamentListChanged);
-        return CreatedAtAction(nameof(Get), new { id = tournament.Id }, ToDto(tournament));
+        var tournament = await service.CreateAsync(request);
+        return CreatedAtAction(nameof(Get), new { id = tournament.Id }, tournament);
     }
 
-    private static TournamentDto ToDto(Tournament t) => new(
-        t.Id,
-        t.Title,
-        t.State,
-        new TournamentSettingsDto(
-            t.PairingSystem, t.GameTimeMinutes, t.IncrementSeconds,
-            t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye),
-        t.Rounds.Count);
+    /// <summary>Changes the title and settings. Settings (not the title) are locked once round 1 has started.</summary>
+    [HttpPut("{id:int}")]
+    public Task<TournamentDto> Update(int id, UpdateTournamentRequest request) => service.UpdateAsync(id, request);
+
+    /// <summary>Starts the next round (which is already paired while waiting).</summary>
+    [HttpPost("{id:int}/rounds/start")]
+    public Task<TournamentDto> StartNextRound(int id) => service.StartNextRoundAsync(id);
+
+    [HttpPost("{id:int}/close")]
+    public Task<TournamentDto> Close(int id) => service.CloseAsync(id);
+
+    // ----- Players in this tournament -----
+
+    [HttpGet("{id:int}/players")]
+    public Task<List<TournamentPlayerDto>> GetPlayers(int id) => service.GetPlayersAsync(id);
+
+    [HttpPost("{id:int}/players")]
+    public Task<TournamentDto> AddPlayer(int id, AddTournamentPlayerRequest request) =>
+        service.AddPlayerAsync(id, request.PlayerId);
+
+    [HttpDelete("{id:int}/players/{playerId:int}")]
+    public Task<TournamentDto> RemovePlayer(int id, int playerId) => service.RemovePlayerAsync(id, playerId);
+
+    // ----- Rounds, results, standings -----
+
+    /// <summary>All rounds; the last one is the pending round when IsStarted is false.</summary>
+    [HttpGet("{id:int}/rounds")]
+    public Task<List<RoundDto>> GetRounds(int id) => service.GetRoundsAsync(id);
+
+    [HttpPut("{id:int}/games/{gameId:int}/result")]
+    public Task<TournamentDto> SetResult(int id, int gameId, SetResultRequest request) =>
+        service.SetResultAsync(id, gameId, request.Result);
+
+    [HttpGet("{id:int}/standings")]
+    public Task<List<StandingDto>> GetStandings(int id) => service.GetStandingsAsync(id);
 }
