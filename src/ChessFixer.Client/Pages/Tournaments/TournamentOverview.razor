@@ -1,0 +1,72 @@
+@page "/"
+@page "/tournament"
+@implements IDisposable
+@inject TournamentApi Api
+@inject TournamentHubClient Hub
+@inject NavigationManager Navigation
+@inject IStringLocalizer<Strings> L
+
+<PageTitle>@L["Tournaments"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["Tournaments"]</MudText>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudTextField @bind-Value="_newTitle" Label="@L["NewTournamentTitle"]" Variant="Variant.Outlined"
+                  Immediate="true" OnKeyUp="OnTitleKeyUp" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync"
+               Disabled="@string.IsNullOrWhiteSpace(_newTitle)">@L["Create"]</MudButton>
+</MudStack>
+
+<MudTable T="TournamentSummaryDto" Items="_tournaments" Hover="true" Loading="_tournaments is null"
+          OnRowClick="OnRowClick" Style="cursor: pointer">
+    <HeaderContent>
+        <MudTh>@L["Title"]</MudTh>
+        <MudTh>@L["State"]</MudTh>
+        <MudTh>@L["Players"]</MudTh>
+        <MudTh>@L["Rounds"]</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Title</MudTd>
+        <MudTd>@L[$"State_{context.State}"]</MudTd>
+        <MudTd>@context.PlayerCount</MudTd>
+        <MudTd>@context.RoundCount</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>@L["NoTournaments"]</NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<TournamentSummaryDto>? _tournaments;
+    private string _newTitle = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Hub.TournamentListChanged += OnTournamentListChanged;
+        await Hub.EnsureStartedAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() => _tournaments = await Api.GetTournamentsAsync();
+
+    private async Task OnTournamentListChanged()
+    {
+        await LoadAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle)) return;
+        var tournament = await Api.CreateTournamentAsync(_newTitle);
+        Navigation.NavigateTo($"tournament/{tournament.Id}");
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<TournamentSummaryDto> args) =>
+        Navigation.NavigateTo($"tournament/{args.Item!.Id}");
+
+    private async Task OnTitleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await CreateAsync();
+    }
+
+    public void Dispose() => Hub.TournamentListChanged -= OnTournamentListChanged;
+}

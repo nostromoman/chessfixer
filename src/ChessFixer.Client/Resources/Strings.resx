@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- General -->
+  <data name="AppTitle" xml:space="preserve"><value>ChessFixer</value></data>
+  <data name="PageNotFound" xml:space="preserve"><value>Pagina niet gevonden.</value></data>
+  <data name="NotYetBuilt" xml:space="preserve"><value>Deze pagina wordt nog gebouwd.</value></data>
+  <data name="Create" xml:space="preserve"><value>Aanmaken</value></data>
+
+  <!-- Tournaments -->
+  <data name="Tournaments" xml:space="preserve"><value>Toernooien</value></data>
+  <data name="Tournament" xml:space="preserve"><value>Toernooi</value></data>
+  <data name="TournamentNotFound" xml:space="preserve"><value>Toernooi niet gevonden.</value></data>
+  <data name="NewTournamentTitle" xml:space="preserve"><value>Titel nieuw toernooi</value></data>
+  <data name="NoTournaments" xml:space="preserve"><value>Er zijn nog geen toernooien.</value></data>
+  <data name="Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="State" xml:space="preserve"><value>Status</value></data>
+  <data name="Players" xml:space="preserve"><value>Spelers</value></data>
+  <data name="Rounds" xml:space="preserve"><value>Rondes</value></data>
+  <data name="Management" xml:space="preserve"><value>Beheer</value></data>
+  <data name="Dashboard" xml:space="preserve"><value>Dashboard</value></data>
+
+  <!-- Tournament states (key: State_{enum value}) -->
+  <data name="State_New" xml:space="preserve"><value>Nieuw</value></data>
+  <data name="State_RoundActive" xml:space="preserve"><value>Ronde bezig</value></data>
+  <data name="State_WaitingForNextRound" xml:space="preserve"><value>Wacht op volgende ronde</value></data>
+  <data name="State_Closed" xml:space="preserve"><value>Afgesloten</value></data>
+</root>

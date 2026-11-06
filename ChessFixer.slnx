@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ChessFixer.Client/ChessFixer.Client.csproj" />
+    <Project Path="src/ChessFixer.Core/ChessFixer.Core.csproj" />
+    <Project Path="src/ChessFixer.Server/ChessFixer.Server.csproj" />
+    <Project Path="src/ChessFixer.Shared/ChessFixer.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ChessFixer.Core.Tests/ChessFixer.Core.Tests.csproj" />
+  </Folder>
+</Solution>

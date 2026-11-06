@@ -1,0 +1,19 @@
+﻿@inherits LayoutComponentBase
+@inject IStringLocalizer<Strings> L
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Class="mr-2" />
+        <MudLink Href="/tournament" Color="Color.Inherit" Typo="Typo.h6" Underline="Underline.None">@L["AppTitle"]</MudLink>
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>

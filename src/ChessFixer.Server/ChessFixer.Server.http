@@ -1,0 +1,16 @@
+@host = http://localhost:5016
+
+GET {{host}}/api/tournaments
+Accept: application/json
+
+###
+
+POST {{host}}/api/tournaments
+Content-Type: application/json
+
+{ "title": "Clubavond rapid" }
+
+###
+
+GET {{host}}/api/players
+Accept: application/json

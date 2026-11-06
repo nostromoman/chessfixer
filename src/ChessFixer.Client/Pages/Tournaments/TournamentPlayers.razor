@@ -1,0 +1,12 @@
+@page "/tournament/{Id:int}/players"
+@inject IStringLocalizer<Strings> L
+
+<PageTitle>@L["Players"]</PageTitle>
+
+@* TODO: pick players from the central list, create new player, remove player. *@
+<MudText Typo="Typo.h4">@L["Players"]</MudText>
+<MudText Typo="Typo.body2">@L["NotYetBuilt"]</MudText>
+
+@code {
+    [Parameter] public int Id { get; set; }
+}

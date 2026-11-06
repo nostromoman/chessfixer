@@ -1,0 +1,41 @@
+@page "/tournament/{Id:int}"
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+<PageTitle>@(_tournament?.Title ?? L["Tournament"])</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_tournament is null)
+{
+    <MudAlert Severity="Severity.Warning">@L["TournamentNotFound"]</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h4">@_tournament.Title</MudText>
+    <MudChip T="string" Class="ml-0 my-2">@L[$"State_{_tournament.State}"]</MudChip>
+
+    <MudStack Row="true" Class="my-4">
+        <MudButton Href="@($"tournament/{Id}/players")" Variant="Variant.Outlined">@L["Players"]</MudButton>
+        <MudButton Href="@($"tournament/{Id}/dashboard")" Variant="Variant.Outlined">@L["Dashboard"]</MudButton>
+    </MudStack>
+
+    @* TODO: settings form, start next round, close tournament *@
+    <MudText Typo="Typo.body2">@L["NotYetBuilt"]</MudText>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TournamentDto? _tournament;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _tournament = await Api.GetTournamentAsync(Id);
+        _loading = false;
+    }
+}

@@ -1,0 +1,12 @@
+@page "/tournament/{Id:int}/dashboard"
+@inject IStringLocalizer<Strings> L
+
+<PageTitle>@L["Dashboard"]</PageTitle>
+
+@* TODO: round info, pairings / games in progress, result entry, standings. Live via TournamentHubClient. *@
+<MudText Typo="Typo.h4">@L["Dashboard"]</MudText>
+<MudText Typo="Typo.body2">@L["NotYetBuilt"]</MudText>
+
+@code {
+    [Parameter] public int Id { get; set; }
+}
