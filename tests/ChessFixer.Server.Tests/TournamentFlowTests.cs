@@ -50,18 +50,37 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task Settings_AreLockedAfterRound1_TitleIsNot()
+    public async Task SettingsAndTitle_AreLockedAfterRound1()
     {
         var id = await CreateTournamentAsync();
         await AddNewPlayersAsync(id, 2);
         var tournament = await StartRoundAsync(id);
 
-        var response = await Client.PutAsJsonAsync($"api/tournaments/{id}",
-            new UpdateTournamentRequest("Test", tournament.Settings with { GameTimeMinutes = 25 }));
-        await AssertErrorAsync(response, HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}",
+                new UpdateTournamentRequest("Test", tournament.Settings with { GameTimeMinutes = 25 })),
+            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}",
+                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings)),
+            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+
+        // Saving unchanged values is harmless.
+        tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}",
+            new UpdateTournamentRequest("Test", tournament.Settings));
+        Assert.Equal("Test", tournament.Title);
+    }
+
+    [Fact]
+    public async Task Title_CanChangeBeforeRound1()
+    {
+        var id = await CreateTournamentAsync();
+        var tournament = await GetTournamentAsync(id);
 
         tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}",
             new UpdateTournamentRequest("Nieuwe titel", tournament.Settings));
+
         Assert.Equal("Nieuwe titel", tournament.Title);
     }
 

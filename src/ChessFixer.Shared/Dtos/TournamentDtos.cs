@@ -5,7 +5,7 @@ namespace ChessFixer.Shared.Dtos;
 public record TournamentSummaryDto(int Id, string Title, TournamentState State, int PlayerCount, int RoundCount);
 
 /// <param name="RoundsStarted">Number of rounds that have started (including the active one).</param>
-/// <param name="SettingsLocked">True once round 1 has started; only the title can change then.</param>
+/// <param name="SettingsLocked">True once round 1 has started; from then on title and settings cannot change.</param>
 /// <param name="TotalRounds">Round robin only: the number of rounds needed for everyone to play everyone.</param>
 public record TournamentDto(
     int Id,

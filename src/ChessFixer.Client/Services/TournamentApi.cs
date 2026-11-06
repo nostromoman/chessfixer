@@ -63,6 +63,9 @@ public class TournamentApi(HttpClient http)
     public Task<PlayerDto> CreatePlayerAsync(string name, int? rating) =>
         SendAsync<PlayerDto>(HttpMethod.Post, "api/players", new CreatePlayerRequest(name, rating));
 
+    public Task<PlayerDto> UpdatePlayerAsync(int id, string name, int? rating) =>
+        SendAsync<PlayerDto>(HttpMethod.Put, $"api/players/{id}", new UpdatePlayerRequest(name, rating));
+
     // ----- Plumbing -----
 
     private async Task<T> SendAsync<T>(HttpMethod method, string url, object? body = null)

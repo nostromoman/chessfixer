@@ -20,6 +20,9 @@
   <data name="Save" xml:space="preserve"><value>Opslaan</value></data>
   <data name="Saved" xml:space="preserve"><value>Opgeslagen.</value></data>
   <data name="Cancel" xml:space="preserve"><value>Annuleren</value></data>
+  <data name="Edit" xml:space="preserve"><value>Wijzigen</value></data>
+  <data name="Search" xml:space="preserve"><value>Zoeken</value></data>
+  <data name="ToggleMenu" xml:space="preserve"><value>Menu tonen of verbergen</value></data>
 
   <!-- Navigation -->
   <data name="Tournaments" xml:space="preserve"><value>Toernooien</value></data>
@@ -53,13 +56,16 @@
   <data name="PointsForDraw" xml:space="preserve"><value>Punten voor remise</value></data>
   <data name="PointsForLoss" xml:space="preserve"><value>Punten voor verlies</value></data>
   <data name="PointsForBye" xml:space="preserve"><value>Punten voor een bye</value></data>
-  <data name="SettingsLockedInfo" xml:space="preserve"><value>De instellingen liggen vast omdat ronde 1 al gestart is. Alleen de titel kan nog gewijzigd worden.</value></data>
+  <data name="SettingsLockedInfo" xml:space="preserve"><value>De instellingen liggen vast omdat ronde 1 al gestart is.</value></data>
   <data name="TimeControl" xml:space="preserve"><value>{0} min + {1} sec</value></data>
 
   <!-- Tournament progress (management page) -->
   <data name="Progress" xml:space="preserve"><value>Verloop</value></data>
   <data name="StartRound" xml:space="preserve"><value>Start ronde {0}</value></data>
   <data name="RoundStarted" xml:space="preserve"><value>Ronde {0} is gestart.</value></data>
+  <data name="StartFirstRoundTitle" xml:space="preserve"><value>Ronde 1 starten?</value></data>
+  <data name="StartFirstRoundText" xml:space="preserve"><value>Na het starten van ronde 1 kunnen de instellingen, ook de titel, niet meer gewijzigd worden.</value></data>
+  <data name="StartFirstRoundUnsavedText" xml:space="preserve"><value>Je niet-opgeslagen wijzigingen worden eerst opgeslagen.</value></data>
   <data name="CloseTournament" xml:space="preserve"><value>Toernooi afsluiten</value></data>
   <data name="CloseConfirmTitle" xml:space="preserve"><value>Toernooi afsluiten?</value></data>
   <data name="CloseConfirmText" xml:space="preserve"><value>Na het afsluiten kunnen er geen rondes en uitslagen meer worden ingevoerd. Dit kan niet ongedaan worden gemaakt.</value></data>
@@ -85,6 +91,9 @@
   <data name="Active" xml:space="preserve"><value>Doet mee</value></data>
   <data name="Withdrawn" xml:space="preserve"><value>Teruggetrokken</value></data>
   <data name="NoPlayers" xml:space="preserve"><value>Er doen nog geen spelers mee.</value></data>
+  <data name="NoPlayersInList" xml:space="preserve"><value>Er zijn nog geen spelers. Maak hiernaast een speler aan.</value></data>
+  <data name="PlayerCreated" xml:space="preserve"><value>{0} is aangemaakt.</value></data>
+  <data name="PlayerUpdated" xml:space="preserve"><value>{0} is gewijzigd.</value></data>
   <data name="PlayerAdded" xml:space="preserve"><value>{0} is toegevoegd.</value></data>
   <data name="PlayerRemoved" xml:space="preserve"><value>{0} is verwijderd.</value></data>
   <data name="PlayersLockedRound" xml:space="preserve"><value>Tijdens een ronde kunnen geen spelers worden toegevoegd of verwijderd.</value></data>

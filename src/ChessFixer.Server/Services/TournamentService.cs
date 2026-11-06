@@ -99,12 +99,16 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
         MutateAsync(id, async tournament =>
         {
             if (string.IsNullOrWhiteSpace(request.Title)) throw new ApiException(ApiErrorCode.TitleRequired);
-            tournament.Title = request.Title.Trim();
 
+            var title = request.Title.Trim();
             var settings = request.Settings;
-            if (settings == SettingsOf(tournament)) return;
+            if (title == tournament.Title && settings == SettingsOf(tournament)) return;
 
+            // Once round 1 has started nothing can change, not even the title.
             if (IsSettingsLocked(tournament)) throw new ApiException(ApiErrorCode.SettingsLocked);
+
+            tournament.Title = title;
+            if (settings == SettingsOf(tournament)) return;
             if (settings.GameTimeMinutes <= 0 || settings.IncrementSeconds < 0
                 || settings.PointsForWin < 0 || settings.PointsForDraw < 0
                 || settings.PointsForLoss < 0 || settings.PointsForBye < 0

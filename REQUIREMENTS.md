@@ -32,7 +32,7 @@ leader closes the tournament after a round.
 ### 5.1 Settings
 | Setting | Notes |
 |---|---|
-| Title | Can always be changed. |
+| Title | |
 | Pairing system | Swiss or round robin. |
 | Game time | Minutes per player. Informational only (no clock in the app). |
 | Increment | Seconds per move. Informational only. |
@@ -40,7 +40,8 @@ leader closes the tournament after a round.
 | Points for a draw | Default 0.5 |
 | Points for a loss | Default 0 |
 
-All settings except the title can only be changed while no round has started.
+All settings, including the title, can only be changed while no round has started.
+Starting round 1 asks for confirmation; after that the settings are shown as read-only text.
 There is **no** configured number of rounds: the leader decides when to stop.
 Tournaments have **no date**, only a state.
 
@@ -78,6 +79,8 @@ Tournaments have **no date**, only a state.
 ## 7. Pages
 UI language: **Dutch only** for now (other languages later, so keep texts in resource files).
 
+A main menu on the left links to **Toernooien** (`/tournament`) and **Spelers** (`/players`).
+
 ### Tournament overview — `/tournament`
 Table of all tournaments with their state. Create a new tournament. Clicking a tournament opens the management page.
 
@@ -91,6 +94,9 @@ When all results of a round are in, the state becomes *Waiting for next round* a
 
 ### Tournament players — `/tournament/{id}/players`
 Manage the players in this tournament: pick from the central player list, create a new player, remove a player.
+
+### Players — `/players`
+The central player list shared by all tournaments: create players and change their name or rating.
 
 ## 8. Platform & technology
 - .NET 10. Blazor **WebAssembly** frontend using **MudBlazor**.

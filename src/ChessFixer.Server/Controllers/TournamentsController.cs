@@ -21,7 +21,7 @@ public class TournamentsController(TournamentService service) : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = tournament.Id }, tournament);
     }
 
-    /// <summary>Changes the title and settings. Settings (not the title) are locked once round 1 has started.</summary>
+    /// <summary>Changes the title and settings. Both are locked once round 1 has started.</summary>
     [HttpPut("{id:int}")]
     public Task<TournamentDto> Update(int id, UpdateTournamentRequest request) => service.UpdateAsync(id, request);
 
