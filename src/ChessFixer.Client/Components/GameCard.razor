@@ -1,0 +1,124 @@
+@inject IStringLocalizer<Strings> L
+
+@* One game as a card: both players with color and photo, the result in the middle. *@
+<MudPaper Elevation="2" Class="@CardClass">
+    <div class="game-card-top">
+        @if (Game.Board is { } board)
+        {
+            <span class="game-card-board">@L["Board"] @board</span>
+        }
+        else if (QueuePosition is { } position)
+        {
+            <span class="game-card-board game-card-queued">@L["QueuePosition", position]</span>
+        }
+        @if (IsPlaying)
+        {
+            <span class="game-card-live">@L["Status_Playing"]</span>
+        }
+    </div>
+
+    <div class="game-card-body">
+        @Side(Game.White, isWhite: true, Outcome(isWhite: true))
+
+        <div class="game-card-center">
+            @if (Game.Black is null)
+            {
+                <span class="game-card-bye">@L["Status_Bye"]</span>
+            }
+            else if (IsStarted && Game.Result != GameResult.NotPlayed)
+            {
+                <span class="game-card-score">@L[$"Result_{Game.Result}"]</span>
+            }
+            else
+            {
+                <span class="game-card-vs">VS</span>
+            }
+        </div>
+
+        @if (Game.Black is { } black)
+        {
+            @Side(black, isWhite: false, Outcome(isWhite: false))
+        }
+        else
+        {
+            <div class="game-side game-side-empty">@L["ByeOpponent"]</div>
+        }
+    </div>
+
+    @if (Editable && IsStarted && Game.Black is not null && Game.Board is not null)
+    {
+        <div class="game-card-actions">
+            <GameResultCell Game="Game" Editable="true" Disabled="Disabled" ShowResult="false" OnResult="OnResult" />
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private enum SideOutcome { None, Won, Lost, Draw }
+
+    [Parameter, EditorRequired] public GameDto Game { get; set; } = null!;
+    [Parameter] public bool IsStarted { get; set; }
+
+    /// <summary>Position in the queue of games waiting for a board; null when the game has a board.</summary>
+    [Parameter] public int? QueuePosition { get; set; }
+
+    [Parameter] public bool Editable { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
+    /// <summary>The card is about to move to another group (result just entered): plays the leave animation.</summary>
+    [Parameter] public bool Leaving { get; set; }
+
+    /// <summary>The card just arrived in its group: plays the enter animation.</summary>
+    [Parameter] public bool Entering { get; set; }
+
+    [Parameter] public EventCallback<GameResult> OnResult { get; set; }
+
+    /// <summary>Started, on a board and no result yet.</summary>
+    private bool IsPlaying => IsStarted && Game.Board is not null && Game.Result == GameResult.NotPlayed;
+
+    private string CardClass =>
+        "game-card"
+        + (IsPlaying ? " game-card-playing" : QueuePosition is not null ? " game-card-waiting" : "")
+        + (Leaving ? " game-card-leaving" : Entering ? " game-card-entering" : "");
+
+    private SideOutcome Outcome(bool isWhite)
+    {
+        if (!IsStarted || Game.Black is null) return SideOutcome.None;
+        bool? whiteWon = Game.Result switch
+        {
+            GameResult.WhiteWins or GameResult.WhiteWinsByForfeit => true,
+            GameResult.BlackWins or GameResult.BlackWinsByForfeit => false,
+            _ => null
+        };
+        return Game.Result switch
+        {
+            GameResult.Draw => SideOutcome.Draw,
+            _ when whiteWon is null => SideOutcome.None,
+            _ => whiteWon == isWhite ? SideOutcome.Won : SideOutcome.Lost
+        };
+    }
+
+    private RenderFragment Side(GamePlayerDto player, bool isWhite, SideOutcome outcome)
+    {
+        var info = Players.GetValueOrDefault(player.PlayerId);
+        var css = "game-side" + outcome switch
+        {
+            SideOutcome.Won => " winner",
+            SideOutcome.Lost => " loser",
+            _ => ""
+        };
+
+        return @<div class="@css">
+            <span class="game-side-color @(isWhite ? "white" : "black")">@(isWhite ? L["White"] : L["Black"])</span>
+            <div class="game-side-avatar">
+                <PlayerAvatar FirstName="@(info?.FirstName ?? player.Name)" LastName="@info?.LastName"
+                              PhotoUrl="@info?.PhotoUrl" Size="Size.Large" Class="game-card-avatar" />
+                @if (outcome == SideOutcome.Won)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Class="game-side-trophy" />
+                }
+            </div>
+            <div class="game-side-name">@player.Name</div>
+        </div>;
+    }
+}

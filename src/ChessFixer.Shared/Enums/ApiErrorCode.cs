@@ -13,9 +13,10 @@ public enum ApiErrorCode
 
     // 400
     TitleRequired,
-    NameRequired,
+    FirstNameRequired,
     InvalidSettings,
     InvalidResult,
+    InvalidPhoto,
 
     // 409
     TournamentClosed,
@@ -23,6 +24,8 @@ public enum ApiErrorCode
     SettingsLocked,
     PlayerAlreadyInTournament,
     PlayerNotInTournament,
+    PlayerInActiveGame,
+    PlayerInTournament,
     RoundRobinPlayersLocked,
     ResultNotEditable,
     NotEnoughPlayers,

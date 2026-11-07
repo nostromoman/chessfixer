@@ -45,7 +45,7 @@ public abstract class ApiTestBase : IAsyncLifetime
         var ids = new List<int>();
         for (var i = 1; i <= count; i++)
         {
-            var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest($"Speler {i}", 2000 - i * 10));
+            var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Speler", $"{i}", 2000 - i * 10));
             await PostAsync<TournamentDto>($"api/tournaments/{tournamentId}/players", new AddTournamentPlayerRequest(player.Id));
             ids.Add(player.Id);
         }
@@ -74,7 +74,7 @@ public abstract class ApiTestBase : IAsyncLifetime
     protected async Task<T> PostAsync<T>(string url, object? body) => await ReadAsync<T>(await Client.PostAsJsonAsync(url, body));
     protected async Task<T> PutAsync<T>(string url, object body) => await ReadAsync<T>(await Client.PutAsJsonAsync(url, body));
 
-    private static async Task<T> ReadAsync<T>(HttpResponseMessage response)
+    protected static async Task<T> ReadAsync<T>(HttpResponseMessage response)
     {
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"{(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");

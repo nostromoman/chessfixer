@@ -6,8 +6,23 @@ namespace ChessFixer.Server.Data;
 public class Player
 {
     public int Id { get; set; }
-    public required string Name { get; set; }
+    public required string FirstName { get; set; }
+    public string LastName { get; set; } = "";
+
+    /// <summary>Full name for display and sorting; computed by the database from first and last name.</summary>
+    public string Name { get; private set; } = "";
+
     public int? Rating { get; set; }
+    public DateOnly? BirthDate { get; set; }
+    public string? City { get; set; }
+    public string? Club { get; set; }
+
+    /// <summary>Profile photo (small, resized by the client). Null when the player has no photo.</summary>
+    public byte[]? Photo { get; set; }
+    public string? PhotoContentType { get; set; }
+
+    /// <summary>Incremented on every photo change, so clients can bust their image cache.</summary>
+    public int PhotoVersion { get; set; }
 }
 
 public class Tournament
@@ -23,6 +38,9 @@ public class Tournament
     public double PointsForDraw { get; set; } = 0.5;
     public double PointsForLoss { get; set; } = 0;
     public double PointsForBye { get; set; } = 1;
+
+    /// <summary>Number of boards (playing places). Games that do not fit wait in a queue for a free board.</summary>
+    public int Boards { get; set; } = 10;
 
     public List<TournamentPlayer> Players { get; set; } = [];
     public List<Round> Rounds { get; set; } = [];
@@ -59,7 +77,11 @@ public class Game
     public int Id { get; set; }
     public int RoundId { get; set; }
     public Round Round { get; set; } = null!;
-    public int Board { get; set; }
+    /// <summary>Order of the game in the pairing; queued games get a board in this order.</summary>
+    public int Number { get; set; }
+
+    /// <summary>The board the game is (or was) played on; null while waiting in the queue, and for a bye.</summary>
+    public int? Board { get; set; }
 
     public int WhiteId { get; set; }
     public TournamentPlayer White { get; set; } = null!;

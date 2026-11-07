@@ -1,0 +1,24 @@
+@* Profile photo of a player, or their initials when there is no photo. *@
+@if (PhotoUrl is not null)
+{
+    <MudAvatar Size="Size" Class="@Class">
+        <MudImage Src="@PhotoUrl" Alt="@($"{FirstName} {LastName}".Trim())" ObjectFit="ObjectFit.Cover" />
+    </MudAvatar>
+}
+else
+{
+    <MudAvatar Size="Size" Color="Color.Secondary" Class="@Class">@Initials</MudAvatar>
+}
+
+@code {
+    [Parameter] public string? FirstName { get; set; }
+    [Parameter] public string? LastName { get; set; }
+    [Parameter] public string? PhotoUrl { get; set; }
+    [Parameter] public Size Size { get; set; } = Size.Small;
+    [Parameter] public string? Class { get; set; }
+
+    private string Initials =>
+        string.Concat(new[] { FirstName, LastName }
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => char.ToUpperInvariant(n!.Trim()[0])));
+}

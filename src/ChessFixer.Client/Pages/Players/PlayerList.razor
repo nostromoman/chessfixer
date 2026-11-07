@@ -1,147 +1,114 @@
 @page "/players"
 @inject TournamentApi Api
 @inject ISnackbar Snackbar
+@inject IDialogService Dialogs
 @inject IStringLocalizer<Strings> L
 
-@* The central player list, shared by all tournaments. *@
+@* The central player list, shared by all tournaments. Players are created and edited in a drawer (PlayerEditDrawer). *@
 <PageTitle>@L["Players"]</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["Players"]</MudText>
 
-<MudGrid>
-    <MudItem xs="12" md="4">
-        <MudPaper Class="pa-4" Elevation="1">
-            <MudText Typo="Typo.h6" Class="mb-3">@L["NewPlayer"]</MudText>
-            <MudTextField @bind-Value="_newName" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
-                          OnKeyUp="OnNewPlayerKeyUp" Disabled="_busy" Class="mb-2" />
-            <MudNumericField T="int?" @bind-Value="_newRating" Label="@L["RatingOptional"]" Variant="Variant.Outlined"
-                             Min="0" HideSpinButtons="true" Disabled="_busy" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
-                       Class="mt-3" Disabled="@(string.IsNullOrWhiteSpace(_newName) || _busy)"
-                       OnClick="CreateAsync">@L["Create"]</MudButton>
-        </MudPaper>
-    </MudItem>
+<MudPaper Class="pa-4" Elevation="1">
+    <div class="d-flex align-center gap-4 mb-3">
+        <MudTextField @bind-Value="_filter" Placeholder="@L["Search"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Clearable="true" Style="max-width: 20em" />
+        <MudSpacer />
+        <MudTooltip Text="@L["NewPlayer"]">
+            <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                    aria-label="@L["NewPlayer"]" OnClick="OpenNew" />
+        </MudTooltip>
+    </div>
 
-    <MudItem xs="12" md="8">
-        <MudPaper Class="pa-4" Elevation="1">
-            <div class="d-flex align-center justify-space-between gap-4 mb-3">
-                <MudText Typo="Typo.h6">@L["Players"] (@(_players?.Count ?? 0))</MudText>
-                <MudTextField @bind-Value="_filter" Placeholder="@L["Search"]" Variant="Variant.Outlined" Margin="Margin.Dense"
-                              Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="max-width: 20em" />
-            </div>
+    @if (_players is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_players.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["NoPlayersInList"]</MudText>
+    }
+    else
+    {
+        <MudTable T="PlayerDto" Items="FilteredPlayers" Dense="true" Hover="true" Striped="true" Elevation="0">
+            <HeaderContent>
+                <MudTh Style="width: 3em"></MudTh>
+                <MudTh>
+                    <MudTableSortLabel T="PlayerDto" SortBy="p => p.FirstName" InitialDirection="SortDirection.Ascending">
+                        @L["FirstName"]
+                    </MudTableSortLabel>
+                </MudTh>
+                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.LastName">@L["LastName"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.City ?? string.Empty">@L["City"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.Club ?? string.Empty">@L["Club"]</MudTableSortLabel></MudTh>
+                <MudTh Style="text-align: right">
+                    <MudTableSortLabel T="PlayerDto" SortBy="p => p.Rating ?? -1">@L["Rating"]</MudTableSortLabel>
+                </MudTh>
+                <MudTh Style="width: 3em"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <PlayerAvatar FirstName="@context.FirstName" LastName="@context.LastName" PhotoUrl="@context.PhotoUrl" />
+                </MudTd>
+                <MudTd DataLabel="@L["FirstName"]">
+                    <MudLink OnClick="() => OpenEdit(context)">@context.FirstName</MudLink>
+                </MudTd>
+                <MudTd DataLabel="@L["LastName"]">
+                    <MudLink OnClick="() => OpenEdit(context)">@context.LastName</MudLink>
+                </MudTd>
+                <MudTd DataLabel="@L["City"]">@context.City</MudTd>
+                <MudTd DataLabel="@L["Club"]">@context.Club</MudTd>
+                <MudTd DataLabel="@L["Rating"]" Style="text-align: right">@context.Rating</MudTd>
+                <MudTd Style="text-align: right">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                   aria-label="@L["DeletePlayer"]" Disabled="_busy" OnClick="() => DeleteAsync(context)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
 
-            @if (_players is null)
-            {
-                <MudProgressLinear Indeterminate="true" />
-            }
-            else if (_players.Count == 0)
-            {
-                <MudText Typo="Typo.body2">@L["NoPlayersInList"]</MudText>
-            }
-            else
-            {
-                <MudSimpleTable Dense="true" Hover="true" Striped="true">
-                    <thead>
-                        <tr>
-                            <th>@L["Name"]</th>
-                            <th style="text-align: right">@L["Rating"]</th>
-                            <th style="width: 7em"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var player in FilteredPlayers)
-                        {
-                            @if (_editing?.Id == player.Id)
-                            {
-                                <tr>
-                                    <td>
-                                        <MudTextField @bind-Value="_editing.Name" Margin="Margin.Dense" Variant="Variant.Outlined"
-                                                      Immediate="true" OnKeyUp="OnEditKeyUp" AutoFocus="true" />
-                                    </td>
-                                    <td>
-                                        <MudNumericField T="int?" @bind-Value="_editing.Rating" Margin="Margin.Dense" Variant="Variant.Outlined"
-                                                         Min="0" HideSpinButtons="true" Style="text-align: right" />
-                                    </td>
-                                    <td style="text-align: right; white-space: nowrap">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success"
-                                                       aria-label="@L["Save"]" Disabled="_busy" OnClick="SaveEditAsync" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
-                                                       aria-label="@L["Cancel"]" OnClick="() => _editing = null" />
-                                    </td>
-                                </tr>
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td>@player.Name</td>
-                                    <td style="text-align: right">@player.Rating</td>
-                                    <td style="text-align: right">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
-                                                       aria-label="@L["Edit"]" OnClick="() => StartEdit(player)" />
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </MudSimpleTable>
-            }
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+<PlayerEditDrawer @ref="_editor" OnSaved="_ => ReloadAsync()" />
 
 @code {
     private List<PlayerDto>? _players;
     private string _filter = "";
-    private string _newName = "";
-    private int? _newRating;
-    private EditModel? _editing;
+    private PlayerEditDrawer? _editor;
     private bool _busy;
 
     private IEnumerable<PlayerDto> FilteredPlayers =>
         string.IsNullOrWhiteSpace(_filter)
             ? _players!
-            : _players!.Where(p => p.Name.Contains(_filter, StringComparison.CurrentCultureIgnoreCase));
+            : _players!.Where(p => Matches(p.Name) || Matches(p.City) || Matches(p.Club));
+
+    private bool Matches(string? text) => text?.Contains(_filter, StringComparison.CurrentCultureIgnoreCase) == true;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync() => _players = await Api.GetPlayersAsync();
 
-    private Task CreateAsync() => RunAsync(async () =>
+    private async Task ReloadAsync()
     {
-        var player = await Api.CreatePlayerAsync(_newName, _newRating);
-        Snackbar.Add(L["PlayerCreated", player.Name], Severity.Success);
-        _newName = "";
-        _newRating = null;
-    });
-
-    private void StartEdit(PlayerDto player) => _editing = new EditModel(player.Id) { Name = player.Name, Rating = player.Rating };
-
-    private Task SaveEditAsync() => RunAsync(async () =>
-    {
-        var player = await Api.UpdatePlayerAsync(_editing!.Id, _editing.Name, _editing.Rating);
-        Snackbar.Add(L["PlayerUpdated", player.Name], Severity.Success);
-        _editing = null;
-    });
-
-    private async Task OnNewPlayerKeyUp(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_newName)) await CreateAsync();
+        try { await LoadAsync(); }
+        catch (Exception) { /* keep showing the current list */ }
     }
 
-    private async Task OnEditKeyUp(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") await SaveEditAsync();
-        else if (e.Key == "Escape") _editing = null;
-    }
+    private void OpenNew() => _editor?.OpenNew();
 
-    private async Task RunAsync(Func<Task> action)
+    private void OpenEdit(PlayerDto player) => _editor?.OpenEdit(player);
+
+    private async Task DeleteAsync(PlayerDto player)
     {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            L["DeletePlayerTitle"], L["DeletePlayerText", player.Name], yesText: L["DeletePlayer"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
         _busy = true;
         try
         {
-            await action();
-            await LoadAsync();
+            await Api.DeletePlayerAsync(player.Id);
+            Snackbar.Add(L["PlayerDeleted", player.Name], Severity.Success);
         }
         catch (ApiClientException e)
         {
@@ -155,12 +122,7 @@
         {
             _busy = false;
         }
-    }
 
-    private sealed class EditModel(int id)
-    {
-        public int Id { get; } = id;
-        public string Name { get; set; } = "";
-        public int? Rating { get; set; }
+        await ReloadAsync();
     }
 }

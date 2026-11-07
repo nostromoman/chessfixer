@@ -60,28 +60,55 @@ public class TournamentApi(HttpClient http)
     public Task<List<PlayerDto>> GetPlayersAsync() =>
         SendAsync<List<PlayerDto>>(HttpMethod.Get, "api/players");
 
-    public Task<PlayerDto> CreatePlayerAsync(string name, int? rating) =>
-        SendAsync<PlayerDto>(HttpMethod.Post, "api/players", new CreatePlayerRequest(name, rating));
+    public Task<PlayerDto> CreatePlayerAsync(CreatePlayerRequest request) =>
+        SendAsync<PlayerDto>(HttpMethod.Post, "api/players", request);
 
-    public Task<PlayerDto> UpdatePlayerAsync(int id, string name, int? rating) =>
-        SendAsync<PlayerDto>(HttpMethod.Put, $"api/players/{id}", new UpdatePlayerRequest(name, rating));
+    public Task<PlayerDto> UpdatePlayerAsync(int id, UpdatePlayerRequest request) =>
+        SendAsync<PlayerDto>(HttpMethod.Put, $"api/players/{id}", request);
+
+    public Task DeletePlayerAsync(int id) =>
+        SendCoreAsync(HttpMethod.Delete, $"api/players/{id}");
+
+    public Task<PlayerDto> SetPlayerPhotoAsync(int id, byte[] image, string contentType)
+    {
+        var content = new ByteArrayContent(image);
+        content.Headers.ContentType = new(contentType);
+        return SendAsync<PlayerDto>(HttpMethod.Put, $"api/players/{id}/photo", content);
+    }
+
+    public Task<PlayerDto> DeletePlayerPhotoAsync(int id) =>
+        SendAsync<PlayerDto>(HttpMethod.Delete, $"api/players/{id}/photo");
 
     // ----- Plumbing -----
 
     private async Task<T> SendAsync<T>(HttpMethod method, string url, object? body = null)
     {
-        using var request = new HttpRequestMessage(method, url);
-        if (body is not null) request.Content = JsonContent.Create(body, body.GetType());
+        using var response = await SendCoreAsync(method, url, body);
+        return (await response.Content.ReadFromJsonAsync<T>())!;
+    }
 
-        using var response = await http.SendAsync(request);
+    /// <summary>Sends the request and throws <see cref="ApiClientException"/> when it fails.
+    /// The body is sent as JSON, unless it is already <see cref="HttpContent"/>.</summary>
+    private async Task<HttpResponseMessage> SendCoreAsync(HttpMethod method, string url, object? body = null)
+    {
+        using var request = new HttpRequestMessage(method, url);
+        request.Content = body switch
+        {
+            null => null,
+            HttpContent content => content,
+            _ => JsonContent.Create(body, body.GetType())
+        };
+
+        var response = await http.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
             ApiError? error = null;
             try { error = await response.Content.ReadFromJsonAsync<ApiError>(); }
             catch { /* no ApiError body */ }
+            response.Dispose();
             throw new ApiClientException(error?.Code, $"{method} {url} failed with {(int)response.StatusCode}");
         }
 
-        return (await response.Content.ReadFromJsonAsync<T>())!;
+        return response;
     }
 }

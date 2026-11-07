@@ -16,7 +16,7 @@ namespace ChessFixer.Server.Services;
 /// All tournament rules. Stateless: every call loads the tournament from the database.
 /// <para>
 /// While a tournament is New or WaitingForNextRound, the next round is already paired and stored
-/// as a round without StartedAt (the "pending round"), so the dashboard can show it. Every change
+/// as a round without StartedAt (the "pending round"), so the Matches tab can show it. Every change
 /// that can affect the pairing (players, results, settings) re-pairs the pending round.
 /// </para>
 /// </summary>
@@ -54,8 +54,9 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
             .Select(r => new RoundDto(
                 r.Number,
                 r.StartedAt is not null,
-                r.Games.OrderBy(g => g.Board).Select(g => new GameDto(
+                r.Games.OrderBy(g => g.Number).Select(g => new GameDto(
                     g.Id,
+                    g.Number,
                     g.Board,
                     new GamePlayerDto(g.White.PlayerId, g.White.Player.Name),
                     g.Black is null ? null : new GamePlayerDto(g.Black.PlayerId, g.Black.Player.Name),
@@ -102,14 +103,26 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
 
             var title = request.Title.Trim();
             var settings = request.Settings;
-            if (title == tournament.Title && settings == SettingsOf(tournament)) return;
+            var current = SettingsOf(tournament);
+            if (title == tournament.Title && settings == current) return;
 
-            // Once round 1 has started nothing can change, not even the title.
-            if (IsSettingsLocked(tournament)) throw new ApiException(ApiErrorCode.SettingsLocked);
+            // Settings can change between rounds, not during a round or after closing.
+            if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
+            if (tournament.State == TournamentState.RoundActive) throw new ApiException(ApiErrorCode.RoundInProgress);
+
+            // Once round 1 has started, only the title, time control and boards can change.
+            var onlyFreeSettingsChanged = settings with
+            {
+                GameTimeMinutes = current.GameTimeMinutes,
+                IncrementSeconds = current.IncrementSeconds,
+                Boards = current.Boards
+            } == current;
+            if (IsSettingsLocked(tournament) && !onlyFreeSettingsChanged)
+                throw new ApiException(ApiErrorCode.SettingsLocked);
 
             tournament.Title = title;
-            if (settings == SettingsOf(tournament)) return;
-            if (settings.GameTimeMinutes <= 0 || settings.IncrementSeconds < 0
+            if (settings == current) return;
+            if (settings.GameTimeMinutes <= 0 || settings.IncrementSeconds < 0 || settings.Boards < 1
                 || settings.PointsForWin < 0 || settings.PointsForDraw < 0
                 || settings.PointsForLoss < 0 || settings.PointsForBye < 0
                 || !Enum.IsDefined(settings.PairingSystem))
@@ -122,6 +135,7 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
             tournament.PointsForDraw = settings.PointsForDraw;
             tournament.PointsForLoss = settings.PointsForLoss;
             tournament.PointsForBye = settings.PointsForBye;
+            tournament.Boards = settings.Boards;
 
             await RefreshPendingRoundAsync(tournament);
         });
@@ -153,6 +167,12 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
             EnsurePlayersCanChange(tournament);
             var participant = tournament.Players.SingleOrDefault(p => p.PlayerId == playerId && p.IsActive)
                               ?? throw new ApiException(ApiErrorCode.PlayerNotInTournament);
+
+            // A player cannot withdraw in the middle of a game (playing or waiting for a board).
+            var inUnfinishedGame = tournament.State == TournamentState.RoundActive
+                && StartedRounds(tournament).Last().Games.Any(g =>
+                    g.Result == GameResult.NotPlayed && (g.WhiteId == participant.Id || g.BlackId == participant.Id));
+            if (inUnfinishedGame) throw new ApiException(ApiErrorCode.PlayerInActiveGame);
 
             await RemovePendingRoundAsync(tournament);
 
@@ -198,8 +218,19 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
             if (game.BlackId is null) throw new ApiException(ApiErrorCode.ResultNotEditable);
             if (result == GameResult.Bye || !Enum.IsDefined(result)) throw new ApiException(ApiErrorCode.InvalidResult);
 
+            // A game in the queue has not started yet: it has no result.
+            if (game.Board is null) throw new ApiException(ApiErrorCode.ResultNotEditable);
+
             if (game.Result == result) return;
             game.Result = result;
+
+            // A reopened game whose board has been taken by the next game goes back into the queue.
+            if (result == GameResult.NotPlayed
+                && lastStarted.Games.Any(g => g != game && g.Board == game.Board && g.Result == GameResult.NotPlayed))
+                game.Board = null;
+
+            // A finished game frees its board for the next game in the queue.
+            AssignBoards(lastStarted, tournament.Boards);
 
             if (lastStarted.Games.All(g => g.Result != GameResult.NotPlayed))
             {
@@ -254,13 +285,13 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
         await hub.Clients.All.SendAsync(TournamentHubContract.TournamentListChanged);
     }
 
+    /// <summary>
+    /// Players can join or withdraw at any time, also during a round: a late joiner waits for the next
+    /// round; a player who withdraws keeps their current game, which still needs a result.
+    /// </summary>
     private static void EnsurePlayersCanChange(Tournament tournament)
     {
-        switch (tournament.State)
-        {
-            case TournamentState.Closed: throw new ApiException(ApiErrorCode.TournamentClosed);
-            case TournamentState.RoundActive: throw new ApiException(ApiErrorCode.RoundInProgress);
-        }
+        if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
 
         if (tournament.PairingSystem == PairingSystem.RoundRobin && StartedRounds(tournament).Any())
             throw new ApiException(ApiErrorCode.RoundRobinPlayersLocked);
@@ -306,14 +337,33 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
         var round = new Round { Number = StartedRounds(tournament).Count() + 1 };
         round.Games.AddRange(pairings.Select(p => new Game
         {
-            Board = p.Board,
+            Number = p.Board,
             White = participants[p.WhiteId],
             Black = p.BlackId is { } blackId ? participants[blackId] : null,
             Result = p.IsBye ? GameResult.Bye : GameResult.NotPlayed
         }));
+        AssignBoards(round, tournament.Boards);
         tournament.Rounds.Add(round);
         await db.SaveChangesAsync();
         return round;
+    }
+
+    /// <summary>
+    /// Gives the games waiting in the queue (in pairing order) the free boards, lowest board first.
+    /// A board is free when no unfinished game is on it. Finished games keep their board.
+    /// </summary>
+    private static void AssignBoards(Round round, int boards)
+    {
+        var unfinished = round.Games.Where(g => g.Result == GameResult.NotPlayed).ToList();
+        var occupied = unfinished.Where(g => g.Board is not null).Select(g => g.Board!.Value).ToHashSet();
+        var freeBoards = Enumerable.Range(1, boards).Where(b => !occupied.Contains(b));
+
+        using var free = freeBoards.GetEnumerator();
+        foreach (var game in unfinished.Where(g => g.Board is null).OrderBy(g => g.Number))
+        {
+            if (!free.MoveNext()) break;
+            game.Board = free.Current;
+        }
     }
 
     private static ApiErrorCode ToErrorCode(PairingError error) => error switch
@@ -330,6 +380,7 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
     private static IEnumerable<Round> StartedRounds(Tournament tournament) =>
         tournament.Rounds.Where(r => r.StartedAt is not null).OrderBy(r => r.Number);
 
+    /// <summary>After round 1 the pairing system and the points are fixed.</summary>
     private static bool IsSettingsLocked(Tournament tournament) => StartedRounds(tournament).Any();
 
     private static List<PlayedGame> PlayedGames(Tournament tournament) =>
@@ -342,7 +393,7 @@ public class TournamentService(ChessFixerDbContext db, IHubContext<TournamentHub
 
     private static TournamentSettingsDto SettingsOf(Tournament t) => new(
         t.PairingSystem, t.GameTimeMinutes, t.IncrementSeconds,
-        t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye);
+        t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye, t.Boards);
 
     private static TournamentDto ToDto(Tournament t) => new(
         t.Id,

@@ -13,7 +13,17 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Player>().Property(p => p.Name).HasMaxLength(100);
+        modelBuilder.Entity<Player>(player =>
+        {
+            player.Property(p => p.FirstName).HasMaxLength(50);
+            player.Property(p => p.LastName).HasMaxLength(50);
+            player.Property(p => p.City).HasMaxLength(100);
+            player.Property(p => p.Club).HasMaxLength(100);
+            player.Property(p => p.PhotoContentType).HasMaxLength(50);
+            player.Property(p => p.Name)
+                .HasMaxLength(101)
+                .HasComputedColumnSql("trim(\"FirstName\" || ' ' || \"LastName\")", stored: true);
+        });
         modelBuilder.Entity<Tournament>().Property(t => t.Title).HasMaxLength(200);
 
         modelBuilder.Entity<TournamentPlayer>()

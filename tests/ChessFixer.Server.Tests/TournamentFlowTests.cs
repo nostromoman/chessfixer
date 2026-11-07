@@ -50,7 +50,7 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task SettingsAndTitle_AreLockedAfterRound1()
+    public async Task Settings_CannotChangeDuringARound()
     {
         var id = await CreateTournamentAsync();
         await AddNewPlayersAsync(id, 2);
@@ -58,18 +58,79 @@ public class TournamentFlowTests : ApiTestBase
 
         await AssertErrorAsync(
             await Client.PutAsJsonAsync($"api/tournaments/{id}",
-                new UpdateTournamentRequest("Test", tournament.Settings with { GameTimeMinutes = 25 })),
-            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
-
-        await AssertErrorAsync(
-            await Client.PutAsJsonAsync($"api/tournaments/{id}",
                 new UpdateTournamentRequest("Nieuwe titel", tournament.Settings)),
-            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+            HttpStatusCode.Conflict, ApiErrorCode.RoundInProgress);
 
         // Saving unchanged values is harmless.
         tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}",
             new UpdateTournamentRequest("Test", tournament.Settings));
         Assert.Equal("Test", tournament.Title);
+    }
+
+    [Fact]
+    public async Task BetweenRounds_OnlyTitleTimeControlAndBoardsCanChange()
+    {
+        var id = await CreateTournamentAsync();
+        await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+        var tournament = await FinishActiveRoundAsync(id);
+        Assert.True(tournament.SettingsLocked);
+
+        tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}", new UpdateTournamentRequest("Nieuwe titel",
+            tournament.Settings with { GameTimeMinutes = 25, IncrementSeconds = 0, Boards = 1 }));
+        Assert.Equal("Nieuwe titel", tournament.Title);
+        Assert.Equal(new[] { 25, 0, 1 }, new[] { tournament.Settings.GameTimeMinutes, tournament.Settings.IncrementSeconds, tournament.Settings.Boards });
+
+        // The pending round is re-paired with the new number of boards.
+        var round2 = (await GetRoundsAsync(id))[1];
+        Assert.Equal(new int?[] { 1, null }, round2.Games.Select(g => g.Board).ToArray());
+
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}",
+                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { PointsForWin = 3 })),
+            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}",
+                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { PairingSystem = PairingSystem.RoundRobin })),
+            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}",
+                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { Boards = 0 })),
+            HttpStatusCode.BadRequest, ApiErrorCode.InvalidSettings);
+    }
+
+    [Fact]
+    public async Task Boards_GamesThatDoNotFitWaitInTheQueue()
+    {
+        var id = await CreateTournamentAsync();
+        var tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}",
+            new UpdateTournamentRequest("Test", (await GetTournamentAsync(id)).Settings with { Boards = 2 }));
+        await AddNewPlayersAsync(id, 7);
+        await StartRoundAsync(id);
+
+        // 3 games + bye: games 1 and 2 on a board, game 3 in the queue, the bye without a board.
+        var games = (await GetRoundsAsync(id))[0].Games;
+        Assert.Equal(new int?[] { 1, 2, null, null }, games.Select(g => g.Board).ToArray());
+        Assert.Equal(GameResult.Bye, games[3].Result);
+
+        // A queued game has not started: no result yet.
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}/games/{games[2].Id}/result", new SetResultRequest(GameResult.Draw)),
+            HttpStatusCode.Conflict, ApiErrorCode.ResultNotEditable);
+
+        // Board 2 is free: the queued game moves there.
+        await SetResultAsync(id, games[1].Id, GameResult.Draw);
+        games = (await GetRoundsAsync(id))[0].Games;
+        Assert.Equal(new int?[] { 1, 2, 2, null }, games.Select(g => g.Board).ToArray());
+
+        // Reopening game 2: its board is taken, so it waits in the queue for the next free board.
+        await SetResultAsync(id, games[1].Id, GameResult.NotPlayed);
+        games = (await GetRoundsAsync(id))[0].Games;
+        Assert.Equal(new int?[] { 1, null, 2, null }, games.Select(g => g.Board).ToArray());
+
+        await SetResultAsync(id, games[0].Id, GameResult.WhiteWins);
+        games = (await GetRoundsAsync(id))[0].Games;
+        Assert.Equal(new int?[] { 1, 1, 2, null }, games.Select(g => g.Board).ToArray());
     }
 
     [Fact]
@@ -97,19 +158,36 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task Players_CannotChangeDuringARound()
+    public async Task Players_CanJoinAndWithdrawDuringARound()
     {
         var id = await CreateTournamentAsync();
-        var players = await AddNewPlayersAsync(id, 2);
+        var players = await AddNewPlayersAsync(id, 4);
         await StartRoundAsync(id);
-        var newPlayer = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null));
+        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
 
-        await AssertErrorAsync(
-            await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(newPlayer.Id)),
-            HttpStatusCode.Conflict, ApiErrorCode.RoundInProgress);
+        // The late joiner waits: the active round does not change.
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id));
+        var rounds = await GetRoundsAsync(id);
+        Assert.Single(rounds);
+        Assert.Equal(2, rounds[0].Games.Count);
+
+        // A player cannot withdraw while their game is still being played.
         await AssertErrorAsync(
             await Client.DeleteAsync($"api/tournaments/{id}/players/{players[0]}"),
-            HttpStatusCode.Conflict, ApiErrorCode.RoundInProgress);
+            HttpStatusCode.Conflict, ApiErrorCode.PlayerInActiveGame);
+
+        // Once their game is finished they can, even though the round is still active.
+        var game = rounds[0].Games.Single(g => g.White.PlayerId == players[0] || g.Black?.PlayerId == players[0]);
+        var tournament = await SetResultAsync(id, game.Id, GameResult.Draw);
+        Assert.Equal(TournamentState.RoundActive, tournament.State);
+        Assert.Equal(HttpStatusCode.OK, (await Client.DeleteAsync($"api/tournaments/{id}/players/{players[0]}")).StatusCode);
+        Assert.Equal(2, (await GetRoundsAsync(id))[0].Games.Count);
+
+        await FinishActiveRoundAsync(id);
+        var round2 = (await GetRoundsAsync(id))[1];
+        var paired = round2.Games.SelectMany(g => new[] { g.White.PlayerId, g.Black?.PlayerId }).ToList();
+        Assert.Contains(late.Id, paired);
+        Assert.DoesNotContain(players[0], paired);
     }
 
     [Fact]
@@ -121,7 +199,7 @@ public class TournamentFlowTests : ApiTestBase
         await FinishActiveRoundAsync(id);
         Assert.Equal(2, (await GetRoundsAsync(id))[1].Games.Count);
 
-        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null));
+        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
         await PostAsync<TournamentDto>($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id));
 
         var round2 = (await GetRoundsAsync(id))[1];
@@ -210,7 +288,7 @@ public class TournamentFlowTests : ApiTestBase
         var tournament = await StartRoundAsync(id);
         Assert.Equal(3, tournament.TotalRounds);
 
-        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null));
+        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
         await FinishActiveRoundAsync(id);
         await AssertErrorAsync(
             await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id)),

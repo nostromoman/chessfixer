@@ -5,7 +5,8 @@ namespace ChessFixer.Shared.Dtos;
 public record TournamentSummaryDto(int Id, string Title, TournamentState State, int PlayerCount, int RoundCount);
 
 /// <param name="RoundsStarted">Number of rounds that have started (including the active one).</param>
-/// <param name="SettingsLocked">True once round 1 has started; from then on title and settings cannot change.</param>
+/// <param name="SettingsLocked">True once round 1 has started; from then on the pairing system and the points cannot change.
+/// Title, time control and boards can still change between rounds.</param>
 /// <param name="TotalRounds">Round robin only: the number of rounds needed for everyone to play everyone.</param>
 public record TournamentDto(
     int Id,
@@ -23,7 +24,8 @@ public record TournamentSettingsDto(
     double PointsForWin,
     double PointsForDraw,
     double PointsForLoss,
-    double PointsForBye);
+    double PointsForBye,
+    int Boards);
 
 public record CreateTournamentRequest(string Title);
 
@@ -37,8 +39,10 @@ public record AddTournamentPlayerRequest(int PlayerId);
 /// <param name="IsStarted">False for the next round that is paired but not started yet.</param>
 public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games);
 
+/// <param name="Number">Order of the game in the pairing; queued games get a board in this order.</param>
+/// <param name="Board">The board the game is (or was) played on; null while it waits in the queue, and for a bye.</param>
 /// <param name="Black">Null when White has a bye.</param>
-public record GameDto(int Id, int Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result);
+public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result);
 
 public record GamePlayerDto(int PlayerId, string Name);
 

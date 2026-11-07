@@ -13,7 +13,8 @@ public sealed class ApiException(ApiErrorCode code) : Exception(code.ToString())
     {
         ApiErrorCode.TournamentNotFound or ApiErrorCode.PlayerNotFound or ApiErrorCode.GameNotFound
             => StatusCodes.Status404NotFound,
-        ApiErrorCode.TitleRequired or ApiErrorCode.NameRequired or ApiErrorCode.InvalidSettings or ApiErrorCode.InvalidResult
+        ApiErrorCode.TitleRequired or ApiErrorCode.FirstNameRequired or ApiErrorCode.InvalidSettings or ApiErrorCode.InvalidResult
+            or ApiErrorCode.InvalidPhoto
             => StatusCodes.Status400BadRequest,
         _ => StatusCodes.Status409Conflict
     };

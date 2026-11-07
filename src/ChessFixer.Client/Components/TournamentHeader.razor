@@ -1,7 +1,7 @@
 @inject IStringLocalizer<Strings> L
 
-@* Title, state and navigation between the pages of one tournament. *@
-<div class="d-flex flex-wrap align-center justify-space-between gap-4 mb-4">
+@* Title and state of a tournament, with a gear button that opens the settings. *@
+<div class="d-flex align-start justify-space-between gap-4 mb-4">
     <div>
         <MudText Typo="Typo.h4">@Tournament.Title</MudText>
         <div class="d-flex flex-wrap align-center gap-3 mt-1">
@@ -18,26 +18,18 @@
             }
             <MudText Typo="Typo.body1" Class="mud-text-secondary">
                 @L[$"PairingSystem_{Tournament.Settings.PairingSystem}"] ·
-                @L["TimeControl", Tournament.Settings.GameTimeMinutes, Tournament.Settings.IncrementSeconds]
+                @L["TimeControl", Tournament.Settings.GameTimeMinutes, Tournament.Settings.IncrementSeconds] ·
+                @L["BoardsCount", Tournament.Settings.Boards]
             </MudText>
         </div>
     </div>
 
-    <div class="d-flex gap-2">
-        <MudButton Href="@($"tournament/{Tournament.Id}")" StartIcon="@Icons.Material.Filled.Settings"
-                   Variant="@VariantFor(Page.Management)" Color="Color.Primary">@L["Management"]</MudButton>
-        <MudButton Href="@($"tournament/{Tournament.Id}/players")" StartIcon="@Icons.Material.Filled.People"
-                   Variant="@VariantFor(Page.Players)" Color="Color.Primary">@L["Players"]</MudButton>
-        <MudButton Href="@($"tournament/{Tournament.Id}/dashboard")" StartIcon="@Icons.Material.Filled.Tv"
-                   Variant="@VariantFor(Page.Dashboard)" Color="Color.Primary">@L["Dashboard"]</MudButton>
-    </div>
+    <MudTooltip Text="@L["Settings"]">
+        <MudIconButton Icon="@Icons.Material.Filled.Settings" aria-label="@L["Settings"]" OnClick="OnOpenSettings" />
+    </MudTooltip>
 </div>
 
 @code {
-    public enum Page { Management, Players, Dashboard }
-
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
-    [Parameter] public Page Current { get; set; }
-
-    private Variant VariantFor(Page page) => page == Current ? Variant.Filled : Variant.Text;
+    [Parameter] public EventCallback OnOpenSettings { get; set; }
 }

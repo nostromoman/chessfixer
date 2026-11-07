@@ -1,9 +1,10 @@
 @inject IStringLocalizer<Strings> L
 
-@* Shows the result of a game and, when editable, lets the user enter or change it. *@
+@* Shows the result of a game and, when editable, lets the user enter or change it.
+   A forfeit ("regl.") is not offered when entering a result, only when changing one (edit menu). *@
 @if (Game.Black is null)
 {
-    @* Bye: the black column already says "vrij". *@
+    @* Bye: there is no result to enter. *@
 }
 else if (!Editable)
 {
@@ -17,16 +18,15 @@ else if (Game.Result == GameResult.NotPlayed)
             <MudButton Disabled="Disabled" OnClick="() => OnResult.InvokeAsync(GameResult.Draw)">@L["Result_Draw"]</MudButton>
             <MudButton Disabled="Disabled" OnClick="() => OnResult.InvokeAsync(GameResult.BlackWins)">@L["Result_BlackWins"]</MudButton>
         </MudButtonGroup>
-        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Disabled="Disabled" AriaLabel="@L["Forfeit"]">
-            <MudMenuItem OnClick="() => OnResult.InvokeAsync(GameResult.WhiteWinsByForfeit)">@L["Result_WhiteWinsByForfeit"]</MudMenuItem>
-            <MudMenuItem OnClick="() => OnResult.InvokeAsync(GameResult.BlackWinsByForfeit)">@L["Result_BlackWinsByForfeit"]</MudMenuItem>
-        </MudMenu>
     </div>
 }
 else
 {
     <div class="d-flex align-center justify-center">
-        <MudText Typo="Typo.body1"><b>@L[$"Result_{Game.Result}"]</b></MudText>
+        @if (ShowResult)
+        {
+            <MudText Typo="Typo.body1"><b>@L[$"Result_{Game.Result}"]</b></MudText>
+        }
         <MudMenu Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Disabled="Disabled" AriaLabel="@L["ChangeResult"]">
             @foreach (var result in ChangeableResults)
             {
@@ -48,6 +48,10 @@ else
     [Parameter, EditorRequired] public GameDto Game { get; set; } = null!;
     [Parameter] public bool Editable { get; set; }
     [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>False when the result is already shown elsewhere: then only the edit menu is shown.</summary>
+    [Parameter] public bool ShowResult { get; set; } = true;
+
     [Parameter] public EventCallback<GameResult> OnResult { get; set; }
 
     private IEnumerable<GameResult> ChangeableResults => AllResults.Where(r => r != Game.Result);
