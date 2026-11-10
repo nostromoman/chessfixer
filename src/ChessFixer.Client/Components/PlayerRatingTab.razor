@@ -1,0 +1,197 @@
+@using System.Globalization
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* Rating of one player in the player drawer: the current rating, a line chart of the rating over the rated
+   games, and the change per game (newest first). *@
+@if (_failed)
+{
+    <MudAlert Severity="Severity.Error" Dense="true">@L["StatsLoadFailed"]</MudAlert>
+}
+else if (_rating is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <div class="player-stats-totals mb-2">
+        <div class="player-stats-tile">
+            <div class="player-stats-value">@_rating.Rating</div>
+            <div class="player-stats-label">@L["RatingCurrent"]</div>
+        </div>
+        <div class="player-stats-tile">
+            <div class="player-stats-value">@_rating.RatedGames</div>
+            <div class="player-stats-label">@L["RatingGames"]</div>
+        </div>
+    </div>
+    @if (_rating.RatedGames < NewPlayerGames)
+    {
+        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-4">@L["RatingProvisional"]</MudText>
+    }
+
+    @if (_rating.History.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="mt-4">@L["RatingNoGames"]</MudText>
+    }
+    else
+    {
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">@L["RatingHistory"]</MudText>
+        @RatingChart
+
+        <MudSimpleTable Dense="true" Hover="true" Elevation="0" Class="mt-4">
+            <thead>
+                <tr>
+                    <th>@L["Date"]</th>
+                    <th>@L["StatsTournament"]</th>
+                    <th style="text-align: right">@L["StatsRound"]</th>
+                    <th>@L["StatsOpponent"]</th>
+                    <th>@L["Result"]</th>
+                    <th style="text-align: right">@L["RatingChange"]</th>
+                    <th style="text-align: right">@L["RatingAfter"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var change in _rating.History.Reverse())
+                {
+                    <tr>
+                        <td style="white-space: nowrap">@change.Date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)</td>
+                        <td>@change.TournamentTitle</td>
+                        <td style="text-align: right">@change.Round</td>
+                        <td><PlayerName Name="@change.Opponent.Name" IsDeleted="change.Opponent.IsDeleted" /> <span class="mud-text-secondary">(@change.OpponentRating)</span></td>
+                        <td><span class="@Display.OutcomeClass(change.Result, change.IsWhite)">@L[$"Result_{change.Result}"]</span></td>
+                        <td style="text-align: right" class="@ChangeClass(change.Change)">@SignedChange(change.Change)</td>
+                        <td style="text-align: right">@change.RatingAfter</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+}
+
+@code {
+    private const int NewPlayerGames = 30;
+
+    // Chart geometry in SVG user units; the SVG scales to the width of the drawer.
+    private const double Width = 640, Height = 220;
+    private const double PlotLeft = 44, PlotRight = 12, PlotTop = 12, PlotBottom = 24;
+
+    [Parameter, EditorRequired] public int PlayerId { get; set; }
+
+    private PlayerRatingDto? _rating;
+    private bool _failed;
+
+    /// <summary>Index of the point under the mouse (0 = rating before the first game), or null.</summary>
+    private int? _hover;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _rating = await Api.GetPlayerRatingAsync(PlayerId); }
+        catch (Exception) { _failed = true; }
+    }
+
+    private static string SignedChange(int change) => change > 0 ? $"+{change}" : change.ToString(CultureInfo.CurrentCulture);
+
+    private static string? ChangeClass(int change) => change > 0 ? "outcome-win" : change < 0 ? "outcome-loss" : null;
+
+    /// <summary>The rating before the first game, then the rating after every game.</summary>
+    private List<int> Points() =>
+        [_rating!.History[0].RatingBefore, .. _rating.History.Select(h => h.RatingAfter)];
+
+    private RenderFragment RatingChart => __builder =>
+    {
+        var points = Points();
+        var (min, max, step) = Scale(points.Min(), points.Max());
+        var plotWidth = Width - PlotLeft - PlotRight;
+        var plotHeight = Height - PlotTop - PlotBottom;
+        double X(int i) => PlotLeft + (points.Count == 1 ? plotWidth / 2 : plotWidth * i / (points.Count - 1));
+        double Y(int rating) => PlotTop + plotHeight * (max - rating) / (max - min);
+        string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+
+        var line = string.Join(" ", points.Select((r, i) => $"{F(X(i))},{F(Y(r))}"));
+        var showMarkers = points.Count <= 40;
+        var bandWidth = points.Count == 1 ? plotWidth : plotWidth / (points.Count - 1);
+
+        <div class="rating-chart" @onmouseleave="() => _hover = null">
+            <svg viewBox="0 0 @F(Width) @F(Height)" role="img"
+                 aria-label="@L["RatingChartLabel", points[0], points[^1]]">
+                @for (var tick = min; tick <= max; tick += step)
+                {
+                    @* Wrapped in <g>: Razor treats a bare <text> in a code block as its own pseudo-tag. *@
+                    <g>
+                        <line class="rating-chart-grid" x1="@F(PlotLeft)" x2="@F(Width - PlotRight)" y1="@F(Y(tick))" y2="@F(Y(tick))" />
+                        <text class="rating-chart-axis" x="@F(PlotLeft - 8)" y="@F(Y(tick))" text-anchor="end" dominant-baseline="middle">@tick</text>
+                    </g>
+                }
+
+                @if (_hover is { } hover)
+                {
+                    <line class="rating-chart-crosshair" x1="@F(X(hover))" x2="@F(X(hover))" y1="@F(PlotTop)" y2="@F(Height - PlotBottom)" />
+                }
+
+                <polyline class="rating-chart-line" points="@line" />
+
+                @for (var i = 0; i < points.Count; i++)
+                {
+                    var hovered = _hover == i;
+                    if (showMarkers || hovered)
+                    {
+                        <circle class="rating-chart-marker" cx="@F(X(i))" cy="@F(Y(points[i]))" r="@(hovered ? "6" : "4")" />
+                    }
+                }
+
+                @* Hit targets: a full-height band per point, much wider than the marker. *@
+                @for (var i = 0; i < points.Count; i++)
+                {
+                    var index = i;
+                    <rect class="rating-chart-hit" x="@F(X(i) - bandWidth / 2)" y="0" width="@F(bandWidth)" height="@F(Height)"
+                          @onmouseenter="() => _hover = index" />
+                }
+
+                <text class="rating-chart-axis" x="@F(X(0))" y="@F(Height - 6)" text-anchor="start">@L["RatingStart"]</text>
+                @if (points.Count > 1)
+                {
+                    <g>
+                        <text class="rating-chart-axis" x="@F(X(points.Count - 1))" y="@F(Height - 6)" text-anchor="end">
+                            @_rating!.History[^1].Date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)
+                        </text>
+                    </g>
+                }
+            </svg>
+
+            @if (_hover is { } shown)
+            {
+                var left = X(shown) / Width * 100;
+                <div class="rating-chart-tooltip" style="left: @F(left)%; top: @F(Y(points[shown]) / Height * 100)%;
+                         transform: translate(@(left > 60 ? "calc(-100% - 12px)" : "12px"), -50%)">
+                    <div class="rating-chart-tooltip-value">@points[shown]</div>
+                    @if (shown == 0)
+                    {
+                        <div>@L["RatingStart"]</div>
+                    }
+                    else
+                    {
+                        var change = _rating!.History[shown - 1];
+                        <div>
+                            <span class="@ChangeClass(change.Change)">@SignedChange(change.Change)</span>
+                            · @L[$"Result_{change.Result}"] · <PlayerName Name="@change.Opponent.Name" IsDeleted="change.Opponent.IsDeleted" />
+                        </div>
+                        <div class="mud-text-secondary">
+                            @change.TournamentTitle, @L["Round", change.Round] · @change.Date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    };
+
+    /// <summary>Axis range rounded to a nice step (10, 20, 25, 50, 100 ...), with some room around the data.</summary>
+    private static (int Min, int Max, int Step) Scale(int low, int high)
+    {
+        var span = Math.Max(high - low, 20);
+        int[] steps = [5, 10, 20, 25, 50, 100, 200, 250, 500];
+        var step = steps.FirstOrDefault(s => span / s <= 4, 1000);
+        var min = (int)Math.Floor((low - step / 2.0) / step) * step;
+        var max = (int)Math.Ceiling((high + step / 2.0) / step) * step;
+        return (min, max, step);
+    }
+}

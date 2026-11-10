@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ChessFixer.Shared.Dtos;
+using ChessFixer.Shared.Enums;
 
 namespace ChessFixer.Server.Tests;
 
@@ -63,21 +64,89 @@ public class PlayerTests : ApiTestBase
     }
 
     [Fact]
-    public async Task Delete_RemovesPlayer()
+    public async Task Delete_RemovesPlayerFromList_ButKeepsIt()
     {
         var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Magnus", null, null));
         Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/players/{player.Id}")).StatusCode);
+
         Assert.Empty(await GetAsync<List<PlayerDto>>("api/players"));
+        var deleted = Assert.Single(await GetAsync<List<PlayerDto>>("api/players?includeDeleted=true"));
+        Assert.True(deleted.IsDeleted);
     }
 
     [Fact]
-    public async Task Delete_PlayerInTournament_IsRejected()
+    public async Task Delete_PlayerInTournament_StaysInTournament_ButCannotJoinAgain()
     {
         var tournamentId = await CreateTournamentAsync();
-        var playerId = (await AddNewPlayersAsync(tournamentId, 1)).Single();
+        var playerIds = await AddNewPlayersAsync(tournamentId, 2);
+        await StartRoundAsync(tournamentId);
+        await FinishActiveRoundAsync(tournamentId);
+        var deletedId = playerIds[0];
 
-        var response = await Client.DeleteAsync($"api/players/{playerId}");
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/players/{deletedId}")).StatusCode);
+
+        Assert.DoesNotContain(await GetAsync<List<PlayerDto>>("api/players"), p => p.Id == deletedId);
+        // Still in the tournament, marked as deleted so the client can show "(verwijderd)".
+        Assert.True((await GetStandingsAsync(tournamentId)).Single(s => s.PlayerId == deletedId).IsDeleted);
+        Assert.False((await GetStandingsAsync(tournamentId)).Single(s => s.PlayerId == playerIds[1]).IsDeleted);
+        Assert.True((await GetAsync<List<TournamentPlayerDto>>($"api/tournaments/{tournamentId}/players"))
+            .Single(p => p.PlayerId == deletedId).IsDeleted);
+        var game = (await GetRoundsAsync(tournamentId)).First(r => r.IsStarted).Games.Single(g => g.Black is not null);
+        var deletedSide = game.White.PlayerId == deletedId ? game.White : game.Black!;
+        Assert.True(deletedSide.IsDeleted);
+        var opponent = (await GetAsync<PlayerStatisticsDto>($"api/players/{playerIds[1]}/statistics")).Games.Single().Opponent!;
+        Assert.True(opponent.IsDeleted);
+
+        var otherTournamentId = await CreateTournamentAsync();
+        await AssertErrorAsync(
+            await Client.PostAsJsonAsync($"api/tournaments/{otherTournamentId}/players", new AddTournamentPlayerRequest(deletedId)),
+            HttpStatusCode.NotFound, ApiErrorCode.PlayerNotFound);
+    }
+
+    [Fact]
+    public async Task Statistics_ShowTournamentResultsAndGames()
+    {
+        var tournamentId = await CreateTournamentAsync(PairingSystem.RoundRobin);
+        var playerIds = await AddNewPlayersAsync(tournamentId, 3);
+        await StartRoundAsync(tournamentId);
+        var round = (await GetRoundsAsync(tournamentId)).Single(r => r.IsStarted);
+        await FinishActiveRoundAsync(tournamentId, GameResult.Draw);
+
+        foreach (var playerId in playerIds)
+        {
+            var statistics = await GetAsync<PlayerStatisticsDto>($"api/players/{playerId}/statistics");
+            Assert.Equal(1, statistics.Tournaments);
+
+            var result = Assert.Single(statistics.TournamentResults);
+            Assert.Equal(tournamentId, result.TournamentId);
+            Assert.Equal(3, result.PlayerCount);
+
+            var game = Assert.Single(statistics.Games);
+            Assert.Equal(1, game.Round);
+            var roundGame = round.Games.Single(g => g.White.PlayerId == playerId || g.Black?.PlayerId == playerId);
+            Assert.Equal(roundGame.White.PlayerId == playerId, game.IsWhite);
+            if (game.Opponent is null)
+            {
+                Assert.Equal(GameResult.Bye, game.Result);
+                Assert.Equal(1, game.Points);
+            }
+            else
+            {
+                Assert.Equal(GameResult.Draw, game.Result);
+                Assert.Equal(0.5, game.Points);
+                Assert.Equal(1, statistics.Draws);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Statistics_PlayerWithoutTournaments_IsEmpty()
+    {
+        var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Magnus", null, null));
+        var statistics = await GetAsync<PlayerStatisticsDto>($"api/players/{player.Id}/statistics");
+        Assert.Equal(0, statistics.Tournaments);
+        Assert.Empty(statistics.TournamentResults);
+        Assert.Empty(statistics.Games);
     }
 
     [Fact]

@@ -1,0 +1,84 @@
+@page "/login"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject ServerAuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+@inject IStringLocalizer<Strings> L
+
+@* Only tournament leaders and the system administrator log in; players never do. *@
+<PageTitle>@L["Login"] – @L["AppTitle"]</PageTitle>
+
+<MudPaper Elevation="3" Class="pa-8" Style="width: 100%; max-width: 24em">
+    <div class="d-flex align-center gap-2 mb-6">
+        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Primary" Size="Size.Large" />
+        <MudText Typo="Typo.h5">@L["AppTitle"]</MudText>
+    </div>
+
+    <form @onsubmit="LoginAsync" @onsubmit:preventDefault>
+        <div class="d-flex flex-column gap-4">
+            <MudTextField @bind-Value="_userName" Label="@L["UserName"]" Variant="Variant.Outlined" Immediate="true"
+                          AutoFocus="true" Disabled="_busy" autocomplete="username" />
+            <MudTextField @bind-Value="_password" Label="@L["Password"]" Variant="Variant.Outlined" Immediate="true"
+                          InputType="InputType.Password" Disabled="_busy" autocomplete="current-password" />
+
+            @if (_error is { } error)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@L[error]</MudAlert>
+            }
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Login"
+                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_userName) || _password.Length == 0)">
+                @L["Login"]
+            </MudButton>
+        </div>
+    </form>
+</MudPaper>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private string _userName = "";
+    private string _password = "";
+    /// <summary>Text key of the error to show, or null.</summary>
+    private string? _error;
+    private bool _busy;
+
+    /// <summary>Already logged in (e.g. back button): go straight on.</summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true) Navigation.NavigateTo(SafeReturnUrl, replace: true);
+    }
+
+    private async Task LoginAsync()
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_userName) || _password.Length == 0) return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            _error = await Auth.LoginAsync(_userName, _password) is { } code ? $"Error_{code}" : null;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Error_ServerUnavailable";
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        if (_error is null) Navigation.NavigateTo(SafeReturnUrl, replace: true);
+        else _password = "";
+    }
+
+    /// <summary>Only pages of this app: a return URL must never lead to another site.</summary>
+    private string SafeReturnUrl =>
+        ReturnUrl is { Length: > 0 } url
+        && Uri.TryCreate(url, UriKind.Relative, out _)
+        && !url.StartsWith('/') && !url.StartsWith('\\') && !url.StartsWith("login", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : "tournament";
+}

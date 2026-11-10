@@ -1,10 +1,11 @@
 @inject IStringLocalizer<Strings> L
 
-@* The current round with result entry, or the next pairing while waiting for the next round.
-   Byes are not shown here (the players tab shows who has a bye). *@
+@* The current round with result entry. After its last result the round stays on screen (results can
+   still be corrected); the pairing of the next round only appears once that round is started.
+   Before round 1 the pairing of round 1 is shown. A player with a bye is shown in a separate group at the bottom. *@
 @switch (Tournament.State)
 {
-    case TournamentState.RoundActive when CurrentRound is not null:
+    case TournamentState.RoundActive or TournamentState.WaitingForNextRound when CurrentRound is not null:
         <div class="d-flex justify-space-between align-center mb-3">
             <MudText Typo="Typo.h5"><b>@L["Round", CurrentRound.Number]</b></MudText>
             <MudText Typo="Typo.body1" Class="mud-text-secondary">
@@ -30,41 +31,28 @@
             <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesFinished"]</MudText>
             @Cards(Finished(CurrentRound), isStarted: true, editable: true)
         }
+
+        @Byes(CurrentRound, isStarted: true)
         break;
 
-    case TournamentState.New or TournamentState.WaitingForNextRound:
-        <div class="mb-6">
-            @if (PendingRound is not null)
-            {
-                <MudText Typo="Typo.h5" Class="mb-3"><b>@L["PairingRound", PendingRound.Number]</b></MudText>
-                @Cards(Games(PendingRound).Where(g => g.Board is not null).OrderBy(g => g.Board), isStarted: false, editable: false)
-
-                @if (Queue(PendingRound).Any())
-                {
-                    <MudText Typo="Typo.h6" Class="mt-6">@L["GamesQueue"]</MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesQueueInfo"]</MudText>
-                    @Cards(Queue(PendingRound), isStarted: false, editable: false, queued: true)
-                }
-            }
-            else if (AllRoundsPlayed)
-            {
-                <MudAlert Severity="Severity.Info">@L["AllRoundsPlayedInfo"]</MudAlert>
-            }
-            else if (Tournament.State == TournamentState.New)
-            {
-                <MudAlert Severity="Severity.Info">@L["NoPairingYet"]</MudAlert>
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Warning">@L["NoPairingPossible"]</MudAlert>
-            }
-        </div>
-
-        @if (CurrentRound is not null)
+    case TournamentState.New:
+        @if (PendingRound is not null)
         {
-            @* Results of the round just finished; can still be corrected. *@
-            <MudText Typo="Typo.h6" Class="mb-3">@L["ResultsRound", CurrentRound.Number]</MudText>
-            @Cards(Finished(CurrentRound), isStarted: true, editable: true)
+            <MudText Typo="Typo.h5" Class="mb-3"><b>@L["PairingRound", PendingRound.Number]</b></MudText>
+            @Cards(Games(PendingRound).Where(g => g.Board is not null).OrderBy(g => g.Board), isStarted: false, editable: false)
+
+            @if (Queue(PendingRound).Any())
+            {
+                <MudText Typo="Typo.h6" Class="mt-6">@L["GamesQueue"]</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesQueueInfo"]</MudText>
+                @Cards(Queue(PendingRound), isStarted: false, editable: false, queued: true)
+            }
+
+            @Byes(PendingRound, isStarted: false)
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">@L["NoPairingYet"]</MudAlert>
         }
         break;
 
@@ -73,6 +61,7 @@
         {
             <MudText Typo="Typo.h6" Class="mb-3">@L["ResultsRound", CurrentRound.Number]</MudText>
             @Cards(Finished(CurrentRound), isStarted: true, editable: false)
+            @Byes(CurrentRound, isStarted: true)
         }
         break;
 }
@@ -81,7 +70,6 @@
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
     [Parameter, EditorRequired] public List<RoundDto> Rounds { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
-    [Parameter] public bool AllRoundsPlayed { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback<(GameDto Game, GameResult Result)> OnResult { get; set; }
 
@@ -158,6 +146,15 @@
         await OnResult.InvokeAsync((game, result));
         _leaving.Remove(game.Id);
     }
+
+    /// <summary>The player(s) with a bye in a round, in their own group; nothing when there is no bye.</summary>
+    private RenderFragment Byes(RoundDto round, bool isStarted) => __builder =>
+    {
+        var byes = round.Games.Where(g => g.Black is null).OrderBy(g => g.Number).ToList();
+        if (byes.Count == 0) return;
+        <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesBye"]</MudText>
+        @Cards(byes, isStarted, editable: false)
+    };
 
     private RenderFragment Cards(IEnumerable<GameDto> games, bool isStarted, bool editable, bool queued = false) =>
         @<div class="game-cards">

@@ -1,27 +1,16 @@
 @inject IStringLocalizer<Strings> L
 
-@* Title and state of a tournament, with a gear button that opens the settings. *@
+@* Title of a tournament, with a gear button that opens the settings. *@
 <div class="d-flex align-start justify-space-between gap-4 mb-4">
     <div>
         <MudText Typo="Typo.h4">@Tournament.Title</MudText>
-        <div class="d-flex flex-wrap align-center gap-3 mt-1">
-            <MudChip T="string" Size="Size.Small" Color="Display.StateColor(Tournament.State)" Class="ma-0">
-                @L[$"State_{Tournament.State}"]
-            </MudChip>
-            @if (Tournament.RoundsStarted > 0)
-            {
-                <MudText Typo="Typo.body1">
-                    @(Tournament.TotalRounds is { } total
-                        ? L["RoundOf", Tournament.RoundsStarted, total]
-                        : L["Round", Tournament.RoundsStarted])
-                </MudText>
-            }
-            <MudText Typo="Typo.body1" Class="mud-text-secondary">
-                @L[$"PairingSystem_{Tournament.Settings.PairingSystem}"] ·
-                @L["TimeControl", Tournament.Settings.GameTimeMinutes, Tournament.Settings.IncrementSeconds] ·
-                @L["BoardsCount", Tournament.Settings.Boards]
-            </MudText>
-        </div>
+        @if (!string.IsNullOrWhiteSpace(Tournament.Location))
+        {
+            <div class="d-flex align-center gap-1 mud-text-secondary mt-1">
+                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
+                <MudText Typo="Typo.body2">@Tournament.Location</MudText>
+            </div>
+        }
     </div>
 
     <MudTooltip Text="@L["Settings"]">

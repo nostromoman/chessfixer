@@ -1,0 +1,12 @@
+@inject IStringLocalizer<Strings> L
+
+@* A player's name, followed by "(verwijderd)" when the player has been deleted from the player list. *@
+@Name@if (IsDeleted)
+{
+    <span class="player-deleted"> (@L["DeletedSuffix"])</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter] public bool IsDeleted { get; set; }
+}

@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using ChessFixer.Shared.Dtos;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ChessFixer.Server.Tests;
 
@@ -13,13 +15,37 @@ public abstract class ApiTestBase : IAsyncLifetime
     private WebApplicationFactory<Program> _factory = null!;
     protected HttpClient Client { get; private set; } = null!;
 
-    public Task InitializeAsync()
+    public const string AdminUserName = "admin";
+    public const string AdminPassword = "HelloWorld1!";
+    public const string LeaderUserName = "roel";
+    public const string LeaderPassword = "Appelsap1!";
+
+    /// <summary>Whether the new database gets the demo players; off by default so tests start with an empty player list.</summary>
+    protected virtual bool SeedDemoPlayers => false;
+
+    /// <summary>Starts the server and logs <see cref="Client"/> in as the seeded tournament leader.</summary>
+    public async Task InitializeAsync()
     {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:ChessFixer", $"Data Source={_databasePath};Pooling=False"));
-        Client = _factory.CreateClient();
-        return Task.CompletedTask;
+        {
+            builder.UseSetting("ConnectionStrings:ChessFixer", $"Data Source={_databasePath};Pooling=False");
+            builder.UseSetting("Seed:DemoPlayers", SeedDemoPlayers.ToString());
+            builder.ConfigureTestServices(ConfigureServices);
+        });
+        Client = await CreateClientAsync(LeaderUserName, LeaderPassword);
     }
+
+    /// <summary>A new client (with its own cookies); logged in when a user name is given.</summary>
+    protected async Task<HttpClient> CreateClientAsync(string? userName = null, string? password = null)
+    {
+        var client = _factory.CreateClient();
+        if (userName is not null)
+            await ReadAsync<CurrentUserDto>(await client.PostAsJsonAsync("api/auth/login", new LoginRequest(userName, password!)));
+        return client;
+    }
+
+    /// <summary>Override to replace server services, e.g. with fakes.</summary>
+    protected virtual void ConfigureServices(IServiceCollection services) { }
 
     public async Task DisposeAsync()
     {
@@ -32,10 +58,7 @@ public abstract class ApiTestBase : IAsyncLifetime
 
     protected async Task<int> CreateTournamentAsync(PairingSystem system = PairingSystem.Swiss)
     {
-        var tournament = await PostAsync<TournamentDto>("api/tournaments", new CreateTournamentRequest("Test"));
-        if (system != PairingSystem.Swiss)
-            await PutAsync<TournamentDto>($"api/tournaments/{tournament.Id}",
-                new UpdateTournamentRequest("Test", tournament.Settings with { PairingSystem = system }));
+        var tournament = await PostAsync<TournamentDto>("api/tournaments", new CreateTournamentRequest("Test", TournamentSettingsDto.Default with { PairingSystem = system }));
         return tournament.Id;
     }
 

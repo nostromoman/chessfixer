@@ -1,0 +1,77 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Creates or changes a tournament leader account. When changing, an empty password keeps the current one. *@
+<MudDialog>
+    <DialogContent>
+        <form id="leader-edit" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+            <div class="d-flex flex-column gap-3">
+                <MudTextField @bind-Value="_displayName" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
+                              AutoFocus="true" Disabled="_busy" MaxLength="100" />
+                <MudTextField @bind-Value="_userName" Label="@L["UserName"]" HelperText="@L["UserNameHelp"]"
+                              Variant="Variant.Outlined" Immediate="true" Disabled="_busy" MaxLength="50" autocomplete="off" />
+                <MudTextField @bind-Value="_password" Label="@(IsNew ? L["Password"] : L["NewPassword"])"
+                              HelperText="@(IsNew ? L["PasswordHelp", PasswordRules.MinLength] : L["LeaderPasswordKeepHelp", PasswordRules.MinLength])"
+                              InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true" Disabled="_busy"
+                              autocomplete="new-password" />
+            </div>
+        </form>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="_busy">@L["Cancel"]</MudButton>
+        <MudButton ButtonType="ButtonType.Submit" form="leader-edit" Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!CanSave)">@L["Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>The leader to change; null to create a new one.</summary>
+    [Parameter] public LeaderDto? Leader { get; set; }
+
+    private string _displayName = "";
+    private string _userName = "";
+    private string _password = "";
+    private bool _busy;
+
+    private bool IsNew => Leader is null;
+
+    private bool PasswordOk => IsNew ? _password.Length >= PasswordRules.MinLength : _password.Length is 0 or >= PasswordRules.MinLength;
+
+    private bool CanSave => !_busy && !string.IsNullOrWhiteSpace(_displayName) && !string.IsNullOrWhiteSpace(_userName) && PasswordOk;
+
+    protected override void OnInitialized()
+    {
+        _displayName = Leader?.DisplayName ?? "";
+        _userName = Leader?.UserName ?? "";
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave) return;
+
+        _busy = true;
+        try
+        {
+            var saved = Leader is null
+                ? await Api.CreateLeaderAsync(new CreateLeaderRequest(_userName, _displayName, _password))
+                : await Api.UpdateLeaderAsync(Leader.Id, new UpdateLeaderRequest(_userName, _displayName, _password.Length > 0 ? _password : null));
+            Snackbar.Add(L["LeaderSaved", saved.DisplayName], Severity.Success);
+            Dialog.Close(DialogResult.Ok(saved));
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

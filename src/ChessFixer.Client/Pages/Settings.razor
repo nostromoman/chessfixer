@@ -1,0 +1,30 @@
+@page "/settings"
+@inject IStringLocalizer<Strings> L
+
+@* Application settings, in tabs. The tab "Toernooileiders" is only for the system administrator. *@
+<PageTitle>@L["AppSettings"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["AppSettings"]</MudText>
+
+<MudPaper Elevation="1">
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-4">
+        <MudTabPanel Text="@L["AiReportSettings"]" Icon="@Icons.Material.Filled.AutoAwesome">
+            <AiSettingsTab />
+        </MudTabPanel>
+        @if (_isAdmin)
+        {
+            <MudTabPanel Text="@L["Leaders"]" Icon="@Icons.Material.Filled.ManageAccounts">
+                <LeadersTab />
+            </MudTabPanel>
+        }
+    </MudTabs>
+</MudPaper>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private bool _isAdmin;
+
+    protected override async Task OnParametersSetAsync() =>
+        _isAdmin = (await AuthState).User.IsInRole(nameof(UserRole.Admin));
+}

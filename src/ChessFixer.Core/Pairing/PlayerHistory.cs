@@ -7,8 +7,24 @@ internal sealed class PlayerHistory
 {
     public double Score { get; private set; }
     public HashSet<int> Opponents { get; } = [];
+    /// <summary>How often this player met each opponent (forfeits excluded).</summary>
+    public Dictionary<int, int> TimesMet { get; } = [];
+    /// <summary>Per opponent: games with White minus games with Black against that opponent.</summary>
+    public Dictionary<int, int> WhiteBalanceAgainst { get; } = [];
+
+    /// <summary>
+    /// The color this player should get against <paramref name="opponentId"/> so that they alternate colors
+    /// against each other: Black after having had White more often against them, and vice versa. Null when even.
+    /// </summary>
+    public PieceColor? RematchColorAgainst(int opponentId) =>
+        WhiteBalanceAgainst.GetValueOrDefault(opponentId) switch
+        {
+            > 0 => PieceColor.Black,
+            < 0 => PieceColor.White,
+            _ => null
+        };
     public List<PieceColor> Colors { get; } = [];
-    public bool HadBye { get; private set; }
+    public int ByeCount { get; private set; }
     public ColorPreference ColorPreference => ColorAllocator.PreferenceOf(Colors);
 
     /// <summary>
@@ -30,7 +46,7 @@ internal sealed class PlayerHistory
 
             if (game.BlackId is null)
             {
-                if (white is not null) white.HadBye = true;
+                if (white is not null) white.ByeCount++;
                 continue;
             }
 
@@ -40,11 +56,15 @@ internal sealed class PlayerHistory
             if (white is not null)
             {
                 white.Opponents.Add(game.BlackId.Value);
+                white.TimesMet[game.BlackId.Value] = white.TimesMet.GetValueOrDefault(game.BlackId.Value) + 1;
+                white.WhiteBalanceAgainst[game.BlackId.Value] = white.WhiteBalanceAgainst.GetValueOrDefault(game.BlackId.Value) + 1;
                 white.Colors.Add(PieceColor.White);
             }
             if (black is not null)
             {
                 black.Opponents.Add(game.WhiteId);
+                black.TimesMet[game.WhiteId] = black.TimesMet.GetValueOrDefault(game.WhiteId) + 1;
+                black.WhiteBalanceAgainst[game.WhiteId] = black.WhiteBalanceAgainst.GetValueOrDefault(game.WhiteId) - 1;
                 black.Colors.Add(PieceColor.Black);
             }
         }

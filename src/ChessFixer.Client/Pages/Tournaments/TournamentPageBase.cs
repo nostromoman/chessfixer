@@ -94,15 +94,9 @@ public abstract class TournamentPageBase : ComponentBase, IDisposable
     // ----- Shared state helpers -----
 
     protected bool CanStartNextRound =>
-        Tournament is { State: TournamentState.New or TournamentState.WaitingForNextRound }
-        && !AllRoundsPlayed;
+        Tournament is { State: TournamentState.New or TournamentState.WaitingForNextRound };
 
-    protected bool AllRoundsPlayed =>
-        Tournament is { TotalRounds: { } total } t && t.RoundsStarted >= total && t.RoundsStarted > 0;
-
-    protected bool CanChangePlayers =>
-        Tournament is { State: not TournamentState.Closed } t
-        && !(t.Settings.PairingSystem == PairingSystem.RoundRobin && t.RoundsStarted > 0);
+    protected bool CanChangePlayers => Tournament is { State: not TournamentState.Closed };
 
     /// <summary>A change pushed by the server. Skipped during an own action: that reloads when it is done.</summary>
     private Task OnTournamentChangedAsync(int tournamentId) =>

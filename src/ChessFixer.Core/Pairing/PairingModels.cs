@@ -27,8 +27,7 @@ public enum PairingError
 {
     NotEnoughPlayers,
     TooManyPlayers,
-    NoValidPairing,
-    AllRoundsPlayed
+    NoValidPairing
 }
 
 public sealed class PairingException(PairingError error) : Exception($"Pairing failed: {error}")

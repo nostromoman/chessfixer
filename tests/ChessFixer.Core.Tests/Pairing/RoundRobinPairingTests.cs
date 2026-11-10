@@ -64,13 +64,96 @@ public class RoundRobinPairingTests
         }
     }
 
-    [Fact]
-    public void ThrowsWhenAllRoundsArePlayed()
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void AfterAllRounds_TheScheduleStartsAgain(int playerCount)
     {
-        var sim = new TournamentSimulator(new RoundRobinPairing(), TournamentSimulator.CreatePlayers(4));
+        var sim = new TournamentSimulator(new RoundRobinPairing(), TournamentSimulator.CreatePlayers(playerCount));
+        for (var round = 0; round < 2 * RoundRobinPairing.TotalRounds(playerCount); round++) sim.PlayRound();
+
+        // Every pair has met exactly twice.
+        var meetings = sim.Meetings().GroupBy(m => m).ToList();
+        Assert.Equal(playerCount * (playerCount - 1) / 2, meetings.Count);
+        Assert.All(meetings, m => Assert.Equal(2, m.Count()));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(10)]
+    public void SecondCycle_EveryPairPlaysOnceWithEachColor(int playerCount)
+    {
+        var sim = new TournamentSimulator(new RoundRobinPairing(), TournamentSimulator.CreatePlayers(playerCount));
+        for (var round = 0; round < 2 * RoundRobinPairing.TotalRounds(playerCount); round++) sim.PlayRound();
+
+        var notReversed = sim.History.Where(g => g.BlackId is not null)
+            .GroupBy(g => (Math.Min(g.WhiteId, g.BlackId!.Value), Math.Max(g.WhiteId, g.BlackId!.Value)))
+            .Where(g => g.Select(x => x.WhiteId).Distinct().Count() != 2)
+            .Select(g => g.Key)
+            .ToList();
+        Assert.Empty(notReversed);
+    }
+
+    // ----- Players joining and leaving between rounds -----
+
+    private static TournamentSimulator Simulator(int players) =>
+        new(new RoundRobinPairing(), TournamentSimulator.CreatePlayers(players));
+
+    private static int PairsMet(TournamentSimulator sim) => sim.Meetings().Distinct().Count();
+
+    [Fact]
+    public void Withdrawal_RemainingPlayersStillMeetEveryone()
+    {
+        var sim = Simulator(6);
+        sim.PlayRound();
+        sim.Players.RemoveAll(p => p.Id == 3);
+
+        // 5 players left: a full schedule is 5 rounds.
+        for (var round = 0; round < 5; round++) sim.PlayRound();
+
+        var remaining = sim.Meetings().Where(m => m.A != 3 && m.B != 3).Distinct().Count();
+        Assert.Equal(10, remaining);
+    }
+
+    [Fact]
+    public void ScoresAreIgnored()
+    {
+        // Player 1 wins every game; in a Swiss it would meet the other leader, here it meets whoever it has not met.
+        var sim = Simulator(4);
         for (var round = 0; round < 3; round++) sim.PlayRound();
 
-        var error = Assert.Throws<PairingException>(() => sim.PairNext());
-        Assert.Equal(PairingError.AllRoundsPlayed, error.Error);
+        Assert.Equal(6, PairsMet(sim));
+        Assert.Equal(6, sim.Meetings().Count());
+    }
+
+    [Fact]
+    public void LateJoiner_EveryoneMeetsEveryoneWithinOneSchedule()
+    {
+        var sim = Simulator(4);
+        sim.PlayRound();
+        sim.PlayRound();
+        sim.Players.Add(new PairingPlayer(5, 1900));
+
+        // 5 players: a full schedule is 5 rounds.
+        for (var round = 0; round < 5; round++) sim.PlayRound();
+
+        Assert.Equal(10, PairsMet(sim));
+        var opponentsOf5 = sim.Meetings().Where(m => m.B == 5).Select(m => m.A).Distinct();
+        Assert.Equal([1, 2, 3, 4], opponentsOf5.Order());
+    }
+
+    [Fact]
+    public void OddGroup_ByesAreSpreadEvenly()
+    {
+        var sim = Simulator(5);
+        for (var round = 0; round < 10; round++) sim.PlayRound();
+
+        var byes = sim.History.Where(g => g.BlackId is null).GroupBy(g => g.WhiteId).Select(g => g.Count()).ToList();
+        Assert.Equal(5, byes.Count);
+        Assert.All(byes, count => Assert.Equal(2, count));
     }
 }

@@ -7,7 +7,9 @@ namespace ChessFixer.Core.Pairing;
 /// <list type="bullet">
 /// <item>Players are ranked by score, then rating, then registration order.</item>
 /// <item>Within a score group the top half plays the bottom half; a player left over floats to the next group.</item>
-/// <item>Players never meet twice (hard rule; backtracking makes sure the whole round still works out).</item>
+/// <item>Players do not meet twice (backtracking makes sure the whole round still works out). Only when that is
+/// impossible (e.g. everyone has already played everyone) players meet again: first at most twice, then at most
+/// three times, and so on.</item>
 /// <item>Color preferences are taken into account when choosing between equally good opponents.</item>
 /// <item>With an odd number of players, the lowest-ranked player without an earlier bye gets the bye.</item>
 /// </list>
@@ -29,26 +31,15 @@ public sealed class SwissPairing : IPairingStrategy
             .Select(p => p.Id)
             .ToArray();
 
-        var solver = new Solver(ranked, history);
         var everyone = ranked.Length == 64 ? ulong.MaxValue : (1UL << ranked.Length) - 1;
 
-        int? byeIndex = null;
+        // Allow pairs that met at most maxTimesMet times; raise the limit until the round works out.
+        // With a limit above every meeting count all pairs are allowed, so that always succeeds.
+        var mostMeetings = history.Values.SelectMany(h => h.TimesMet.Values).DefaultIfEmpty(0).Max();
         List<(int Higher, int Lower)>? pairs = null;
-
-        if (ranked.Length % 2 == 0)
-        {
-            pairs = solver.Solve(everyone);
-        }
-        else
-        {
-            foreach (var candidate in ByeCandidates(ranked, history))
-            {
-                pairs = solver.Solve(everyone & ~(1UL << candidate));
-                if (pairs is null) continue;
-                byeIndex = candidate;
-                break;
-            }
-        }
+        int? byeIndex = null;
+        for (var maxTimesMet = 0; pairs is null && maxTimesMet <= mostMeetings; maxTimesMet++)
+            (pairs, byeIndex) = TrySolve(new Solver(ranked, history, maxTimesMet), ranked, history, everyone);
 
         if (pairs is null) throw new PairingException(PairingError.NoValidPairing);
 
@@ -63,7 +54,8 @@ public sealed class SwissPairing : IPairingStrategy
                 var (white, black) = ColorAllocator.Assign(
                     ranked[pair.Higher], history[ranked[pair.Higher]].ColorPreference,
                     ranked[pair.Lower], history[ranked[pair.Lower]].ColorPreference,
-                    higherWhiteByDefault: board % 2 == 1);
+                    higherWhiteByDefault: board % 2 == 1,
+                    history[ranked[pair.Higher]].RematchColorAgainst(ranked[pair.Lower]));
                 return new BoardPairing(board, white, black);
             })
             .ToList();
@@ -74,17 +66,31 @@ public sealed class SwissPairing : IPairingStrategy
         return boards;
     }
 
-    /// <summary>Lowest-ranked first; players who already had a bye only as a last resort.</summary>
+    private static (List<(int Higher, int Lower)>? Pairs, int? ByeIndex) TrySolve(
+        Solver solver, int[] ranked, Dictionary<int, PlayerHistory> history, ulong everyone)
+    {
+        if (ranked.Length % 2 == 0) return (solver.Solve(everyone), null);
+
+        foreach (var candidate in ByeCandidates(ranked, history))
+        {
+            var pairs = solver.Solve(everyone & ~(1UL << candidate));
+            if (pairs is not null) return (pairs, candidate);
+        }
+        return (null, null);
+    }
+
+    /// <summary>Players with the fewest byes first; among them the lowest-ranked first.</summary>
     private static IEnumerable<int> ByeCandidates(int[] ranked, Dictionary<int, PlayerHistory> history) =>
         Enumerable.Range(0, ranked.Length)
             .Reverse()
-            .OrderBy(i => history[ranked[i]].HadBye);
+            .OrderBy(i => history[ranked[i]].ByeCount);
 
     /// <summary>
     /// Depth-first search for a perfect matching. Players are referred to by their index in the ranking;
     /// the set of unpaired players is a bit mask. Masks that cannot be paired are remembered.
     /// </summary>
-    private sealed class Solver(int[] ranked, Dictionary<int, PlayerHistory> history)
+    /// <param name="maxTimesMet">Only players who met at most this often may be paired (0: never met).</param>
+    private sealed class Solver(int[] ranked, Dictionary<int, PlayerHistory> history, int maxTimesMet)
     {
         private const double Tolerance = 1e-9;
         private readonly HashSet<ulong> _unsolvable = [];
@@ -127,8 +133,9 @@ public sealed class SwissPairing : IPairingStrategy
             var idealPosition = (group.Count + 1) / 2 - 1;
 
             return available
-                .Where(i => !me.Opponents.Contains(ranked[i]))
-                .OrderBy(i => Math.Round(Math.Abs(Score(i) - me.Score), 6))
+                .Where(i => me.TimesMet.GetValueOrDefault(ranked[i]) <= maxTimesMet)
+                .OrderBy(i => me.TimesMet.GetValueOrDefault(ranked[i]))
+                .ThenBy(i => Math.Round(Math.Abs(Score(i) - me.Score), 6))
                 .ThenBy(i => ColorAllocator.ConflictPenalty(me.ColorPreference, history[ranked[i]].ColorPreference))
                 .ThenBy(i => group.IndexOf(i) is var position and >= 0 ? Math.Abs(position - idealPosition) : 0)
                 .ThenBy(i => i);

@@ -2,21 +2,46 @@ using ChessFixer.Shared.Enums;
 
 namespace ChessFixer.Shared.Dtos;
 
-public record TournamentSummaryDto(int Id, string Title, TournamentState State, int PlayerCount, int RoundCount);
+/// <param name="PlayerCount">Number of active players.</param>
+public record TournamentSummaryDto(
+    int Id,
+    string Title,
+    TournamentState State,
+    PairingSystem PairingSystem,
+    int PlayerCount,
+    int Boards,
+    int GameTimeMinutes,
+    int IncrementSeconds,
+    int RoundCount);
 
 /// <param name="RoundsStarted">Number of rounds that have started (including the active one).</param>
 /// <param name="SettingsLocked">True once round 1 has started; from then on the pairing system and the points cannot change.
 /// Title, time control and boards can still change between rounds.</param>
-/// <param name="TotalRounds">Round robin only: the number of rounds needed for everyone to play everyone.</param>
+/// <param name="Location">Where the tournament is played; optional, used for the report.</param>
+/// <param name="Description">Free description of the tournament; optional, used for the report.</param>
 public record TournamentDto(
     int Id,
     string Title,
+    string? Location,
+    string? Description,
     TournamentState State,
     TournamentSettingsDto Settings,
     int RoundsStarted,
     bool SettingsLocked,
-    int? TotalRounds);
+    TournamentReportDto Report);
 
+/// <summary>The report of the tournament, written by an AI when the tournament is closed.</summary>
+/// <param name="Text">Plain text with paragraphs separated by empty lines; null until ready.</param>
+/// <param name="Error">Technical error message when writing failed.</param>
+/// <param name="Model">The AI that wrote the report, e.g. "Claude (claude-opus-5-5)".</param>
+/// <param name="HasPrompt">Whether the prompt that produced the report can be fetched (api/tournaments/{id}/report/prompt).</param>
+public record TournamentReportDto(
+    ReportStatus Status, string? Text, DateTime? GeneratedAt, string? Error, string? Model, bool HasPrompt);
+
+/// <summary>The prompt that was sent to the AI to write the report: instructions (system) and the tournament data (user).</summary>
+public record ReportPromptDto(string System, string User, string? Model);
+
+/// <param name="IsRated">Whether the games change the players' ratings. Locked once round 1 has started.</param>
 public record TournamentSettingsDto(
     PairingSystem PairingSystem,
     int GameTimeMinutes,
@@ -25,14 +50,24 @@ public record TournamentSettingsDto(
     double PointsForDraw,
     double PointsForLoss,
     double PointsForBye,
-    int Boards);
+    int Boards,
+    bool IsRated = true)
+{
+    /// <summary>The settings a new tournament starts with.</summary>
+    public static TournamentSettingsDto Default { get; } = new(
+        PairingSystem.RoundRobin, GameTimeMinutes: 15, IncrementSeconds: 10,
+        PointsForWin: 1, PointsForDraw: 0.5, PointsForLoss: 0, PointsForBye: 1, Boards: 8, IsRated: true);
+}
 
-public record CreateTournamentRequest(string Title);
+public record CreateTournamentRequest(
+    string Title, TournamentSettingsDto Settings, string? Location = null, string? Description = null);
 
-public record UpdateTournamentRequest(string Title, TournamentSettingsDto Settings);
+public record UpdateTournamentRequest(
+    string Title, TournamentSettingsDto Settings, string? Location = null, string? Description = null);
 
 /// <summary>A player in a tournament. PlayerId refers to the central player list.</summary>
-public record TournamentPlayerDto(int PlayerId, string Name, int? Rating, bool IsActive);
+/// <param name="IsDeleted">The player has been deleted from the player list (but stays in the tournament).</param>
+public record TournamentPlayerDto(int PlayerId, string Name, int Rating, bool IsActive, bool IsDeleted = false);
 
 public record AddTournamentPlayerRequest(int PlayerId);
 
@@ -44,7 +79,8 @@ public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games)
 /// <param name="Black">Null when White has a bye.</param>
 public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result);
 
-public record GamePlayerDto(int PlayerId, string Name);
+/// <param name="IsDeleted">The player has been deleted from the player list.</param>
+public record GamePlayerDto(int PlayerId, string Name, bool IsDeleted = false);
 
 public record SetResultRequest(GameResult Result);
 
@@ -59,6 +95,7 @@ public record StandingDto(
     int Played,
     int Wins,
     int Draws,
-    int Losses);
+    int Losses,
+    bool IsDeleted = false);
 
 public record ApiError(ApiErrorCode Code);

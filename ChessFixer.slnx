@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/ChessFixer.Client/ChessFixer.Client.csproj" />
     <Project Path="src/ChessFixer.Core/ChessFixer.Core.csproj" />

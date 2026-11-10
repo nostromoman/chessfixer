@@ -281,20 +281,19 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task RoundRobin_PlayersLockedAfterRound1_AndAllRoundsPlayed()
+    public async Task RoundRobin_PlayerCanJoinBetweenRounds_AndContinuesAfterAllRounds()
     {
         var id = await CreateTournamentAsync(PairingSystem.RoundRobin);
         await AddNewPlayersAsync(id, 3);
         var tournament = await StartRoundAsync(id);
-        Assert.Equal(3, tournament.TotalRounds);
-
-        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
         await FinishActiveRoundAsync(id);
-        await AssertErrorAsync(
-            await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id)),
-            HttpStatusCode.Conflict, ApiErrorCode.RoundRobinPlayersLocked);
 
-        for (var round = 2; round <= 3; round++)
+        // A late joiner is welcome between rounds.
+        var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
+        var response = await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id));
+        response.EnsureSuccessStatusCode();
+
+        for (var round = 2; round <= 4; round++)
         {
             await StartRoundAsync(id);
             await FinishActiveRoundAsync(id);
@@ -302,10 +301,12 @@ public class TournamentFlowTests : ApiTestBase
 
         tournament = await GetTournamentAsync(id);
         Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
-        Assert.Equal(3, tournament.RoundsStarted);
-        await AssertErrorAsync(
-            await Client.PostAsync($"api/tournaments/{id}/rounds/start", null),
-            HttpStatusCode.Conflict, ApiErrorCode.AllRoundsPlayed);
+        Assert.Equal(4, tournament.RoundsStarted);
+
+        // A next round can still be started (the schedule starts again).
+        tournament = await StartRoundAsync(id);
+        Assert.Equal(TournamentState.RoundActive, tournament.State);
+        Assert.Equal(5, tournament.RoundsStarted);
     }
 
     [Fact]

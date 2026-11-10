@@ -1,0 +1,125 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IStringLocalizer<Strings> L
+
+@* Takes a profile photo with the webcam. Closes with the photo as JPEG bytes (Size x Size pixels).
+   Open it with IDialogService.ShowAsync<WebcamDialog>. *@
+<MudDialog>
+    <DialogContent>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Warning">@_error</MudAlert>
+        }
+        else
+        {
+            <div class="webcam">
+                @* The video stays in the DOM while the snapshot is shown, so "retake" does not restart the camera. *@
+                <video @ref="_video" class="webcam-view webcam-mirrored" style="@(_photoUrl is null ? null : "display: none")"
+                       autoplay playsinline muted></video>
+                @if (_photoUrl is not null)
+                {
+                    <img class="webcam-view" src="@_photoUrl" alt="@L["Photo"]" />
+                }
+                @if (!_ready)
+                {
+                    <div class="webcam-overlay"><MudProgressCircular Indeterminate="true" /></div>
+                }
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
+        @if (_error is null)
+        {
+            @if (_photo is null)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PhotoCamera"
+                           Disabled="@(!_ready || _busy)" OnClick="CaptureAsync">@L["WebcamCapture"]</MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Replay" OnClick="Retake">@L["WebcamRetake"]</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Check"
+                           OnClick="() => Dialog.Close(DialogResult.Ok(_photo))">@L["WebcamUse"]</MudButton>
+            }
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>Width and height of the photo in pixels.</summary>
+    [Parameter] public int Size { get; set; } = 400;
+
+    private IJSObjectReference? _module;
+    private ElementReference _video;
+    private bool _ready;
+    private bool _busy;
+    private string? _error;
+    private byte[]? _photo;
+    private string? _photoUrl;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/WebcamDialog.razor.js");
+            var error = await _module.InvokeAsync<string?>("start", _video);
+            if (error is null) _ready = true;
+            else _error = ErrorText(error);
+        }
+        catch (JSException)
+        {
+            _error = L["WebcamError"];
+        }
+        StateHasChanged();
+    }
+
+    private string ErrorText(string error) => error switch
+    {
+        "NotAllowedError" or "SecurityError" => L["WebcamNotAllowed"],
+        "NotFoundError" or "OverconstrainedError" => L["WebcamNotFound"],
+        "NotReadableError" or "AbortError" => L["WebcamInUse"],
+        "NotSupportedError" => L["WebcamNotSupported"],
+        _ => L["WebcamError"]
+    };
+
+    private async Task CaptureAsync()
+    {
+        if (_module is null) return;
+        _busy = true;
+        try
+        {
+            var photo = await _module.InvokeAsync<byte[]?>("capture", _video, Size);
+            if (photo is { Length: > 0 })
+            {
+                _photo = photo;
+                _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(photo)}";
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Retake()
+    {
+        _photo = null;
+        _photoUrl = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null) return;
+        try
+        {
+            await _module.InvokeVoidAsync("stop", _video);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { /* the page is gone, and with it the camera */ }
+    }
+}

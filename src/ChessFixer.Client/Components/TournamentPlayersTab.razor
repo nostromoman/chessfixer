@@ -25,10 +25,7 @@
                     <div class="d-flex align-center gap-2">
                         <PlayerAvatar FirstName="@player.FirstName" LastName="@player.LastName" PhotoUrl="@player.PhotoUrl" />
                         @player.Name
-                        @if (player.Rating is { } rating)
-                        {
-                            <MudText Typo="Typo.caption" Inline="true" Class="mud-text-secondary">(@rating)</MudText>
-                        }
+                        <MudText Typo="Typo.caption" Inline="true" Class="mud-text-secondary">(@player.Rating)</MudText>
                     </div>
                 }
             </ItemTemplate>
@@ -71,7 +68,12 @@ else
                 var status = StatusOf(player);
                 <tr class="@(player.IsActive ? null : "withdrawn")">
                     <td><PlayerAvatar FirstName="@(info?.FirstName ?? player.Name)" LastName="@info?.LastName" PhotoUrl="@info?.PhotoUrl" /></td>
-                    <td>@player.Name</td>
+                    <td>
+                        @{ var playerId = player.PlayerId; }
+                        <MudLink OnClick="() => OnOpenPlayer.InvokeAsync(playerId)" Disabled="@(info is null)">
+                            <PlayerName Name="@player.Name" IsDeleted="player.IsDeleted" />
+                        </MudLink>
+                    </td>
                     <td style="text-align: right">@player.Rating</td>
                     <td>
                         <MudChip T="string" Size="Size.Small" Class="ma-0" Color="@StatusColor(status)"
@@ -82,7 +84,7 @@ else
                     <td style="text-align: right; white-space: nowrap">
                         <MudTooltip Text="@L["EditPlayer"]">
                             <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditPlayer"]"
-                                           Disabled="@(info is null || Disabled)" OnClick="() => _editor?.OpenEdit(info!)" />
+                                           Disabled="@(info is null || Disabled)" OnClick="() => OnOpenPlayer.InvokeAsync(playerId)" />
                         </MudTooltip>
                         @if (player.IsActive)
                         {
@@ -107,13 +109,7 @@ else
             }
         </tbody>
     </MudSimpleTable>
-    @if (Tournament.RoundsStarted > 0)
-    {
-        <MudText Typo="Typo.caption" Class="mt-2 d-block">@L["RemovedPlayerInfo"]</MudText>
-    }
 }
-
-<PlayerEditDrawer @ref="_editor" OnSaved="_ => Run(() => Task.CompletedTask, null)" />
 
 @code {
     private enum PlayerStatus { Waiting, WaitingForBoard, Playing, Bye, Withdrawn, Finished }
@@ -126,6 +122,9 @@ else
     [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
 
     [Parameter] public bool CanChangePlayers { get; set; }
+
+    /// <summary>Opens the player drawer for the player with this id.</summary>
+    [Parameter] public EventCallback<int> OnOpenPlayer { get; set; }
     [Parameter] public bool Disabled { get; set; }
 
     /// <summary>Runs an API action on the page (error handling and reload), with an optional success message.</summary>
@@ -133,13 +132,11 @@ else
 
     private MudAutocomplete<PlayerDto>? _search;
     private string? _searchText;
-    private PlayerEditDrawer? _editor;
     private bool _adding;
 
     private string? LockReason => Tournament.State switch
     {
         TournamentState.Closed => L["PlayersLockedClosed"].Value,
-        _ when !CanChangePlayers => L["PlayersLockedRoundRobin"].Value,
         _ => null
     };
 
@@ -182,11 +179,14 @@ else
     private IEnumerable<PlayerDto> Candidates(string? text)
     {
         var inTournament = Participants.Select(p => p.PlayerId).ToHashSet();
-        return Players.Values
+        return AvailablePlayers
             .Where(p => !inTournament.Contains(p.Id))
             .Where(p => string.IsNullOrWhiteSpace(text) || p.Name.Contains(text.Trim(), StringComparison.CurrentCultureIgnoreCase))
             .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase);
     }
+
+    /// <summary>Players that can join: <see cref="Players"/> also holds deleted players, for the ones in this tournament.</summary>
+    private IEnumerable<PlayerDto> AvailablePlayers => Players.Values.Where(p => !p.IsDeleted);
 
     /// <summary>Id of the extra list item "add ... as new player"; real players have positive ids.</summary>
     private const int NewPlayerId = 0;
@@ -200,8 +200,8 @@ else
         var items = Candidates(text).ToList();
         var name = text?.Trim();
         if (!string.IsNullOrEmpty(name)
-            && !Players.Values.Any(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase)))
-            items.Add(new PlayerDto(NewPlayerId, name, "", name, null, null, null, null, null));
+            && !AvailablePlayers.Any(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase)))
+            items.Add(new PlayerDto(NewPlayerId, name, "", name, 0, null, null, null, null));
         return Task.FromResult<IEnumerable<PlayerDto>>(items);
     }
 
@@ -225,7 +225,7 @@ else
         var name = text?.Trim();
         if (string.IsNullOrEmpty(name)) return;
 
-        var existing = Players.Values.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase));
+        var existing = AvailablePlayers.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase));
         var participant = existing is null ? null : Participants.FirstOrDefault(p => p.PlayerId == existing.Id);
 
         if (participant is { IsActive: true })

@@ -109,7 +109,10 @@
         };
 
         return @<div class="@css">
-            <span class="game-side-color @(isWhite ? "white" : "black")">@(isWhite ? L["White"] : L["Black"])</span>
+            @if (Game.Black is not null)
+            {
+                <span class="game-side-color @(isWhite ? "white" : "black")">@(isWhite ? L["White"] : L["Black"])</span>
+            }
             <div class="game-side-avatar">
                 <PlayerAvatar FirstName="@(info?.FirstName ?? player.Name)" LastName="@info?.LastName"
                               PhotoUrl="@info?.PhotoUrl" Size="Size.Large" Class="game-card-avatar" />
@@ -118,7 +121,7 @@
                     <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Class="game-side-trophy" />
                 }
             </div>
-            <div class="game-side-name">@player.Name</div>
+            <div class="game-side-name"><PlayerName Name="@player.Name" IsDeleted="player.IsDeleted" /></div>
         </div>;
     }
 }

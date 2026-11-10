@@ -3,7 +3,8 @@
 @using System.Globalization
 @inject IDialogService Dialogs
 
-@* One tournament: progress, and tabs for players, matches and standings. Settings are in a drawer. *@
+@* One tournament: progress, and tabs for players, matches and standings (and the report once closed).
+   Settings are in a drawer. *@
 <PageTitle>@(Tournament?.Title ?? L["Tournament"])</PageTitle>
 
 @if (IsLoading)
@@ -19,11 +20,12 @@ else
     <TournamentHeader Tournament="Tournament" OnOpenSettings="OpenSettings" />
 
     <MudPaper Class="pa-4 mb-4" Elevation="1">
-        <MudText Typo="Typo.h6" Class="mb-3">@L["Progress"]</MudText>
+        <div class="d-flex align-center gap-3 mb-4">
+            <MudIcon Icon="@StatusIcon" Color="@StatusColor" Size="Size.Large" />
+            <MudText Typo="Typo.h6">@StatusText</MudText>
+        </div>
 
-        <MudAlert Severity="@ProgressSeverity" Dense="true" Class="mb-4">@ProgressText</MudAlert>
-
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap align-center gap-2">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
                        Disabled="@(StartBlockedReason is not null || !CanStartNextRound || IsBusy)" OnClick="StartNextRoundAsync">
                 @L["StartRound", Tournament.RoundsStarted + 1]
@@ -32,6 +34,7 @@ else
                        Disabled="@(!CanClose || IsBusy)" OnClick="CloseAsync">
                 @L["CloseTournament"]
             </MudButton>
+
         </div>
         @if (StartBlockedReason is { } blocked)
         {
@@ -43,17 +46,18 @@ else
         <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="pa-4">
             <MudTabPanel Text="@($"{L["Players"]} ({ActivePlayerCount})")" Icon="@Icons.Material.Filled.People">
                 <TournamentPlayersTab Tournament="Tournament" Participants="_participants" Rounds="_rounds"
-                                      Players="_players" CanChangePlayers="CanChangePlayers" Disabled="IsBusy" Run="RunAsync" />
+                                      Players="_players" CanChangePlayers="CanChangePlayers" Disabled="IsBusy" Run="RunAsync"
+                                      OnOpenPlayer="OpenPlayer" />
             </MudTabPanel>
             <MudTabPanel Text="@L["Matches"]" Icon="@Icons.Material.Filled.GridOn">
                 <TournamentMatchesTab Tournament="Tournament" Rounds="_rounds" Players="_players"
-                                      AllRoundsPlayed="AllRoundsPlayed" Disabled="IsBusy" OnResult="SetResultAsync" />
+                                      Disabled="IsBusy" OnResult="SetResultAsync" />
             </MudTabPanel>
             <MudTabPanel Text="@L["Standings"]" Icon="@Icons.Material.Filled.EmojiEvents">
                 <div class="standings-centered">
                     @if (_standings.Any(s => s.Played > 0 || s.Points > 0))
                     {
-                        <StandingsTable Standings="_standings" />
+                        <StandingsTable Standings="_standings" OnPlayerClick="OpenPlayer" />
                     }
                     else
                     {
@@ -61,6 +65,12 @@ else
                     }
                 </div>
             </MudTabPanel>
+            @if (IsClosed)
+            {
+                <MudTabPanel Text="@L["Report"]" Icon="@Icons.Material.Filled.AutoAwesome">
+                    <TournamentReportTab TournamentId="Id" Report="Tournament.Report" Disabled="IsBusy" OnGenerate="GenerateReportAsync" />
+                </MudTabPanel>
+            }
         </MudTabs>
     </MudPaper>
 
@@ -82,6 +92,8 @@ else
                 <MudSimpleTable Dense="true" Elevation="0">
                     <tbody>
                         <tr><th style="width: 45%">@L["Title"]</th><td>@Tournament.Title</td></tr>
+                        <tr><th>@L["Location"]</th><td>@Tournament.Location</td></tr>
+                        <tr><th>@L["Description"]</th><td style="white-space: pre-line">@Tournament.Description</td></tr>
                         <tr><th>@L["Boards"]</th><td>@Tournament.Settings.Boards</td></tr>
                         <tr><th>@L["GameTime"]</th><td>@Tournament.Settings.GameTimeMinutes</td></tr>
                         <tr><th>@L["Increment"]</th><td>@Tournament.Settings.IncrementSeconds</td></tr>
@@ -90,6 +102,7 @@ else
                         <tr><th>@L["PointsForDraw"]</th><td>@Display.Points(Tournament.Settings.PointsForDraw)</td></tr>
                         <tr><th>@L["PointsForLoss"]</th><td>@Display.Points(Tournament.Settings.PointsForLoss)</td></tr>
                         <tr><th>@L["PointsForBye"]</th><td>@Display.Points(Tournament.Settings.PointsForBye)</td></tr>
+                        <tr><th>@L["IsRated"]</th><td>@(Tournament.Settings.IsRated ? L["Yes"] : L["No"])</td></tr>
                     </tbody>
                 </MudSimpleTable>
             }
@@ -99,6 +112,14 @@ else
                     <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary">@L["SettingsGeneral"]</MudText></MudItem>
                     <MudItem xs="12">
                         <MudTextField @bind-Value="_form.Title" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_form.Location" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
+                                      Variant="Variant.Outlined" Immediate="true" MaxLength="200" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_form.Description" Label="@L["Description"]" HelperText="@L["DescriptionHelp"]"
+                                      Variant="Variant.Outlined" Immediate="true" Lines="3" Sizing="InputSizing.Auto" MaxLines="10" MaxLength="2000" />
                     </MudItem>
                     <MudItem xs="12">
                         <MudNumericField T="int" @bind-Value="_form.Boards" Label="@L["Boards"]" HelperText="@L["BoardsHelp"]"
@@ -145,6 +166,11 @@ else
                         <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
                                          Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
                     </MudItem>
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="_form.IsRated" Label="@L["IsRated"]" Color="Color.Primary"
+                                   Disabled="Tournament.SettingsLocked" />
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["IsRatedHelp"]</MudText>
+                    </MudItem>
                 </MudGrid>
 
                 <div class="d-flex gap-2 justify-end mt-4">
@@ -157,8 +183,11 @@ else
     </MudDrawer>
 }
 
+@* The same player drawer as on the Players page, opened from the Players and Standings tabs. *@
+<PlayerEditDrawer @ref="_playerDrawer" OnSaved="_ => RunAsync(() => Task.CompletedTask)" />
+
 @code {
-    private const int PlayersTab = 0, MatchesTab = 1, StandingsTab = 2;
+    private const int PlayersTab = 0, MatchesTab = 1, StandingsTab = 2, ReportTab = 3;
 
     private List<TournamentPlayerDto> _participants = [];
     private Dictionary<int, PlayerDto> _players = [];
@@ -168,6 +197,7 @@ else
     private int _activeTab;
     private bool _initialTabChosen;
     private bool _settingsOpen;
+    private PlayerEditDrawer? _playerDrawer;
 
     private SettingsForm _form = new();
     private UpdateTournamentRequest? _loaded;
@@ -190,7 +220,7 @@ else
     protected override async Task LoadDataAsync()
     {
         var participants = Api.GetTournamentPlayersAsync(Id);
-        var allPlayers = Api.GetPlayersAsync();
+        var allPlayers = Api.GetPlayersAsync(includeDeleted: true);
         var rounds = Api.GetRoundsAsync(Id);
         var standings = Api.GetStandingsAsync(Id);
         _participants = await participants;
@@ -212,11 +242,17 @@ else
             _activeTab = Tournament!.State switch
             {
                 TournamentState.New => PlayersTab,
+                TournamentState.Closed when HasReport => ReportTab,
                 TournamentState.Closed => StandingsTab,
                 _ => MatchesTab
             };
             _initialTabChosen = true;
         }
+    }
+
+    private void OpenPlayer(int playerId)
+    {
+        if (_players.TryGetValue(playerId, out var player)) _playerDrawer?.OpenEdit(player);
     }
 
     private void OpenSettings()
@@ -268,30 +304,52 @@ else
     {
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             L["CloseConfirmTitle"], L["CloseConfirmText"], yesText: L["CloseTournament"], cancelText: L["Cancel"]);
-        if (confirmed == true)
-            await RunAsync(() => Api.CloseAsync(Id), L["TournamentClosed"]);
+        if (confirmed != true) return;
+
+        await RunAsync(() => Api.CloseAsync(Id), L["TournamentClosed"]);
+        // The AI is writing the report: show it.
+        if (IsClosed && HasReport) _activeTab = ReportTab;
     }
 
-    private Severity ProgressSeverity => Tournament?.State switch
+    private Task GenerateReportAsync() => RunAsync(() => Api.GenerateReportAsync(Id));
+
+    /// <summary>A report exists or is being written.</summary>
+    private bool HasReport => Tournament?.Report is { } r && (r.Text is not null || r.Status == ReportStatus.Generating);
+
+    /// <summary>The real games (without byes) of the most recent started round.</summary>
+    private List<GameDto> CurrentGames =>
+        _rounds.LastOrDefault(r => r.IsStarted)?.Games.Where(g => g.Black is not null).ToList() ?? [];
+
+    private string StatusIcon => Tournament?.State switch
     {
-        TournamentState.RoundActive => Severity.Success,
-        TournamentState.WaitingForNextRound => Severity.Warning,
-        TournamentState.Closed => Severity.Normal,
-        _ => Severity.Info
+        TournamentState.RoundActive => Icons.Material.Filled.HourglassTop,
+        TournamentState.WaitingForNextRound => Icons.Material.Filled.CheckCircle,
+        TournamentState.Closed => Icons.Material.Filled.Flag,
+        _ => Icons.Material.Filled.Info
     };
 
-    private string ProgressText => Tournament!.State switch
+    private Color StatusColor => Tournament?.State switch
+    {
+        TournamentState.RoundActive => Color.Warning,
+        TournamentState.WaitingForNextRound => Color.Success,
+        TournamentState.Closed => Color.Default,
+        _ => Color.Info
+    };
+
+    private string StatusText => Tournament!.State switch
     {
         TournamentState.New => L["NewInfo"],
-        TournamentState.RoundActive => L["RoundActiveInfo", Tournament.RoundsStarted],
-        TournamentState.WaitingForNextRound when AllRoundsPlayed => L["AllRoundsPlayedInfo"],
-        TournamentState.WaitingForNextRound => L["WaitingInfo", Tournament.RoundsStarted],
+        TournamentState.RoundActive => L["RoundInProgressStatus",
+            CurrentGames.Count(g => g.Result != GameResult.NotPlayed), CurrentGames.Count, Tournament.RoundsStarted],
+        TournamentState.WaitingForNextRound => L["RoundFinishedStatus", Tournament.RoundsStarted],
         _ => L["ClosedInfo"]
     };
 
     private sealed class SettingsForm
     {
         public string Title { get; set; } = "";
+        public string Location { get; set; } = "";
+        public string Description { get; set; } = "";
         public PairingSystem PairingSystem { get; set; }
         public int GameTimeMinutes { get; set; }
         public int IncrementSeconds { get; set; }
@@ -300,10 +358,13 @@ else
         public double PointsForLoss { get; set; }
         public double PointsForBye { get; set; }
         public int Boards { get; set; }
+        public bool IsRated { get; set; }
 
         public static SettingsForm From(TournamentDto t) => new()
         {
             Title = t.Title,
+            Location = t.Location ?? "",
+            Description = t.Description ?? "",
             PairingSystem = t.Settings.PairingSystem,
             GameTimeMinutes = t.Settings.GameTimeMinutes,
             IncrementSeconds = t.Settings.IncrementSeconds,
@@ -311,12 +372,17 @@ else
             PointsForDraw = t.Settings.PointsForDraw,
             PointsForLoss = t.Settings.PointsForLoss,
             PointsForBye = t.Settings.PointsForBye,
-            Boards = t.Settings.Boards
+            Boards = t.Settings.Boards,
+            IsRated = t.Settings.IsRated
         };
 
         public UpdateTournamentRequest ToRequest() => new(
             Title,
             new TournamentSettingsDto(PairingSystem, GameTimeMinutes, IncrementSeconds,
-                PointsForWin, PointsForDraw, PointsForLoss, PointsForBye, Boards));
+                PointsForWin, PointsForDraw, PointsForLoss, PointsForBye, Boards, IsRated),
+            NullIfEmpty(Location),
+            NullIfEmpty(Description));
+
+        private static string? NullIfEmpty(string text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 }

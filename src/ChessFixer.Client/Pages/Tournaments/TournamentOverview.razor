@@ -4,10 +4,10 @@
 @inject TournamentApi Api
 @inject TournamentHubClient Hub
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
 @inject IStringLocalizer<Strings> L
 
-@* All tournaments. The + button opens a drawer to create a new one. *@
+@* All tournaments. The + button opens a wizard in a modal to create a new one. *@
 <PageTitle>@L["Tournaments"]</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["Tournaments"]</MudText>
@@ -25,10 +25,18 @@
               OnRowClick="OnRowClick" Style="cursor: pointer">
         <HeaderContent>
             <MudTh>@L["Title"]</MudTh>
+            <MudTh>@L["Type"]</MudTh>
+            <MudTh Style="text-align: right">@L["Players"]</MudTh>
+            <MudTh Style="text-align: right">@L["Boards"]</MudTh>
+            <MudTh><span title="@L["TimeControlHelp"]">@L["TimeControl"]</span></MudTh>
             <MudTh>@L["State"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="@L["Title"]">@context.Title</MudTd>
+            <MudTd DataLabel="@L["Type"]">@L[$"PairingSystem_{context.PairingSystem}"]</MudTd>
+            <MudTd DataLabel="@L["Players"]" Style="text-align: right">@context.PlayerCount</MudTd>
+            <MudTd DataLabel="@L["Boards"]" Style="text-align: right">@context.Boards</MudTd>
+            <MudTd DataLabel="@L["TimeControl"]">@Display.TimeControl(context.GameTimeMinutes, context.IncrementSeconds)</MudTd>
             <MudTd DataLabel="@L["State"]">
                 <MudChip T="string" Size="Size.Small" Color="Display.StateColor(context.State)" Class="ma-0">
                     @L[$"State_{context.State}"]
@@ -39,36 +47,8 @@
     </MudTable>
 </MudPaper>
 
-<MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Variant="DrawerVariant.Temporary" Overlay="true"
-           Elevation="2" Width="50vw" Class="side-drawer">
-    <MudDrawerHeader Class="d-flex align-center">
-        <MudText Typo="Typo.h6">@L["NewTournament"]</MudText>
-        <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="@L["Close"]" OnClick="Close" />
-    </MudDrawerHeader>
-
-    @if (_drawerOpen)
-    {
-        <div class="px-6 pb-6 d-flex flex-column gap-4">
-            <MudTextField @bind-Value="_newTitle" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true"
-                          AutoFocus="true" OnKeyUp="OnTitleKeyUp" Disabled="_busy" />
-
-            <div class="d-flex gap-2 justify-end">
-                <MudButton Variant="Variant.Text" OnClick="Close" Disabled="_busy">@L["Cancel"]</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-                           Disabled="@(!CanCreate)" OnClick="CreateAsync">@L["Create"]</MudButton>
-            </div>
-        </div>
-    }
-</MudDrawer>
-
 @code {
     private List<TournamentSummaryDto>? _tournaments;
-    private bool _drawerOpen;
-    private string _newTitle = "";
-    private bool _busy;
-
-    private bool CanCreate => !string.IsNullOrWhiteSpace(_newTitle) && !_busy;
 
     protected override async Task OnInitializedAsync()
     {
@@ -86,45 +66,18 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private void OpenNew()
+    private async Task OpenNew()
     {
-        _newTitle = "";
-        _drawerOpen = true;
-    }
-
-    private void Close() => _drawerOpen = false;
-
-    private async Task CreateAsync()
-    {
-        if (!CanCreate) return;
-        _busy = true;
-        try
-        {
-            var tournament = await Api.CreateTournamentAsync(_newTitle);
+        // Clicking next to the wizard must not throw away what was filled in: only Cancel (or Escape) closes it.
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, BackdropClick = false };
+        var dialog = await Dialogs.ShowAsync<TournamentCreateDialog>(L["NewTournament"], options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: TournamentDto tournament })
             Navigation.NavigateTo($"tournament/{tournament.Id}");
-        }
-        catch (ApiClientException e)
-        {
-            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
-        }
-        catch (HttpRequestException)
-        {
-            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
-        }
-        finally
-        {
-            _busy = false;
-        }
     }
 
     private void OnRowClick(TableRowClickEventArgs<TournamentSummaryDto> args) =>
         Navigation.NavigateTo($"tournament/{args.Item!.Id}");
-
-    private async Task OnTitleKeyUp(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") await CreateAsync();
-        else if (e.Key == "Escape") Close();
-    }
 
     public void Dispose()
     {
