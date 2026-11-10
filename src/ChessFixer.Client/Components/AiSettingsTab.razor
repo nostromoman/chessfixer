@@ -1,0 +1,167 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Settings tab "AI-verslag": the AI that writes a report when a tournament is closed.
+   Every provider (Ollama, Claude) has its own block of fields. *@
+<MudPaper Class="pa-4" Elevation="0" Style="max-width: 48em">
+    <div class="d-flex align-center gap-2 mb-1">
+        <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Color="Color.Primary" />
+        <MudText Typo="Typo.h6">@L["AiReportSettings"]</MudText>
+    </div>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L["AiReportSettingsIntro"]</MudText>
+
+    @if (_loaded is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            <MudSelect T="AiProvider" Value="_form.Provider" ValueChanged="OnProviderChanged" Label="@L["AiProvider"]"
+                       Variant="Variant.Outlined" Disabled="_busy">
+                @foreach (var provider in Enum.GetValues<AiProvider>())
+                {
+                    <MudSelectItem Value="provider">@L[$"AiProvider_{provider}"]</MudSelectItem>
+                }
+            </MudSelect>
+
+            @if (_form.Provider == AiProvider.Ollama)
+            {
+                <MudTextField @bind-Value="_form.OllamaUrl" Label="@L["OllamaUrl"]" Placeholder="http://localhost:11434"
+                              HelperText="@L["OllamaUrlHelp"]" Variant="Variant.Outlined" Immediate="true" Disabled="_busy" />
+                <MudTextField @bind-Value="_form.OllamaModel" Label="@L["OllamaModel"]" Placeholder="llama3.1"
+                              HelperText="@L["OllamaModelHelp"]" Variant="Variant.Outlined" Immediate="true" Disabled="_busy" />
+            }
+            else if (_form.Provider == AiProvider.Claude)
+            {
+                <MudTextField @bind-Value="_form.ClaudeApiKey" Label="@L["ClaudeApiKey"]" InputType="InputType.Password"
+                              Placeholder="@(_loaded.Claude.HasApiKey ? "••••••••" : "sk-ant-...")"
+                              HelperText="@(_loaded.Claude.HasApiKey ? L["ClaudeApiKeyKeepHelp"].Value : L["ClaudeApiKeyHelp"].Value)"
+                              Variant="Variant.Outlined" Immediate="true" Disabled="_busy" autocomplete="new-password" />
+                <MudTextField @bind-Value="_form.ClaudeModel" Label="@L["OllamaModel"]" Placeholder="claude-opus-5-5"
+                              HelperText="@L["ClaudeModelHelp"]" Variant="Variant.Outlined" Immediate="true" Disabled="_busy" />
+            }
+        </div>
+
+        @if (_test is { Success: true } ok)
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-4">
+                @(ok.Models.Count == 0 ? L["AiTestOk"] : L["AiTestOkModels", ok.Models.Count])
+            </MudAlert>
+            @if (ok.Models.Count > 0)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">@L["AiTestPickModel"]</MudText>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    @foreach (var model in ok.Models)
+                    {
+                        <MudChip T="string" Size="Size.Small" Class="ma-0"
+                                 Color="@(model == SelectedModel ? Color.Primary : Color.Default)"
+                                 OnClick="() => SelectModel(model)">@model</MudChip>
+                    }
+                </div>
+            }
+        }
+        else if (_test is { } failed)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-4">@L["AiTestFailed", failed.Error ?? ""]</MudAlert>
+        }
+
+        <div class="d-flex gap-2 justify-end mt-4">
+            @if (_form.Provider != AiProvider.None)
+            {
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.NetworkCheck" OnClick="TestAsync" Disabled="_busy">
+                    @L["AiTestConnection"]
+                </MudButton>
+            }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="SaveAsync" Disabled="@(!IsDirty || _busy)">@L["Save"]</MudButton>
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private AiSettingsDto? _loaded;
+    private Form _form = new();
+    private AiConnectionTestResult? _test;
+    private bool _busy;
+
+    private bool IsDirty => _loaded is not null && Form.From(_loaded) != _form;
+
+    private string SelectedModel => _form.Provider == AiProvider.Claude ? _form.ClaudeModel : _form.OllamaModel;
+
+    private void SelectModel(string model)
+    {
+        if (_form.Provider == AiProvider.Claude) _form.ClaudeModel = model;
+        else _form.OllamaModel = model;
+    }
+
+    /// <summary>A test result belongs to one provider.</summary>
+    private void OnProviderChanged(AiProvider provider)
+    {
+        _form.Provider = provider;
+        _test = null;
+    }
+
+    protected override async Task OnInitializedAsync() =>
+        await RunAsync(async () =>
+        {
+            _loaded = await Api.GetAiSettingsAsync();
+            _form = Form.From(_loaded);
+        });
+
+    private Task TestAsync() =>
+        RunAsync(async () => _test = await Api.TestAiSettingsAsync(_form.ToRequest()));
+
+    private Task SaveAsync() =>
+        RunAsync(async () =>
+        {
+            _loaded = await Api.UpdateAiSettingsAsync(_form.ToRequest());
+            _form = Form.From(_loaded);
+            Snackbar.Add(L["Saved"], Severity.Success);
+        });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed record Form
+    {
+        public AiProvider Provider { get; set; }
+        public string OllamaUrl { get; set; } = "";
+        public string OllamaModel { get; set; } = "";
+        public string ClaudeModel { get; set; } = "";
+        /// <summary>Empty: keep the stored API key.</summary>
+        public string ClaudeApiKey { get; set; } = "";
+
+        public static Form From(AiSettingsDto s) => new()
+        {
+            Provider = s.Provider,
+            OllamaUrl = s.Ollama.Url,
+            OllamaModel = s.Ollama.Model,
+            ClaudeModel = s.Claude.Model
+        };
+
+        public UpdateAiSettingsRequest ToRequest() => new(
+            Provider,
+            new UpdateOllamaSettings(OllamaUrl, OllamaModel),
+            new UpdateClaudeSettings(ClaudeModel, ClaudeApiKey.Length > 0 ? ClaudeApiKey : null));
+    }
+}

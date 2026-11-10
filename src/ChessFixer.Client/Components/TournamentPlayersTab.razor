@@ -1,0 +1,276 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* The players of one tournament with their status. Players are added with the search field and the + button:
+   pick an existing player, or type a name that does not exist yet to create a new player (first name only). *@
+<div class="d-flex align-center gap-2 mb-3">
+    <MudSpacer />
+    <div style="width: 20em; max-width: 100%">
+        <MudAutocomplete @ref="_search" T="PlayerDto" Placeholder="@L["SearchOrNewPlayer"]" Variant="Variant.Outlined"
+                         Margin="Margin.Dense" SearchFunc="SearchAsync" ToStringFunc="@(p => p?.Name)"
+                         ValueChanged="OnPickedAsync" TextChanged="t => _searchText = t"
+                         Disabled="@(!CanChangePlayers)" ResetValueOnEmptyText="true" CoerceText="false"
+                         Clearable="true" AdornmentIcon="@Icons.Material.Filled.Search">
+            <ItemTemplate Context="player">
+                @if (player.Id == NewPlayerId)
+                {
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
+                        <span>@L["NewPlayerOption", player.Name]</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex align-center gap-2">
+                        <PlayerAvatar FirstName="@player.FirstName" LastName="@player.LastName" PhotoUrl="@player.PhotoUrl" />
+                        @player.Name
+                        <MudText Typo="Typo.caption" Inline="true" Class="mud-text-secondary">(@player.Rating)</MudText>
+                    </div>
+                }
+            </ItemTemplate>
+            <NoItemsTemplate>
+                <MudText Class="pa-3" Typo="Typo.body2">@L["NoMatchingPlayers"]</MudText>
+            </NoItemsTemplate>
+        </MudAutocomplete>
+    </div>
+    <MudTooltip Text="@(LockReason ?? L["AddPlayer"])">
+        <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="@L["AddPlayer"]"
+                Disabled="@(!CanChangePlayers || _adding || string.IsNullOrWhiteSpace(_searchText))" OnClick="AddTypedAsync" />
+    </MudTooltip>
+</div>
+
+@if (LockReason is { } reason)
+{
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@reason</MudAlert>
+}
+
+@if (Participants.Count == 0)
+{
+    <MudText Typo="Typo.body2">@L["NoPlayers"]</MudText>
+}
+else
+{
+    <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0">
+        <thead>
+            <tr>
+                <th style="width: 3em"></th>
+                <th>@L["Name"]</th>
+                <th style="text-align: right">@L["Rating"]</th>
+                <th>@L["State"]</th>
+                <th style="width: 6em"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var player in Participants)
+            {
+                var info = Players.GetValueOrDefault(player.PlayerId);
+                var status = StatusOf(player);
+                <tr class="@(player.IsActive ? null : "withdrawn")">
+                    <td><PlayerAvatar FirstName="@(info?.FirstName ?? player.Name)" LastName="@info?.LastName" PhotoUrl="@info?.PhotoUrl" /></td>
+                    <td>
+                        @{ var playerId = player.PlayerId; }
+                        <MudLink OnClick="() => OnOpenPlayer.InvokeAsync(playerId)" Disabled="@(info is null)">
+                            <PlayerName Name="@player.Name" IsDeleted="player.IsDeleted" />
+                        </MudLink>
+                    </td>
+                    <td style="text-align: right">@player.Rating</td>
+                    <td>
+                        <MudChip T="string" Size="Size.Small" Class="ma-0" Color="@StatusColor(status)"
+                                 Variant="@(status == PlayerStatus.Playing ? Variant.Filled : Variant.Outlined)">
+                            @StatusText(status)
+                        </MudChip>
+                    </td>
+                    <td style="text-align: right; white-space: nowrap">
+                        <MudTooltip Text="@L["EditPlayer"]">
+                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditPlayer"]"
+                                           Disabled="@(info is null || Disabled)" OnClick="() => OnOpenPlayer.InvokeAsync(playerId)" />
+                        </MudTooltip>
+                        @if (player.IsActive)
+                        {
+                            <MudTooltip Text="@(InGame(status) ? L["RemoveBlockedInGame"] : L["Remove"])">
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonRemove" Size="Size.Small"
+                                               Color="Color.Error" aria-label="@L["Remove"]"
+                                               Disabled="@(!CanChangePlayers || Disabled || InGame(status))"
+                                               OnClick="() => RemoveAsync(player)" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudTooltip Text="@L["Rejoin"]">
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonAddAlt1" Size="Size.Small"
+                                               Color="Color.Success" aria-label="@L["Rejoin"]"
+                                               Disabled="@(!CanChangePlayers || Disabled)"
+                                               OnClick="() => RejoinAsync(player)" />
+                            </MudTooltip>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    private enum PlayerStatus { Waiting, WaitingForBoard, Playing, Bye, Withdrawn, Finished }
+
+    [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
+    [Parameter, EditorRequired] public List<TournamentPlayerDto> Participants { get; set; } = [];
+    [Parameter, EditorRequired] public List<RoundDto> Rounds { get; set; } = [];
+
+    /// <summary>The central player list by id: for searching, and for names and photos.</summary>
+    [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
+
+    [Parameter] public bool CanChangePlayers { get; set; }
+
+    /// <summary>Opens the player drawer for the player with this id.</summary>
+    [Parameter] public EventCallback<int> OnOpenPlayer { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Runs an API action on the page (error handling and reload), with an optional success message.</summary>
+    [Parameter, EditorRequired] public Func<Func<Task>, string?, Task> Run { get; set; } = null!;
+
+    private MudAutocomplete<PlayerDto>? _search;
+    private string? _searchText;
+    private bool _adding;
+
+    private string? LockReason => Tournament.State switch
+    {
+        TournamentState.Closed => L["PlayersLockedClosed"].Value,
+        _ => null
+    };
+
+    private PlayerStatus StatusOf(TournamentPlayerDto player)
+    {
+        if (!player.IsActive) return PlayerStatus.Withdrawn;
+        if (Tournament.State == TournamentState.Closed) return PlayerStatus.Finished;
+        if (Tournament.State != TournamentState.RoundActive) return PlayerStatus.Waiting;
+
+        var round = Rounds.LastOrDefault(r => r.IsStarted);
+        var game = round?.Games.FirstOrDefault(g => g.White.PlayerId == player.PlayerId || g.Black?.PlayerId == player.PlayerId);
+        return game switch
+        {
+            null => PlayerStatus.Waiting, // joined during this round
+            { Black: null } => PlayerStatus.Bye,
+            { Result: GameResult.NotPlayed, Board: null } => PlayerStatus.WaitingForBoard,
+            { Result: GameResult.NotPlayed } => PlayerStatus.Playing,
+            _ => PlayerStatus.Waiting // game finished, waiting for the others
+        };
+    }
+
+    /// <summary>Playing or waiting for a board: cannot withdraw until the game is finished.</summary>
+    private static bool InGame(PlayerStatus status) => status is PlayerStatus.Playing or PlayerStatus.WaitingForBoard;
+
+    private string StatusText(PlayerStatus status) => status switch
+    {
+        PlayerStatus.Withdrawn => L["Withdrawn"],
+        _ => L[$"Status_{status}"]
+    };
+
+    private static Color StatusColor(PlayerStatus status) => status switch
+    {
+        PlayerStatus.Playing => Color.Success,
+        PlayerStatus.Bye => Color.Info,
+        PlayerStatus.Waiting or PlayerStatus.WaitingForBoard => Color.Warning,
+        _ => Color.Default
+    };
+
+    /// <summary>Players from the central list that are not in this tournament yet (withdrawn players rejoin from the table).</summary>
+    private IEnumerable<PlayerDto> Candidates(string? text)
+    {
+        var inTournament = Participants.Select(p => p.PlayerId).ToHashSet();
+        return AvailablePlayers
+            .Where(p => !inTournament.Contains(p.Id))
+            .Where(p => string.IsNullOrWhiteSpace(text) || p.Name.Contains(text.Trim(), StringComparison.CurrentCultureIgnoreCase))
+            .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase);
+    }
+
+    /// <summary>Players that can join: <see cref="Players"/> also holds deleted players, for the ones in this tournament.</summary>
+    private IEnumerable<PlayerDto> AvailablePlayers => Players.Values.Where(p => !p.IsDeleted);
+
+    /// <summary>Id of the extra list item "add ... as new player"; real players have positive ids.</summary>
+    private const int NewPlayerId = 0;
+
+    /// <summary>
+    /// Matching players, plus an item to create a new player when no player has exactly the typed name.
+    /// The new-player item is a normal list item, so Enter and clicking work the same as for a player.
+    /// </summary>
+    private Task<IEnumerable<PlayerDto>> SearchAsync(string? text, CancellationToken cancellationToken)
+    {
+        var items = Candidates(text).ToList();
+        var name = text?.Trim();
+        if (!string.IsNullOrEmpty(name)
+            && !AvailablePlayers.Any(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase)))
+            items.Add(new PlayerDto(NewPlayerId, name, "", name, 0, null, null, null, null));
+        return Task.FromResult<IEnumerable<PlayerDto>>(items);
+    }
+
+    /// <summary>An item picked from the list: an existing player, or the new-player item.</summary>
+    private async Task OnPickedAsync(PlayerDto? player)
+    {
+        if (player is null) return;
+        if (player.Id == NewPlayerId) await AddByNameAsync(player.Name);
+        else await AddAsync(() => Api.AddPlayerAsync(Tournament.Id, player.Id), L["PlayerAdded", player.Name]);
+    }
+
+    /// <summary>The + button: adds the typed name.</summary>
+    private Task AddTypedAsync() => AddByNameAsync(_searchText);
+
+    /// <summary>
+    /// An existing player with exactly this name is added (or rejoins);
+    /// otherwise a new player is created with the name as first name.
+    /// </summary>
+    private async Task AddByNameAsync(string? text)
+    {
+        var name = text?.Trim();
+        if (string.IsNullOrEmpty(name)) return;
+
+        var existing = AvailablePlayers.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase));
+        var participant = existing is null ? null : Participants.FirstOrDefault(p => p.PlayerId == existing.Id);
+
+        if (participant is { IsActive: true })
+        {
+            Snackbar.Add(L["Error_PlayerAlreadyInTournament"], Severity.Warning);
+            await ClearSearchAsync();
+        }
+        else if (participant is not null)
+            await AddAsync(() => Api.AddPlayerAsync(Tournament.Id, participant.PlayerId), L["PlayerRejoined", participant.Name]);
+        else if (existing is not null)
+            await AddAsync(() => Api.AddPlayerAsync(Tournament.Id, existing.Id), L["PlayerAdded", existing.Name]);
+        else
+            await AddAsync(async () =>
+            {
+                var player = await Api.CreatePlayerAsync(new CreatePlayerRequest(name, null, null));
+                await Api.AddPlayerAsync(Tournament.Id, player.Id);
+                Snackbar.Add(L["PlayerAdded", player.Name], Severity.Success);
+            }, null);
+    }
+
+    /// <summary>Runs one add action at a time (ignores a second Enter or click meanwhile) and clears the search field.</summary>
+    private async Task AddAsync(Func<Task> action, string? successMessage)
+    {
+        if (_adding || !CanChangePlayers) return;
+        _adding = true;
+        try
+        {
+            await Run(action, successMessage);
+        }
+        finally
+        {
+            _adding = false;
+        }
+        await ClearSearchAsync();
+    }
+
+    private async Task ClearSearchAsync()
+    {
+        _searchText = null;
+        if (_search is not null) await _search.ClearAsync();
+    }
+
+    private Task RemoveAsync(TournamentPlayerDto player) =>
+        Run(() => Api.RemovePlayerAsync(Tournament.Id, player.PlayerId), L["PlayerRemoved", player.Name]);
+
+    private Task RejoinAsync(TournamentPlayerDto player) =>
+        Run(() => Api.AddPlayerAsync(Tournament.Id, player.PlayerId), L["PlayerRejoined", player.Name]);
+}

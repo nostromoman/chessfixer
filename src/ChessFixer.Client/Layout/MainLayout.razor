@@ -1,5 +1,9 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 @inject IStringLocalizer<Strings> L
+@inject NavigationManager Navigation
+@inject ServerAuthenticationStateProvider Auth
+@inject IDialogService Dialogs
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -12,17 +16,43 @@
                        OnClick="() => _menuOpen = !_menuOpen" aria-label="@L["ToggleMenu"]" />
         <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Class="ml-2 mr-2" />
         <MudLink Href="tournament" Color="Color.Inherit" Typo="Typo.h6" Underline="Underline.None">@L["AppTitle"]</MudLink>
+        <MudSpacer />
+
+        @* The logged-in user, with a menu to change the password and to log out. *@
+        <AuthorizeView Context="auth">
+            <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@L["Account"]">
+                <ActivatorContent>
+                    <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" Class="text-none">
+                        @auth.User.Identity?.Name
+                    </MudButton>
+                </ActivatorContent>
+                <ChildContent>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Password" OnClick="ChangePasswordAsync">@L["ChangePassword"]</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="LogoutAsync">@L["Logout"]</MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        </AuthorizeView>
     </MudAppBar>
 
     <MudDrawer @bind-Open="_menuOpen" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Responsive" Elevation="1">
-        <MudNavMenu Class="mt-2">
-            <MudNavLink Href="tournament" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EmojiEvents">
-                @L["Tournaments"]
-            </MudNavLink>
-            <MudNavLink Href="players" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
-                @L["Players"]
-            </MudNavLink>
-        </MudNavMenu>
+        <div class="d-flex flex-column" style="height: 100%">
+            <MudNavMenu Class="mt-2 flex-grow-1">
+                <MudNavLink Href="tournament" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EmojiEvents">
+                    @L["Tournaments"]
+                </MudNavLink>
+                <MudNavLink Href="players" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
+                    @L["Players"]
+                </MudNavLink>
+            </MudNavMenu>
+
+            @* Application settings: a gear at the bottom left of the menu. *@
+            <div class="pa-2">
+                <MudTooltip Text="@L["AppSettings"]" Placement="Placement.Right">
+                    <MudIconButton Icon="@Icons.Material.Filled.Settings" Href="settings" aria-label="@L["AppSettings"]"
+                                   Color="@(IsOnSettings ? Color.Primary : Color.Default)" />
+                </MudTooltip>
+            </div>
+        </div>
     </MudDrawer>
 
     <MudMainContent>
@@ -34,4 +64,30 @@
 
 @code {
     private bool _menuOpen = true;
+
+    private bool IsOnSettings => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("settings", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+
+    private Task ChangePasswordAsync() =>
+        Dialogs.ShowAsync<ChangePasswordDialog>(L["ChangePassword"],
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, BackdropClick = false });
+
+    /// <summary>Reloads the app, so nothing of the session (data, live connection) stays in memory.</summary>
+    private async Task LogoutAsync()
+    {
+        try
+        {
+            await Auth.LogoutAsync();
+        }
+        catch (HttpRequestException)
+        {
+            // Server unreachable: the cookie stays, but the app still goes to the login page.
+        }
+        Navigation.NavigateTo("login", forceLoad: true);
+    }
 }

@@ -1,0 +1,101 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject IStringLocalizer<Strings> L
+
+@* Settings tab "Toernooileiders" (system administrator only): create, change and delete tournament leader accounts. *@
+<div style="max-width: 48em">
+    <div class="d-flex align-center gap-2 mb-1">
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["LeadersIntro"]</MudText>
+        <MudSpacer />
+        <MudTooltip Text="@L["NewLeader"]">
+            <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                    aria-label="@L["NewLeader"]" OnClick="() => EditAsync(null)" Disabled="_busy" />
+        </MudTooltip>
+    </div>
+
+    @if (_leaders is null)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mt-3" />
+    }
+    else if (_leaders.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="mt-3">@L["NoLeaders"]</MudText>
+    }
+    else
+    {
+        <MudTable T="LeaderDto" Items="_leaders" Dense="true" Hover="true" Elevation="0" Class="mt-2">
+            <HeaderContent>
+                <MudTh>@L["Name"]</MudTh>
+                <MudTh>@L["UserName"]</MudTh>
+                <MudTh Style="width: 6em"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@L["Name"]">
+                    <MudLink OnClick="() => EditAsync(context)">@context.DisplayName</MudLink>
+                </MudTd>
+                <MudTd DataLabel="@L["UserName"]">@context.UserName</MudTd>
+                <MudTd Style="text-align: right; white-space: nowrap">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditLeader"]"
+                                   Disabled="_busy" OnClick="() => EditAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                   aria-label="@L["DeleteLeader"]" Disabled="_busy" OnClick="() => DeleteAsync(context)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</div>
+
+@code {
+    private List<LeaderDto>? _leaders;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync() => RunAsync(LoadAsync);
+
+    private async Task LoadAsync() => _leaders = await Api.GetLeadersAsync();
+
+    /// <param name="leader">Null to create a new leader.</param>
+    private async Task EditAsync(LeaderDto? leader)
+    {
+        var dialog = await Dialogs.ShowAsync<LeaderEditDialog>(
+            leader is null ? L["NewLeader"] : L["EditLeader"],
+            new DialogParameters<LeaderEditDialog> { { d => d.Leader, leader } },
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, BackdropClick = false });
+        if ((await dialog.Result) is { Canceled: false }) await RunAsync(LoadAsync);
+    }
+
+    private async Task DeleteAsync(LeaderDto leader)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            L["DeleteLeaderTitle"], L["DeleteLeaderText", leader.DisplayName], yesText: L["DeleteLeader"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        await RunAsync(async () =>
+        {
+            await Api.DeleteLeaderAsync(leader.Id);
+            Snackbar.Add(L["LeaderDeleted", leader.DisplayName], Severity.Success);
+        });
+        await RunAsync(LoadAsync);
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

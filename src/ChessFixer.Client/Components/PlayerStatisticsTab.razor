@@ -1,0 +1,128 @@
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* Statistics of one player in the player drawer: totals, the place in each tournament, and all games. *@
+@if (_failed)
+{
+    <MudAlert Severity="Severity.Error" Dense="true">@L["StatsLoadFailed"]</MudAlert>
+}
+else if (_stats is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_stats.Tournaments == 0)
+{
+    <MudText Typo="Typo.body2">@L["StatsNoTournaments"]</MudText>
+}
+else
+{
+    <div class="player-stats-totals mb-6">
+        @StatTile(L["StatsTournaments"], _stats.Tournaments.ToString())
+        @StatTile(L["StatsGames"], _stats.Played.ToString())
+        @StatTile(L["StatsWins"], _stats.Wins.ToString())
+        @StatTile(L["StatsDraws"], _stats.Draws.ToString())
+        @StatTile(L["StatsLosses"], _stats.Losses.ToString())
+        @StatTile(L["StatsScore"], ScorePercentage)
+    </div>
+
+    <MudText Typo="Typo.subtitle1" Class="mb-2">@L["StatsTournamentResults"]</MudText>
+    <MudSimpleTable Dense="true" Hover="true" Elevation="0" Class="mb-6">
+        <thead>
+            <tr>
+                <th>@L["StatsTournament"]</th>
+                <th>@L["State"]</th>
+                <th>@L["StatsPlace"]</th>
+                <th style="text-align: right">@L["PointsShort"]</th>
+                <th style="text-align: right">@L["WinsShort"]</th>
+                <th style="text-align: right">@L["DrawsShort"]</th>
+                <th style="text-align: right">@L["LossesShort"]</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var result in _stats.TournamentResults)
+            {
+                <tr>
+                    <td><MudLink Href="@($"tournament/{result.TournamentId}")">@result.Title</MudLink></td>
+                    <td>
+                        <MudChip T="string" Size="Size.Small" Class="ma-0" Variant="Variant.Outlined"
+                                 Color="@Display.StateColor(result.State)">@L[$"State_{result.State}"]</MudChip>
+                    </td>
+                    <td>@L["StatsPlaceOf", result.Rank, result.PlayerCount]</td>
+                    <td style="text-align: right">@Display.Points(result.Points)</td>
+                    <td style="text-align: right">@result.Wins</td>
+                    <td style="text-align: right">@result.Draws</td>
+                    <td style="text-align: right">@result.Losses</td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+
+    <MudText Typo="Typo.subtitle1" Class="mb-2">@L["StatsGames"]</MudText>
+    @if (_stats.Games.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["NoResultsYet"]</MudText>
+    }
+    else
+    {
+        <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+            <thead>
+                <tr>
+                    <th>@L["StatsTournament"]</th>
+                    <th style="text-align: right">@L["StatsRound"]</th>
+                    <th>@L["StatsColor"]</th>
+                    <th>@L["StatsOpponent"]</th>
+                    <th>@L["Result"]</th>
+                    <th style="text-align: right">@L["PointsShort"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var game in _stats.Games)
+                {
+                    <tr>
+                        <td>@game.TournamentTitle</td>
+                        <td style="text-align: right">@game.Round</td>
+                        <td>@(game.Opponent is null ? "" : game.IsWhite ? L["White"] : L["Black"])</td>
+                        <td>
+                            @if (game.Opponent is { } opponent)
+                            {
+                                <PlayerName Name="@opponent.Name" IsDeleted="opponent.IsDeleted" />
+                            }
+                            else
+                            {
+                                @L["ByeOpponent"]
+                            }
+                        </td>
+                        <td>
+                            <span class="@Display.OutcomeClass(game.Result, game.IsWhite)">@L[$"Result_{game.Result}"]</span>
+                        </td>
+                        <td style="text-align: right">@(game.Points is { } points ? Display.Points(points) : "")</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public int PlayerId { get; set; }
+
+    private PlayerStatisticsDto? _stats;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _stats = await Api.GetPlayerStatisticsAsync(PlayerId); }
+        catch (Exception) { _failed = true; }
+    }
+
+    /// <summary>Share of the possible points from games with a result: win 1, draw ½.</summary>
+    private string ScorePercentage => _stats!.Played == 0
+        ? "-"
+        : $"{Math.Round(100.0 * (_stats.Wins + 0.5 * _stats.Draws) / _stats.Played)}%";
+
+    private static RenderFragment StatTile(string label, string value) =>
+        @<div class="player-stats-tile">
+            <div class="player-stats-value">@value</div>
+            <div class="player-stats-label">@label</div>
+        </div>;
+}

@@ -154,14 +154,64 @@ public class SwissPairingTests
     }
 
     [Fact]
-    public void ThrowsWhenNoValidPairingExists()
+    public void PairsAgainWhenEveryoneHasMet()
     {
         var players = TournamentSimulator.CreatePlayers(2);
         var history = new List<PlayedGame> { new(1, 1, 2, GameResult.Draw) };
 
-        var error = Assert.Throws<PairingException>(() =>
-            new SwissPairing().PairNextRound(new PairingInput(players, history, ScoringRules.Default)));
-        Assert.Equal(PairingError.NoValidPairing, error.Error);
+        var boards = new SwissPairing().PairNextRound(new PairingInput(players, history, ScoringRules.Default));
+        var board = Assert.Single(boards);
+        Assert.Equal([1, 2], new[] { board.WhiteId, board.BlackId!.Value }.Order());
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    public void KeepsPairingAfterEveryoneHasMet(int playerCount)
+    {
+        var sim = Simulator(playerCount);
+        for (var round = 0; round < 3 * playerCount; round++) sim.PlayRound();
+
+        var counts = sim.Meetings().GroupBy(m => m).Select(g => g.Count()).ToList();
+        Assert.Equal(playerCount * (playerCount - 1) / 2, counts.Count);
+    }
+
+    [Fact]
+    public void SecondMeetingsBeforeThirdMeetings()
+    {
+        // 4 players: after 3 rounds everyone has met once; after 3 more everyone has met exactly twice.
+        var sim = Simulator(4);
+        for (var round = 0; round < 6; round++) sim.PlayRound();
+
+        Assert.All(sim.Meetings().GroupBy(m => m), g => Assert.Equal(2, g.Count()));
+    }
+
+    [Fact]
+    public void Rematch_ColorsAreReversed()
+    {
+        var players = TournamentSimulator.CreatePlayers(2);
+        var history = new List<PlayedGame> { new(1, 1, 2, GameResult.Draw) };
+
+        var board = Assert.Single(new SwissPairing().PairNextRound(new PairingInput(players, history, ScoringRules.Default)));
+        Assert.Equal((2, 1), (board.WhiteId, board.BlackId!.Value));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(6)]
+    [InlineData(8)]
+    public void SecondMeetings_HaveReversedColors(int playerCount)
+    {
+        var sim = Simulator(playerCount);
+        for (var round = 0; round < 2 * (playerCount - 1); round++) sim.PlayRound();
+
+        var twice = sim.History.Where(g => g.BlackId is not null)
+            .GroupBy(g => (Math.Min(g.WhiteId, g.BlackId!.Value), Math.Max(g.WhiteId, g.BlackId!.Value)))
+            .Where(g => g.Count() == 2).ToList();
+        var reversed = twice.Count(g => g.Select(x => x.WhiteId).Distinct().Count() == 2);
+        Assert.Equal(twice.Count, reversed);
     }
 
     [Fact]

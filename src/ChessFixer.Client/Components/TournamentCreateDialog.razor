@@ -1,0 +1,213 @@
+@using System.Globalization
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Wizard in a modal to create a tournament: title, tournament type, boards and time control,
+   points and whether it counts for the rating, and (optional) location and description, which the AI uses for the report after closing.
+   Closes with the created TournamentDto as result. Open it with IDialogService.ShowAsync<TournamentCreateDialog>.
+   Everything except the title can be changed later in the tournament settings. *@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["NewTournament"]</MudText>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">@string.Format(L["WizardStep"], _step, StepCount) · @StepTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudProgressLinear Color="Color.Primary" Value="@(100.0 * _step / StepCount)" Class="mb-4" Rounded="true" />
+
+        @switch (_step)
+        {
+            case TitleStep:
+                <MudText Typo="Typo.body2" Class="mb-3">@L["WizardTitleIntro"]</MudText>
+                <MudTextField @bind-Value="_title" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true"
+                              AutoFocus="true" OnKeyUp="OnEnterNext" Disabled="_busy" />
+                break;
+
+            case TypeStep:
+                <MudText Typo="Typo.body2" Class="mb-3">@L["WizardTypeIntro"]</MudText>
+                <div class="d-flex flex-column gap-3" role="radiogroup" aria-label="@L["TournamentType"]">
+                    @foreach (var system in Systems)
+                    {
+                        var selected = system == _settings.PairingSystem;
+                        <MudPaper Outlined="true" Class="pa-3 d-flex gap-3 align-start"
+                                  Style="@(selected ? "border-color: var(--mud-palette-primary); border-width: 2px; cursor: pointer" : "cursor: pointer")"
+                                  role="radio" aria-checked="@(selected ? "true" : "false")" tabindex="0"
+                                  @onclick="() => SelectSystem(system)" @onkeyup="e => OnTypeKeyUp(e, system)">
+                            <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)"
+                                     Color="@(selected ? Color.Primary : Color.Default)" Class="mt-1" />
+                            <div>
+                                <div class="d-flex align-center gap-2">
+                                    <MudText Typo="Typo.subtitle1"><b>@L[$"PairingSystem_{system}"]</b></MudText>
+                                    @if (system == PairingSystem.RoundRobin)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ma-0">@L["Recommended"]</MudChip>
+                                    }
+                                </div>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@L[$"PairingSystemInfo_{system}"]</MudText>
+                            </div>
+                        </MudPaper>
+                    }
+                </div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 d-block">@L["WizardChangeBeforeRound1"]</MudText>
+                break;
+
+            case PlayStep:
+                <MudText Typo="Typo.body2" Class="mb-3">@L["WizardPlayIntro"]</MudText>
+                <div class="d-flex flex-column gap-3">
+                    <MudNumericField T="int" @bind-Value="_boards" Label="@L["Boards"]" Variant="Variant.Outlined"
+                                     Min="1" Immediate="true" AutoFocus="true" OnKeyUp="OnEnterNext" />
+                    <MudNumericField T="int" @bind-Value="_gameTimeMinutes" Label="@L["GameTime"]" Variant="Variant.Outlined"
+                                     Min="1" Immediate="true" OnKeyUp="OnEnterNext" />
+                    <MudNumericField T="int" @bind-Value="_incrementSeconds" Label="@L["Increment"]" Variant="Variant.Outlined"
+                                     Min="0" Immediate="true" OnKeyUp="OnEnterNext" />
+                </div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 d-block">@L["WizardChangeLater"]</MudText>
+                break;
+
+            case PointsStep:
+                <MudText Typo="Typo.body2" Class="mb-3">@L["WizardPointsIntro"]</MudText>
+                <div class="d-flex flex-column gap-3">
+                    <MudNumericField T="double" @bind-Value="_pointsForWin" Label="@L["PointsForWin"]" Variant="Variant.Outlined"
+                                     Min="0" Step="0.5" Immediate="true" AutoFocus="true" Culture="CultureInfo.CurrentCulture" />
+                    <MudNumericField T="double" @bind-Value="_pointsForDraw" Label="@L["PointsForDraw"]" Variant="Variant.Outlined"
+                                     Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                    <MudNumericField T="double" @bind-Value="_pointsForLoss" Label="@L["PointsForLoss"]" Variant="Variant.Outlined"
+                                     Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                    <div>
+                        <MudSwitch T="bool" @bind-Value="_isRated" Label="@L["IsRated"]" Color="Color.Primary" />
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["IsRatedHelp"]</MudText>
+                    </div>
+                </div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 d-block">@L["WizardChangeBeforeRound1"]</MudText>
+                break;
+
+            case DetailsStep:
+                <MudText Typo="Typo.body2" Class="mb-3">@L["WizardDetailsIntro"]</MudText>
+                <div class="d-flex flex-column gap-3">
+                    <MudTextField @bind-Value="_location" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
+                                  Variant="Variant.Outlined" Immediate="true" AutoFocus="true" MaxLength="200" Disabled="_busy"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Place" />
+                    <MudTextField @bind-Value="_description" Label="@L["Description"]" Placeholder="@L["DescriptionPlaceholder"]"
+                                  Variant="Variant.Outlined" Immediate="true" Lines="4" Sizing="InputSizing.Auto" MaxLines="10"
+                                  MaxLength="2000" Disabled="_busy" />
+                </div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 d-block">@L["WizardOptionalChangeLater"]</MudText>
+                break;
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="_busy">@L["Cancel"]</MudButton>
+        <MudSpacer />
+        @if (_step > 1)
+        {
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back" Disabled="_busy">@L["Back"]</MudButton>
+        }
+        @if (_step < StepCount)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward"
+                       Disabled="@(!IsStepValid)" OnClick="Next">@L["Next"]</MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       Disabled="@(!IsStepValid || _busy)" OnClick="CreateAsync">@L["Create"]</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const int TitleStep = 1, TypeStep = 2, PlayStep = 3, PointsStep = 4, DetailsStep = 5, StepCount = 5;
+
+    /// <summary>Order in which the types are offered.</summary>
+    private static readonly PairingSystem[] Systems = [PairingSystem.RoundRobin, PairingSystem.Swiss];
+
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    private int _step = TitleStep;
+    private bool _busy;
+
+    private string _title = "";
+    private TournamentSettingsDto _settings = TournamentSettingsDto.Default;
+    private int _boards = TournamentSettingsDto.Default.Boards;
+    private int _gameTimeMinutes = TournamentSettingsDto.Default.GameTimeMinutes;
+    private int _incrementSeconds = TournamentSettingsDto.Default.IncrementSeconds;
+    private double _pointsForWin = TournamentSettingsDto.Default.PointsForWin;
+    private double _pointsForDraw = TournamentSettingsDto.Default.PointsForDraw;
+    private double _pointsForLoss = TournamentSettingsDto.Default.PointsForLoss;
+    private bool _isRated = TournamentSettingsDto.Default.IsRated;
+    private string _location = "";
+    private string _description = "";
+
+    private string StepTitle => _step switch
+    {
+        TitleStep => L["Title"],
+        TypeStep => L["TournamentType"],
+        PlayStep => $"{L["Boards"]} & {L["TimeControl"]}",
+        PointsStep => L["WizardPointsAndRating"],
+        _ => L["WizardDetails"]
+    };
+
+    /// <summary>Whether the current step and all steps before it are filled in correctly.</summary>
+    private bool IsStepValid =>
+        !string.IsNullOrWhiteSpace(_title)
+        && (_step < PlayStep || (_boards >= 1 && _gameTimeMinutes >= 1 && _incrementSeconds >= 0))
+        && (_step < PointsStep || (_pointsForWin >= 0 && _pointsForDraw >= 0 && _pointsForLoss >= 0));
+
+    private void Next()
+    {
+        if (IsStepValid && _step < StepCount) _step++;
+    }
+
+    private void Back()
+    {
+        if (_step > 1) _step--;
+    }
+
+    private void Cancel() => Dialog.Cancel();
+
+    private void OnEnterNext(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Next();
+    }
+
+    private void SelectSystem(PairingSystem system) => _settings = _settings with { PairingSystem = system };
+
+    private void OnTypeKeyUp(KeyboardEventArgs e, PairingSystem system)
+    {
+        if (e.Key is " " or "Enter") SelectSystem(system);
+        if (e.Key == "Enter") Next();
+    }
+
+    private async Task CreateAsync()
+    {
+        if (!IsStepValid || _busy) return;
+        _busy = true;
+        try
+        {
+            var settings = _settings with
+            {
+                Boards = _boards,
+                GameTimeMinutes = _gameTimeMinutes,
+                IncrementSeconds = _incrementSeconds,
+                PointsForWin = _pointsForWin,
+                PointsForDraw = _pointsForDraw,
+                PointsForLoss = _pointsForLoss,
+                IsRated = _isRated
+            };
+            var tournament = await Api.CreateTournamentAsync(new CreateTournamentRequest(_title, settings, _location, _description));
+            Dialog.Close(DialogResult.Ok(tournament));
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

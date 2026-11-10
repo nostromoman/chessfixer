@@ -10,12 +10,25 @@ public enum ApiErrorCode
     TournamentNotFound,
     PlayerNotFound,
     GameNotFound,
+    UserNotFound,
 
     // 400
     TitleRequired,
-    NameRequired,
+    FirstNameRequired,
     InvalidSettings,
     InvalidResult,
+    InvalidPhoto,
+    InvalidRating,
+    UserNameRequired,
+    DisplayNameRequired,
+    PasswordTooShort,
+    CurrentPasswordIncorrect,
+
+    // 401
+    InvalidCredentials,
+
+    // 429 (the server sends no body; the client uses this code itself)
+    TooManyLoginAttempts,
 
     // 409
     TournamentClosed,
@@ -23,10 +36,12 @@ public enum ApiErrorCode
     SettingsLocked,
     PlayerAlreadyInTournament,
     PlayerNotInTournament,
-    RoundRobinPlayersLocked,
+    PlayerInActiveGame,
     ResultNotEditable,
     NotEnoughPlayers,
     TooManyPlayers,
     NoValidPairing,
-    AllRoundsPlayed
+    AiNotConfigured,
+    ReportNotAvailable,
+    UserNameTaken
 }

@@ -1,0 +1,259 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject IStringLocalizer<Strings> L
+
+@* Drawer from the right to create or edit a player of the central list. Open it with OpenNew or OpenEdit. *@
+<MudDrawer @bind-Open="_open" Anchor="Anchor.End" Variant="DrawerVariant.Temporary" Overlay="true"
+           Elevation="2" Width="50vw" Class="side-drawer">
+    @if (_editing is not null)
+    {
+        <MudDrawerHeader Class="d-flex align-center">
+            <MudText Typo="Typo.h6">@(_editing.IsNew ? L["NewPlayer"] : L["EditPlayer"])</MudText>
+            <MudSpacer />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="@L["Close"]" OnClick="Close" />
+        </MudDrawerHeader>
+
+        @if (_editing.IsNew)
+        {
+            <div class="px-6 pb-6">@GeneralForm</div>
+        }
+        else
+        {
+            @if (_editing.IsDeleted)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mx-6 mb-2">@L["PlayerDeletedInfo"]</MudAlert>
+            }
+            @* Keyed on the player, so the statistics reload and the first tab is shown for every player opened. *@
+            <MudTabs @key="_editing.Id" Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="px-6 pt-4 pb-6">
+                <MudTabPanel Text="@L["PlayerTabGeneral"]" Icon="@Icons.Material.Outlined.Person">
+                    @GeneralForm
+                </MudTabPanel>
+                <MudTabPanel Text="@L["PlayerTabStatistics"]" Icon="@Icons.Material.Outlined.BarChart">
+                    <PlayerStatisticsTab PlayerId="_editing.Id!.Value" />
+                </MudTabPanel>
+                <MudTabPanel Text="@L["PlayerTabRating"]" Icon="@Icons.Material.Outlined.ShowChart">
+                    <PlayerRatingTab PlayerId="_editing.Id!.Value" />
+                </MudTabPanel>
+            </MudTabs>
+        }
+    }
+</MudDrawer>
+
+@code {
+    /// <summary>Photos are resized in the browser to at most this size (in pixels) before uploading.</summary>
+    private const int PhotoSize = 400;
+    private const string PhotoContentType = "image/jpeg";
+
+    /// <summary>Starting rating of a new player (same as the server default).</summary>
+    private const int DefaultRating = 1200;
+
+    /// <summary>Called after a player has been created or updated.</summary>
+    [Parameter] public EventCallback<PlayerDto> OnSaved { get; set; }
+
+    private bool _open;
+    private EditModel? _editing;
+    private MudFileUpload<IBrowserFile>? _photoUpload;
+    private bool _busy;
+
+    /// <summary>The player data form: on its own for a new player, in the "Algemeen" tab for an existing one.</summary>
+    private RenderFragment GeneralForm => __builder =>
+    {
+        if (_editing is null) return;
+        <div class="d-flex flex-column gap-4">
+            <div class="d-flex flex-wrap align-center gap-4">
+                <PlayerAvatar FirstName="@_editing.FirstName" LastName="@_editing.LastName" PhotoUrl="@_editing.PhotoSource"
+                              Size="Size.Large" />
+                <MudFileUpload @ref="_photoUpload" T="IBrowserFile" Accept="image/*" FilesChanged="OnPhotoSelectedAsync"
+                               Disabled="_busy">
+                    <CustomContent Context="upload">
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_busy"
+                                   OnClick="upload.OpenFilePickerAsync">
+                            @L["ChoosePhoto"]
+                        </MudButton>
+                    </CustomContent>
+                    <SelectedTemplate />
+                </MudFileUpload>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Videocam" Disabled="_busy"
+                           OnClick="TakePhotoAsync">@L["WebcamTakePhoto"]</MudButton>
+                @if (_editing.PhotoSource is not null)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
+                               Disabled="_busy" OnClick="RemovePhoto">@L["RemovePhoto"]</MudButton>
+                }
+            </div>
+
+            <MudTextField @bind-Value="_editing.FirstName" Label="@L["FirstName"]" Variant="Variant.Outlined"
+                          Required="true" RequiredError="@L["FirstNameRequired"]" Immediate="true"
+                          AutoFocus="true" MaxLength="50" OnKeyUp="OnKeyUp" Disabled="_busy" />
+            <MudTextField @bind-Value="_editing.LastName" Label="@L["LastName"]" Variant="Variant.Outlined"
+                          Immediate="true" MaxLength="50" OnKeyUp="OnKeyUp" Disabled="_busy" />
+            <MudDatePicker @bind-Date="_editing.BirthDate" Label="@L["BirthDate"]" Variant="Variant.Outlined"
+                           Editable="true" Clearable="true" DateFormat="dd-MM-yyyy" Placeholder="dd-mm-jjjj"
+                           OpenTo="OpenTo.Year" MaxDate="DateTime.Today" PickerVariant="PickerVariant.Dialog"
+                           Disabled="_busy" />
+            <MudTextField @bind-Value="_editing.City" Label="@L["City"]" Variant="Variant.Outlined"
+                          MaxLength="100" OnKeyUp="OnKeyUp" Disabled="_busy" />
+            <MudTextField @bind-Value="_editing.Club" Label="@L["Club"]" Variant="Variant.Outlined"
+                          MaxLength="100" OnKeyUp="OnKeyUp" Disabled="_busy" />
+            <MudNumericField T="int" @bind-Value="_editing.Rating" Label="@L["Rating"]" Variant="Variant.Outlined"
+                             HelperText="@(_editing.IsNew ? L["RatingHelpNew"] : L["RatingHelp"])" Max="4000"
+                             Min="0" HideSpinButtons="true" OnKeyUp="OnKeyUp" Disabled="_busy" />
+
+            <div class="d-flex gap-2 justify-end">
+                <MudButton Variant="Variant.Text" OnClick="Close" Disabled="_busy">@L["Cancel"]</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@(!CanSave)" OnClick="SaveAsync">@L["Save"]</MudButton>
+            </div>
+        </div>
+    };
+
+    private bool CanSave => _editing is not null && !string.IsNullOrWhiteSpace(_editing.FirstName) && !_busy;
+
+    public void OpenNew()
+    {
+        _editing = new EditModel(null, null);
+        _open = true;
+        StateHasChanged();
+    }
+
+    public void OpenEdit(PlayerDto player)
+    {
+        _editing = new EditModel(player.Id, player.PhotoUrl)
+        {
+            IsDeleted = player.IsDeleted,
+            FirstName = player.FirstName,
+            LastName = player.LastName,
+            BirthDate = player.BirthDate?.ToDateTime(TimeOnly.MinValue),
+            City = player.City,
+            Club = player.Club,
+            Rating = player.Rating
+        };
+        _open = true;
+        StateHasChanged();
+    }
+
+    private void Close() => _open = false;
+
+    private async Task OnPhotoSelectedAsync(IBrowserFile? file)
+    {
+        if (file is null || _editing is null) return;
+        try
+        {
+            var resized = await file.RequestImageFileAsync(PhotoContentType, PhotoSize, PhotoSize);
+            using var buffer = new MemoryStream();
+            await resized.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(buffer);
+            _editing.SetNewPhoto(buffer.ToArray(), PhotoContentType);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["PhotoUnreadable"], Severity.Error);
+        }
+
+        // Clear the selection so choosing the same file again triggers a new change.
+        if (_photoUpload is not null) await _photoUpload.ClearAsync();
+    }
+
+    /// <summary>Takes a photo with the webcam in a dialog; it becomes the new photo when the user keeps it.</summary>
+    private async Task TakePhotoAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<WebcamDialog>(L["WebcamTakePhoto"],
+            new DialogParameters<WebcamDialog> { { d => d.Size, PhotoSize } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: byte[] photo } && _editing is not null)
+        {
+            _editing.SetNewPhoto(photo, PhotoContentType);
+            StateHasChanged();
+        }
+    }
+
+    private void RemovePhoto() => _editing?.RemovePhoto();
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave) return;
+        var editing = _editing!;
+
+        _busy = true;
+        PlayerDto? saved = null;
+        try
+        {
+            var birthDate = editing.BirthDate is { } date ? DateOnly.FromDateTime(date) : (DateOnly?)null;
+            PlayerDto player;
+            if (editing.Id is { } id)
+            {
+                player = await Api.UpdatePlayerAsync(id, new UpdatePlayerRequest(
+                    editing.FirstName, editing.LastName, editing.Rating, birthDate, editing.City, editing.Club));
+            }
+            else
+            {
+                player = await Api.CreatePlayerAsync(new CreatePlayerRequest(
+                    editing.FirstName, editing.LastName, editing.Rating, birthDate, editing.City, editing.Club));
+            }
+
+            if (editing.NewPhoto is { } photo)
+                await Api.SetPlayerPhotoAsync(player.Id, photo, PhotoContentType);
+            else if (editing.PhotoRemoved && player.PhotoVersion is not null)
+                await Api.DeletePlayerPhotoAsync(player.Id);
+
+            Snackbar.Add(editing.IsNew ? L["PlayerCreated", player.Name] : L["PlayerUpdated", player.Name], Severity.Success);
+            _open = false;
+            saved = player;
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        if (saved is not null) await OnSaved.InvokeAsync(saved);
+    }
+
+    private async Task OnKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SaveAsync();
+        else if (e.Key == "Escape") Close();
+    }
+
+    private sealed class EditModel(int? id, string? photoUrl)
+    {
+        public int? Id { get; } = id;
+        public bool IsNew => Id is null;
+        public bool IsDeleted { get; init; }
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public DateTime? BirthDate { get; set; }
+        public string? City { get; set; }
+        public string? Club { get; set; }
+        public int Rating { get; set; } = DefaultRating;
+
+        /// <summary>A newly chosen photo that is uploaded on save.</summary>
+        public byte[]? NewPhoto { get; private set; }
+        public bool PhotoRemoved { get; private set; }
+
+        /// <summary>What the avatar shows: the new photo, the current photo, or nothing.</summary>
+        public string? PhotoSource { get; private set; } = photoUrl;
+
+        public void SetNewPhoto(byte[] photo, string contentType)
+        {
+            NewPhoto = photo;
+            PhotoRemoved = false;
+            PhotoSource = $"data:{contentType};base64,{Convert.ToBase64String(photo)}";
+        }
+
+        public void RemovePhoto()
+        {
+            NewPhoto = null;
+            PhotoRemoved = true;
+            PhotoSource = null;
+        }
+    }
+}

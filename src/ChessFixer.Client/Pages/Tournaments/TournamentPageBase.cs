@@ -66,7 +66,10 @@ public abstract class TournamentPageBase : ComponentBase, IDisposable
     /// <summary>Runs a user action: shows errors as a message and reloads afterwards.</summary>
     protected async Task RunAsync(Func<Task> action, string? successMessage = null)
     {
+        // Render the page itself before and after: the action may come from a child component,
+        // and then Blazor only re-renders that child, so the page would keep showing "busy".
         IsBusy = true;
+        StateHasChanged();
         try
         {
             await action();
@@ -84,24 +87,20 @@ public abstract class TournamentPageBase : ComponentBase, IDisposable
         finally
         {
             IsBusy = false;
+            StateHasChanged();
         }
     }
 
     // ----- Shared state helpers -----
 
     protected bool CanStartNextRound =>
-        Tournament is { State: TournamentState.New or TournamentState.WaitingForNextRound } t
-        && !AllRoundsPlayed;
+        Tournament is { State: TournamentState.New or TournamentState.WaitingForNextRound };
 
-    protected bool AllRoundsPlayed =>
-        Tournament is { TotalRounds: { } total } t && t.RoundsStarted >= total && t.RoundsStarted > 0;
+    protected bool CanChangePlayers => Tournament is { State: not TournamentState.Closed };
 
-    protected bool CanChangePlayers =>
-        Tournament is { State: TournamentState.New or TournamentState.WaitingForNextRound } t
-        && !(t.Settings.PairingSystem == PairingSystem.RoundRobin && t.RoundsStarted > 0);
-
+    /// <summary>A change pushed by the server. Skipped during an own action: that reloads when it is done.</summary>
     private Task OnTournamentChangedAsync(int tournamentId) =>
-        tournamentId == Id ? ReloadAndRenderAsync() : Task.CompletedTask;
+        tournamentId == Id && !IsBusy ? ReloadAndRenderAsync() : Task.CompletedTask;
 
     /// <summary>After a (re)connect, changes may have been missed while disconnected.</summary>
     private Task OnHubConnectedAsync() => ReloadAndRenderAsync();

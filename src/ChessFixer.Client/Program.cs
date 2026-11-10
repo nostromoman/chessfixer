@@ -1,6 +1,7 @@
 using System.Globalization;
 using ChessFixer.Client;
 using ChessFixer.Client.Services;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
@@ -16,6 +17,12 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<TournamentApi>();
+
+// Login: the server sets a cookie; the app asks the server who is logged in.
+builder.Services.AddAuthorizationCore();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<ServerAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(services => services.GetRequiredService<ServerAuthenticationStateProvider>());
 builder.Services.AddSingleton<TournamentHubClient>();
 builder.Services.AddMudServices();
 builder.Services.AddLocalization();

@@ -6,5 +6,7 @@ namespace ChessFixer.Shared.Enums;
 public enum PairingSystem
 {
     Swiss,
+    /// <summary>Round robin: everyone plays everyone; each round pairs the players who met least often.
+    /// Players can join and leave between rounds.</summary>
     RoundRobin
 }

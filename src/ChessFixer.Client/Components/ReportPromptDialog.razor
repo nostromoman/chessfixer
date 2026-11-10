@@ -1,0 +1,75 @@
+@inject TournamentApi Api
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Shows the prompt that was sent to the AI for the report of a tournament: the instructions
+   (system prompt) and the tournament data (user prompt). Read-only. *@
+<MudDialog>
+    <DialogContent>
+        @if (_prompt is null)
+        {
+            @if (_failed)
+            {
+                <MudAlert Severity="Severity.Warning">@L["ReportPromptUnavailable"]</MudAlert>
+            }
+            else
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+        }
+        else
+        {
+            @if (_prompt.Model is { } model)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["ReportPromptModel", model]</MudText>
+            }
+
+            <MudText Typo="Typo.subtitle2">@L["ReportPromptSystem"]</MudText>
+            <pre class="prompt-text mb-4">@_prompt.System</pre>
+
+            <MudText Typo="Typo.subtitle2">@L["ReportPromptUser"]</MudText>
+            <pre class="prompt-text">@_prompt.User</pre>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_prompt is not null)
+        {
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync">@L["ReportCopy"]</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Dialog.Close()">@L["Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+    [Parameter] public int TournamentId { get; set; }
+
+    private ReportPromptDto? _prompt;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _prompt = await Api.GetReportPromptAsync(TournamentId);
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _failed = true;
+        }
+    }
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", $"{_prompt!.System}\n\n---\n\n{_prompt.User}");
+            Snackbar.Add(L["ReportPromptCopied"], Severity.Success);
+        }
+        catch (JSException)
+        {
+            Snackbar.Add(L["ReportCopyFailed"], Severity.Warning);
+        }
+    }
+}

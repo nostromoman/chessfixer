@@ -1,0 +1,120 @@
+@inject IStringLocalizer<Strings> L
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* The report of a closed tournament, written by an AI in the background after closing.
+   The page reloads (SignalR) when the report is ready. *@
+<div class="report">
+    @switch (Report.Status)
+    {
+        case ReportStatus.Generating:
+            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.AutoAwesome" Class="mb-4">
+                <div class="d-flex align-center gap-3">
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Info" />
+                    <span>@L["ReportGenerating"]</span>
+                </div>
+            </MudAlert>
+            break;
+
+        case ReportStatus.Failed:
+            <MudAlert Severity="Severity.Error" Class="mb-4">
+                <div>@L["ReportFailed"]</div>
+                @if (!string.IsNullOrEmpty(Report.Error))
+                {
+                    <MudText Typo="Typo.caption" Class="d-block mt-1">@Report.Error</MudText>
+                }
+            </MudAlert>
+            break;
+
+        case ReportStatus.None when Report.Text is null:
+            <MudAlert Severity="Severity.Info" Class="mb-4">
+                @L["ReportNone"] <MudLink Href="settings">@L["ReportConfigureAi"]</MudLink>
+            </MudAlert>
+            break;
+    }
+
+    @if (Report.Text is { } text)
+    {
+        var (title, paragraphs) = Split(text);
+        <article class="@(Report.Status == ReportStatus.Generating ? "report-outdated" : null)">
+            @if (title is not null)
+            {
+                <MudText Typo="Typo.h5" Class="mb-3"><b>@title</b></MudText>
+            }
+            @foreach (var paragraph in paragraphs)
+            {
+                <MudText Typo="Typo.body1" Class="mb-3" Style="white-space: pre-line">@paragraph</MudText>
+            }
+        </article>
+        @if (Report.GeneratedAt is { } generatedAt)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">
+                @(Report.Model is { } model
+                    ? L["ReportGeneratedAtBy", model, generatedAt.ToLocalTime().ToString("f")]
+                    : L["ReportGeneratedAt", generatedAt.ToLocalTime().ToString("f")])
+            </MudText>
+        }
+    }
+
+    @if (Report.Status != ReportStatus.Generating)
+    {
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <MudButton Variant="@(Report.Text is null ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="Disabled" OnClick="OnGenerate">
+                @(Report.Text is null ? L["ReportGenerate"] : L["ReportRegenerate"])
+            </MudButton>
+            @if (Report.Text is not null)
+            {
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync">
+                    @L["ReportCopy"]
+                </MudButton>
+            }
+            @if (Report.HasPrompt)
+            {
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Notes" OnClick="ShowPromptAsync">
+                    @L["ReportShowPrompt"]
+                </MudButton>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int TournamentId { get; set; }
+    [Parameter, EditorRequired] public TournamentReportDto Report { get; set; } = null!;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnGenerate { get; set; }
+
+    /// <summary>The first line is the title (as the AI is asked to write it); the rest are paragraphs.</summary>
+    private static (string? Title, List<string> Paragraphs) Split(string text)
+    {
+        var lines = text.Replace("\r\n", "\n").Trim().Split('\n');
+        var first = lines[0].Trim().Trim('#', '*', ' ');
+        var hasTitle = lines.Length > 1 && first.Length is > 0 and <= 120;
+        var body = string.Join('\n', hasTitle ? lines.Skip(1) : lines);
+
+        var paragraphs = body
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        return (hasTitle ? first : null, paragraphs);
+    }
+
+    private Task ShowPromptAsync() =>
+        Dialogs.ShowAsync<ReportPromptDialog>(L["ReportPrompt"],
+            new DialogParameters<ReportPromptDialog> { { d => d.TournamentId, TournamentId } },
+            new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Report.Text);
+            Snackbar.Add(L["ReportCopied"], Severity.Success);
+        }
+        catch (JSException)
+        {
+            Snackbar.Add(L["ReportCopyFailed"], Severity.Warning);
+        }
+    }
+}

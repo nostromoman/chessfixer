@@ -87,13 +87,417 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
-/* Table on the dashboard that players read from a distance. */
-.games-large td, .games-large th {
-    font-size: 1.15rem;
-}
-
 /* Players that withdrew from the tournament. */
 tr.withdrawn td {
     color: var(--mud-palette-text-secondary);
     font-style: italic;
+}
+
+/* Side drawers (player, new tournament, settings): half the screen, full width on small screens. */
+@media (max-width: 959.98px) {
+    .side-drawer {
+        --mud-drawer-width-right: 100vw !important;
+        width: 100vw !important;
+    }
+}
+
+/* Standings: centered instead of the full width, easier to read. */
+.standings-centered {
+    max-width: 56rem;
+    margin: 0 auto;
+}
+
+/* Matches: one card per game. */
+.game-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+    gap: 16px;
+}
+
+.game-card {
+    padding: 12px 16px 16px;
+    border-top: 4px solid var(--mud-palette-lines-default);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+    .game-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--mud-elevation-6);
+    }
+
+    .game-card.game-card-playing {
+        border-top-color: var(--mud-palette-primary);
+    }
+
+.game-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.game-card-board {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mud-palette-text-primary);
+}
+
+.game-card-live {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mud-palette-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+    .game-card-live::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mud-palette-primary);
+        animation: game-live-pulse 1.6s ease-in-out infinite;
+    }
+
+@keyframes game-live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+.game-card-body {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.game-card-center {
+    text-align: center;
+    min-width: 4.5rem;
+}
+
+.game-card-vs {
+    font-size: 2.2rem;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: 0.04em;
+    color: var(--mud-palette-primary);
+}
+
+.game-card-score {
+    font-size: 1.4rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.game-card-bye {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--mud-palette-info);
+}
+
+.game-card-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.game-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 0;
+    transition: opacity 0.2s ease;
+}
+
+    .game-side.loser {
+        opacity: 0.5;
+    }
+
+    .game-side.winner .mud-avatar {
+        box-shadow: 0 0 0 3px var(--mud-palette-success);
+    }
+
+.game-side-empty {
+    color: var(--mud-palette-text-disabled);
+    font-style: italic;
+}
+
+.game-side-avatar {
+    position: relative;
+}
+
+.mud-avatar.game-card-avatar {
+    width: 84px;
+    height: 84px;
+    font-size: 2rem;
+}
+
+.game-side-trophy {
+    position: absolute;
+    right: -6px;
+    bottom: -4px;
+    color: #f5b800;
+    background: var(--mud-palette-surface);
+    border-radius: 50%;
+    padding: 2px;
+}
+
+.game-side-name {
+    margin-top: 8px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+/* Color badge at the top of each player: white or black pieces. */
+.game-side-color {
+    margin-bottom: 10px;
+    padding: 2px 14px;
+    border-radius: 999px;
+    border: 2px solid #333;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+    .game-side-color.white {
+        background: #fff;
+        color: #222;
+    }
+
+    .game-side-color.black {
+        background: #222;
+        color: #fff;
+    }
+
+    .game-card.game-card-waiting {
+        border-top-style: dashed;
+        background: var(--mud-palette-background-gray);
+    }
+
+.game-card-queued {
+    color: var(--mud-palette-warning);
+}
+
+/* Result entered: the card fades out of "Bezig" and pops up in "Gespeeld". */
+.game-card.game-card-leaving {
+    animation: game-card-leave 0.35s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes game-card-leave {
+    to {
+        opacity: 0;
+        transform: scale(0.85) translateY(16px);
+    }
+}
+
+.game-card.game-card-entering {
+    animation: game-card-enter 0.9s ease-out;
+}
+
+@keyframes game-card-enter {
+    0% {
+        opacity: 0;
+        transform: scale(0.85);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1.04);
+        box-shadow: 0 0 0 4px var(--mud-palette-success);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: var(--mud-elevation-2);
+    }
+}
+
+/* AI-written tournament report: readable line length; an old report is dimmed while a new one is written. */
+.report {
+    max-width: 48em;
+    margin: 0 auto;
+}
+
+.report-outdated {
+    opacity: 0.5;
+}
+
+/* The prompt of a report, shown as preformatted text. */
+.prompt-text {
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+    background: var(--mud-palette-background-gray);
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 40vh;
+    overflow: auto;
+    margin: 4px 0 0 0;
+}
+
+/* Player statistics in the player drawer: a row of totals, and results colored from the player's view. */
+.player-stats-totals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6.5em, 1fr));
+    gap: 8px;
+}
+
+.player-stats-tile {
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 6px;
+    padding: 8px 12px;
+    text-align: center;
+}
+
+.player-stats-value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-stats-label {
+    font-size: 0.8rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.outcome-win {
+    color: var(--mud-palette-success);
+    font-weight: 500;
+}
+
+.outcome-loss {
+    color: var(--mud-palette-error);
+}
+
+.outcome-draw {
+    color: var(--mud-palette-text-secondary);
+}
+
+/* Webcam dialog: a square view (the photo is a square crop of the center), mirrored like a mirror. */
+.webcam {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 1;
+    margin: 0 auto;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.webcam-view {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.webcam-mirrored {
+    transform: scaleX(-1);
+}
+
+.webcam-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Rating chart in the player drawer: one series, thin line, recessive grid, hover tooltip. */
+.rating-chart {
+    position: relative;
+}
+
+.rating-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.rating-chart-grid {
+    stroke: var(--mud-palette-lines-default);
+    stroke-width: 1;
+}
+
+.rating-chart-axis {
+    fill: var(--mud-palette-text-secondary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.rating-chart-line {
+    fill: none;
+    stroke: var(--mud-palette-primary);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+/* Markers get a ring in the surface color, so they stand apart from the line. */
+.rating-chart-marker {
+    fill: var(--mud-palette-primary);
+    stroke: var(--mud-palette-surface);
+    stroke-width: 2;
+}
+
+.rating-chart-crosshair {
+    stroke: var(--mud-palette-text-secondary);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.rating-chart-hit {
+    fill: transparent;
+}
+
+.rating-chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+    min-width: 10em;
+    max-width: 22em;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+    box-shadow: var(--mud-elevation-4);
+    font-size: 0.8rem;
+}
+
+.rating-chart-tooltip-value {
+    font-size: 1.1rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+/* "(verwijderd)" after the name of a player deleted from the player list. */
+.player-deleted {
+    color: var(--mud-palette-text-secondary);
+    font-style: italic;
+    font-weight: normal;
+}
+
+/* Login page: the form in the middle of the screen. */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--mud-palette-background-gray);
+}
+
+/* Buttons that show a name (e.g. the logged-in user) keep its capitals. */
+.text-none {
+    text-transform: none !important;
 }

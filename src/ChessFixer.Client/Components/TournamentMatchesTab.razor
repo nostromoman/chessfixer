@@ -1,0 +1,169 @@
+@inject IStringLocalizer<Strings> L
+
+@* The current round with result entry. After its last result the round stays on screen (results can
+   still be corrected); the pairing of the next round only appears once that round is started.
+   Before round 1 the pairing of round 1 is shown. A player with a bye is shown in a separate group at the bottom. *@
+@switch (Tournament.State)
+{
+    case TournamentState.RoundActive or TournamentState.WaitingForNextRound when CurrentRound is not null:
+        <div class="d-flex justify-space-between align-center mb-3">
+            <MudText Typo="Typo.h5"><b>@L["Round", CurrentRound.Number]</b></MudText>
+            <MudText Typo="Typo.body1" Class="mud-text-secondary">
+                @L["ResultsEntered", Finished(CurrentRound).Count(), Games(CurrentRound).Count()]
+            </MudText>
+        </div>
+
+        @if (Playing(CurrentRound).Any())
+        {
+            <MudText Typo="Typo.h6" Class="mb-3">@L["GamesPlaying"]</MudText>
+            @Cards(Playing(CurrentRound), isStarted: true, editable: true)
+        }
+
+        @if (Queue(CurrentRound).Any())
+        {
+            <MudText Typo="Typo.h6" Class="mt-6">@L["GamesQueue"]</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesQueueInfo"]</MudText>
+            @Cards(Queue(CurrentRound), isStarted: true, editable: false, queued: true)
+        }
+
+        @if (Finished(CurrentRound).Any())
+        {
+            <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesFinished"]</MudText>
+            @Cards(Finished(CurrentRound), isStarted: true, editable: true)
+        }
+
+        @Byes(CurrentRound, isStarted: true)
+        break;
+
+    case TournamentState.New:
+        @if (PendingRound is not null)
+        {
+            <MudText Typo="Typo.h5" Class="mb-3"><b>@L["PairingRound", PendingRound.Number]</b></MudText>
+            @Cards(Games(PendingRound).Where(g => g.Board is not null).OrderBy(g => g.Board), isStarted: false, editable: false)
+
+            @if (Queue(PendingRound).Any())
+            {
+                <MudText Typo="Typo.h6" Class="mt-6">@L["GamesQueue"]</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesQueueInfo"]</MudText>
+                @Cards(Queue(PendingRound), isStarted: false, editable: false, queued: true)
+            }
+
+            @Byes(PendingRound, isStarted: false)
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">@L["NoPairingYet"]</MudAlert>
+        }
+        break;
+
+    default:
+        @if (CurrentRound is not null)
+        {
+            <MudText Typo="Typo.h6" Class="mb-3">@L["ResultsRound", CurrentRound.Number]</MudText>
+            @Cards(Finished(CurrentRound), isStarted: true, editable: false)
+            @Byes(CurrentRound, isStarted: true)
+        }
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
+    [Parameter, EditorRequired] public List<RoundDto> Rounds { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<(GameDto Game, GameResult Result)> OnResult { get; set; }
+
+    /// <summary>The most recent started round (active, or just finished).</summary>
+    private RoundDto? CurrentRound => Rounds.LastOrDefault(r => r.IsStarted);
+
+    /// <summary>The next round, already paired but not started.</summary>
+    private RoundDto? PendingRound => Rounds.FirstOrDefault(r => !r.IsStarted);
+
+    /// <summary>The real games of a round, without byes.</summary>
+    private static IEnumerable<GameDto> Games(RoundDto round) => round.Games.Where(g => g.Black is not null);
+
+    private static IEnumerable<GameDto> Playing(RoundDto round) =>
+        Games(round).Where(g => g.Board is not null && g.Result == GameResult.NotPlayed).OrderBy(g => g.Board);
+
+    /// <summary>Games waiting for a free board, in the order they will get one.</summary>
+    private static IEnumerable<GameDto> Queue(RoundDto round) =>
+        Games(round).Where(g => g.Board is null && g.Result == GameResult.NotPlayed).OrderBy(g => g.Number);
+
+    private static IEnumerable<GameDto> Finished(RoundDto round) =>
+        Games(round).Where(g => g.Result != GameResult.NotPlayed).OrderBy(g => g.Number);
+
+
+    /// <summary>How long the leave animation takes before the result is sent (see .game-card-leaving).</summary>
+    private const int LeaveAnimationMs = 350;
+
+    private enum Group { Playing, Queue, Finished }
+
+    /// <summary>Cards playing the leave animation: their result was just entered.</summary>
+    private readonly HashSet<int> _leaving = [];
+
+    /// <summary>Cards that moved to another group since the previous render: they play the enter animation.</summary>
+    private HashSet<int> _entering = [];
+
+    /// <summary>The group of each game of the current round at the previous render; null before the first data.</summary>
+    private Dictionary<int, Group>? _previousGroups;
+    private List<RoundDto>? _previousRounds;
+
+    /// <summary>Finds the games that changed group (also by changes from other screens), to animate them.</summary>
+    protected override void OnParametersSet()
+    {
+        // Only on new data: other renders (e.g. busy on/off) must not cut off a running animation.
+        if (ReferenceEquals(Rounds, _previousRounds)) return;
+        _previousRounds = Rounds;
+
+        var groups = CurrentRound is null
+            ? new Dictionary<int, Group>()
+            : Games(CurrentRound).ToDictionary(g => g.Id, GroupOf);
+
+        _entering = _previousGroups is null
+            ? []
+            : groups.Where(g => _previousGroups.TryGetValue(g.Key, out var before) && before != g.Value)
+                    .Select(g => g.Key).ToHashSet();
+        _previousGroups = groups;
+        _leaving.RemoveWhere(id => !groups.TryGetValue(id, out var group) || group != Group.Playing);
+    }
+
+    private static Group GroupOf(GameDto game) =>
+        game.Result != GameResult.NotPlayed ? Group.Finished
+        : game.Board is null ? Group.Queue
+        : Group.Playing;
+
+    /// <summary>A result for a game in progress first lets the card fade out, then sends the result.</summary>
+    private async Task SetResultAsync(GameDto game, GameResult result)
+    {
+        if (_leaving.Contains(game.Id)) return; // a second click during the animation
+        if (GroupOf(game) == Group.Playing && result != GameResult.NotPlayed)
+        {
+            _leaving.Add(game.Id);
+            StateHasChanged();
+            await Task.Delay(LeaveAnimationMs);
+        }
+
+        await OnResult.InvokeAsync((game, result));
+        _leaving.Remove(game.Id);
+    }
+
+    /// <summary>The player(s) with a bye in a round, in their own group; nothing when there is no bye.</summary>
+    private RenderFragment Byes(RoundDto round, bool isStarted) => __builder =>
+    {
+        var byes = round.Games.Where(g => g.Black is null).OrderBy(g => g.Number).ToList();
+        if (byes.Count == 0) return;
+        <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesBye"]</MudText>
+        @Cards(byes, isStarted, editable: false)
+    };
+
+    private RenderFragment Cards(IEnumerable<GameDto> games, bool isStarted, bool editable, bool queued = false) =>
+        @<div class="game-cards">
+            @foreach (var (game, index) in games.Select((g, i) => (g, i)))
+            {
+                <GameCard @key="game.Id" Game="game" IsStarted="isStarted" Editable="editable" Disabled="Disabled"
+                          QueuePosition="@(queued ? index + 1 : null)" Players="Players"
+                          Leaving="_leaving.Contains(game.Id)" Entering="_entering.Contains(game.Id)"
+                          OnResult="result => SetResultAsync(game, result)" />
+            }
+        </div>;
+}

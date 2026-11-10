@@ -20,7 +20,15 @@
             <tr class="@(row.IsActive ? null : "withdrawn")">
                 <td>@row.Rank</td>
                 <td>
-                    @row.Name
+                    @if (OnPlayerClick.HasDelegate)
+                    {
+                        var playerId = row.PlayerId;
+                        <MudLink OnClick="() => OnPlayerClick.InvokeAsync(playerId)"><PlayerName Name="@row.Name" IsDeleted="row.IsDeleted" /></MudLink>
+                    }
+                    else
+                    {
+                        <PlayerName Name="@row.Name" IsDeleted="row.IsDeleted" />
+                    }
                     @if (!row.IsActive)
                     {
                         <MudText Typo="Typo.caption" Inline="true"> (@L["Withdrawn"].Value.ToLowerInvariant())</MudText>
@@ -40,4 +48,7 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<StandingDto> Standings { get; set; } = [];
+
+    /// <summary>When set, player names are links; the callback gets the player id.</summary>
+    [Parameter] public EventCallback<int> OnPlayerClick { get; set; }
 }

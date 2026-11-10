@@ -1,0 +1,22 @@
+@* Profile photo of a player, or a neutral silhouette when there is no photo (initials could be confused
+   when two players with the same initial play each other). *@
+@if (PhotoUrl is not null)
+{
+    <MudAvatar Size="Size" Class="@Class">
+        <MudImage Src="@PhotoUrl" Alt="@($"{FirstName} {LastName}".Trim())" ObjectFit="ObjectFit.Cover" />
+    </MudAvatar>
+}
+else
+{
+    <MudAvatar Size="Size" Color="Color.Default" Class="@Class">
+        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size" aria-label="@($"{FirstName} {LastName}".Trim())" />
+    </MudAvatar>
+}
+
+@code {
+    [Parameter] public string? FirstName { get; set; }
+    [Parameter] public string? LastName { get; set; }
+    [Parameter] public string? PhotoUrl { get; set; }
+    [Parameter] public Size Size { get; set; } = Size.Small;
+    [Parameter] public string? Class { get; set; }
+}

@@ -34,14 +34,19 @@ internal static class ColorAllocator
         a.Color is not null && a.Color == b.Color ? Math.Min(a.Strength, b.Strength) : 0;
 
     /// <summary>
-    /// Decides who gets White. When both want the same color, the stronger preference wins;
+    /// Decides who gets White. In a rematch the colors of the previous meeting are reversed
+    /// (<paramref name="higherRematchColor"/>), so every pair plays once with each color. That rule comes
+    /// first, even when a player then gets the same color three times in a row. Otherwise: when both want the same color, the stronger preference wins;
     /// on a tie the higher-ranked player gets their preference.
     /// </summary>
     public static (int WhiteId, int BlackId) Assign(
-        int higherId, ColorPreference higher, int lowerId, ColorPreference lower, bool higherWhiteByDefault)
+        int higherId, ColorPreference higher, int lowerId, ColorPreference lower, bool higherWhiteByDefault,
+        PieceColor? higherRematchColor = null)
     {
         PieceColor higherColor;
-        if (higher.Color is null && lower.Color is null)
+        if (higherRematchColor is { } rematch)
+            higherColor = rematch;
+        else if (higher.Color is null && lower.Color is null)
             higherColor = higherWhiteByDefault ? PieceColor.White : PieceColor.Black;
         else if (higher.Color is null)
             higherColor = Opposite(lower.Color!.Value);
