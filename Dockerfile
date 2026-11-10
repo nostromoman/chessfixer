@@ -16,10 +16,10 @@ RUN mkdir -p /app/App_Data
 
 ARG GIT_SHA=dev
 ENV APP_VERSION=$GIT_SHA
-ENV ASPNETCORE_HTTP_PORTS=5016
+ENV ASPNETCORE_HTTP_PORTS=8080
 # Everything that must survive a container update lives in App_Data: mount it as a volume.
 ENV ConnectionStrings__ChessFixer="Data Source=/app/App_Data/chessfixer.db"
 ENV DataProtection__KeysPath=/app/App_Data/keys
-EXPOSE 5016
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "ChessFixer.Server.dll"]

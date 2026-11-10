@@ -5,7 +5,7 @@ services:
     container_name: chessfixer
     restart: unless-stopped
     ports:
-      - "5016:5016"
+      - "5016:8080"
     volumes:
       - /mnt/user/appdata/chessfixer:/app/App_Data
     environment:
