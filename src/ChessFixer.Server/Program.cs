@@ -9,6 +9,7 @@ using ChessFixer.Server.Services.Auth;
 using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Hubs;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 builder.Services.AddAuthorization();
+
+// The keys that sign the login cookie. In Docker they are kept on the data volume (DataProtection__KeysPath),
+// otherwise every container update would log everybody out.
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrEmpty(dataProtectionKeysPath))
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("ChessFixer")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+}
 
 // Slows down password guessing: a limited number of login attempts per minute per client address.
 builder.Services.AddRateLimiter(options =>
