@@ -1,13 +1,14 @@
-@inject TournamentApi Api
+﻿@inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
+@inject DeviceInfo Device
 
 @* Creates or changes a chess club: name, city, description, and whether it is the own club. *@
 <MudDialog>
     <DialogContent>
         <div class="d-flex flex-column gap-3">
             <MudTextField @bind-Value="_name" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
-                          AutoFocus="true" Disabled="_busy" MaxLength="100" />
+                          AutoFocus="Device.AutoFocus" Disabled="_busy" MaxLength="100" />
             <MudTextField @bind-Value="_city" Label="@L["City"]" Variant="Variant.Outlined" Immediate="true"
                           Disabled="_busy" MaxLength="100" />
             <MudTextField @bind-Value="_description" Label="@L["Description"]" Variant="Variant.Outlined" Immediate="true"

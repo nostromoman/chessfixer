@@ -1,6 +1,7 @@
-@inject TournamentApi Api
+﻿@inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
+@inject DeviceInfo Device
 
 @* Creates or changes a tournament leader account. When changing, an empty password keeps the current one. *@
 <MudDialog>
@@ -8,7 +9,7 @@
         <form id="leader-edit" @onsubmit="SaveAsync" @onsubmit:preventDefault>
             <div class="d-flex flex-column gap-3">
                 <MudTextField @bind-Value="_displayName" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
-                              AutoFocus="true" Disabled="_busy" MaxLength="100" />
+                              AutoFocus="Device.AutoFocus" Disabled="_busy" MaxLength="100" />
                 <MudTextField @bind-Value="_userName" Label="@L["UserName"]" HelperText="@L["UserNameHelp"]"
                               Variant="Variant.Outlined" Immediate="true" Disabled="_busy" MaxLength="50" autocomplete="off" />
                 <MudTextField @bind-Value="_password" Label="@(IsNew ? L["Password"] : L["NewPassword"])"

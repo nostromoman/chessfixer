@@ -1,4 +1,4 @@
-@page "/tournament/{Id:int}"
+﻿@page "/tournament/{Id:int}"
 @inherits TournamentPageBase
 @using System.Globalization
 @inject IDialogService Dialogs
@@ -53,8 +53,10 @@ else
         }
     </MudPaper>
 
+    @* On a phone the tabs show only their icon (tabs-icons-xs in app.css). *@
     <MudPaper Elevation="1">
-        <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="pa-4">
+        <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="pa-2 pa-sm-4"
+                 Class="tabs-icons-xs">
             <MudTabPanel Text="@($"{L["Players"]} ({ActivePlayerCount})")" Icon="@Icons.Material.Filled.People">
                 <TournamentPlayersTab Tournament="Tournament" Participants="_participants" Rounds="_rounds"
                                       Players="_players" CanChangePlayers="CanChangePlayers" Disabled="IsBusy" Run="RunAsync"

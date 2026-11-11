@@ -5,6 +5,7 @@
 @inject ServerAuthenticationStateProvider Auth
 @inject IDialogService Dialogs
 @inject IBrowserViewportService Viewport
+@inject DeviceInfo Device
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -107,6 +108,7 @@
     /// <summary>On a phone or tablet the menu starts closed, so the page itself is visible.</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender) await Device.InitializeAsync();
         if (firstRender && _menuOpen && await IsSmallScreenAsync())
         {
             _menuOpen = false;

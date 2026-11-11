@@ -61,14 +61,6 @@
     private MudFileUpload<IBrowserFile>? _photoUpload;
     private bool _busy;
 
-    /// <summary>Focus the first name when the drawer opens, but not on a phone or tablet: that pops up the keyboard.</summary>
-    private bool _autoFocus;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender) _autoFocus = !await Device.IsTouchAsync();
-    }
-
     /// <summary>The player data form: on its own for a new player, in the "Algemeen" tab for an existing one.</summary>
     private RenderFragment GeneralForm => __builder =>
     {
@@ -98,7 +90,7 @@
 
             <MudTextField @bind-Value="_editing.FirstName" Label="@L["FirstName"]" Variant="Variant.Outlined"
                           Required="true" RequiredError="@L["FirstNameRequired"]" Immediate="true"
-                          AutoFocus="_autoFocus" MaxLength="50" OnKeyUp="OnKeyUp" Disabled="_busy" />
+                          AutoFocus="Device.AutoFocus" MaxLength="50" OnKeyUp="OnKeyUp" Disabled="_busy" />
             <MudTextField @bind-Value="_editing.LastName" Label="@L["LastName"]" Variant="Variant.Outlined"
                           Immediate="true" MaxLength="50" OnKeyUp="OnKeyUp" Disabled="_busy" />
             <MudDatePicker @bind-Date="_editing.BirthDate" Label="@L["BirthDate"]" Variant="Variant.Outlined"

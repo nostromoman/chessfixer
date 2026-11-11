@@ -924,6 +924,18 @@ html, body {
         display: inline;
     }
 
+    /* Tabs with only their icon (tournament page): the text is a bare text node, hidden with font-size 0. */
+    .tabs-icons-xs > .mud-tabs-tabbar .mud-tab {
+        font-size: 0;
+        min-width: 0 !important;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .tabs-icons-xs > .mud-tabs-tabbar .mud-tab .mud-tab-icon-text {
+        margin: 0;
+    }
+
     /* Only the account icon in the app bar, not the name. */
     .appbar-user-name {
         display: none;

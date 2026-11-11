@@ -2,26 +2,28 @@ using Microsoft.JSInterop;
 
 namespace ChessFixer.Client.Services;
 
-/// <summary>What kind of device the app runs on, asked once from the browser.</summary>
+/// <summary>What kind of device the app runs on, asked once from the browser (by the main layout, at startup).</summary>
 public sealed class DeviceInfo(IJSRuntime js)
 {
-    private bool? _isTouch;
-
     /// <summary>
     /// True on a phone or tablet (a touchscreen is the main input). There, focusing a text field opens the on-screen
-    /// keyboard over half the screen, so fields are not focused automatically.
+    /// keyboard over half the screen, so drawers and dialogs do not focus a field automatically.
+    /// False until <see cref="InitializeAsync"/> has run.
     /// </summary>
-    public async ValueTask<bool> IsTouchAsync()
+    public bool IsTouch { get; private set; }
+
+    /// <summary>Use as AutoFocus of the first field of a drawer or dialog: only with a mouse and keyboard.</summary>
+    public bool AutoFocus => !IsTouch;
+
+    public async Task InitializeAsync()
     {
-        if (_isTouch is { } known) return known;
         try
         {
-            _isTouch = await js.InvokeAsync<bool>("chessFixer.isTouch");
+            IsTouch = await js.InvokeAsync<bool>("chessFixer.isTouch");
         }
         catch (JSException)
         {
-            _isTouch = false;
+            IsTouch = false;
         }
-        return _isTouch.Value;
     }
 }

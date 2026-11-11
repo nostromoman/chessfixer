@@ -1,13 +1,14 @@
-@inject TournamentApi Api
+﻿@inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
+@inject DeviceInfo Device
 
 @* Creates or changes a writing style for the AI report: a name and instructions for the AI. *@
 <MudDialog>
     <DialogContent>
         <div class="d-flex flex-column gap-3">
             <MudTextField @bind-Value="_name" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
-                          AutoFocus="true" Disabled="_busy" MaxLength="100" />
+                          AutoFocus="Device.AutoFocus" Disabled="_busy" MaxLength="100" />
             <MudTextField @bind-Value="_description" Label="@L["WritingStyleDescription"]" HelperText="@L["WritingStyleDescriptionHelp"]"
                           Variant="Variant.Outlined" Immediate="true" Disabled="_busy" MaxLength="2000"
                           Lines="5" Sizing="InputSizing.Auto" MaxLines="15" />

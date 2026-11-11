@@ -61,8 +61,8 @@ else
                 <th style="width: 3em"></th>
                 <th>@L["Name"]</th>
                 <th class="hide-xs" style="text-align: right">@L["Rating"]</th>
-                <th>@L["State"]</th>
-                <th style="width: 6em"></th>
+                <th class="hide-xs">@L["State"]</th>
+                <th style="width: 1%"></th>
             </tr>
         </thead>
         <tbody>
@@ -83,17 +83,13 @@ else
                         }
                     </td>
                     <td class="hide-xs" style="text-align: right">@player.Rating</td>
-                    <td>
+                    <td class="hide-xs">
                         <MudChip T="string" Size="Size.Small" Class="ma-0" Color="@StatusColor(status)"
                                  Variant="@(status == PlayerStatus.Playing ? Variant.Filled : Variant.Outlined)">
                             @StatusText(status)
                         </MudChip>
                     </td>
                     <td style="text-align: right; white-space: nowrap">
-                        <MudTooltip Text="@L["EditPlayer"]">
-                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditPlayer"]"
-                                           Disabled="@(info is null || Disabled)" OnClick="() => OnOpenPlayer.InvokeAsync(playerId)" />
-                        </MudTooltip>
                         @if (player.IsActive)
                         {
                             <MudTooltip Text="@(InGame(status) ? L["RemoveBlockedInGame"] : L["Remove"])">

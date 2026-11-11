@@ -1,7 +1,8 @@
-@using System.Globalization
+﻿@using System.Globalization
 @inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
+@inject DeviceInfo Device
 
 @* Wizard in a modal to create a tournament: title, tournament type, boards and time control,
    points and whether it counts for the rating, and (optional) location and description, which the AI uses for the report after closing.
@@ -20,7 +21,7 @@
             case TitleStep:
                 <MudText Typo="Typo.body2" Class="mb-3">@L["WizardTitleIntro"]</MudText>
                 <MudTextField @bind-Value="_title" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true"
-                              AutoFocus="true" OnKeyUp="OnEnterNext" Disabled="_busy" />
+                              AutoFocus="Device.AutoFocus" OnKeyUp="OnEnterNext" Disabled="_busy" />
                 break;
 
             case TypeStep:
@@ -55,7 +56,7 @@
                 <MudText Typo="Typo.body2" Class="mb-3">@L["WizardPlayIntro"]</MudText>
                 <div class="d-flex flex-column gap-3">
                     <MudNumericField T="int" @bind-Value="_boards" Label="@L["Boards"]" Variant="Variant.Outlined"
-                                     Min="1" Immediate="true" AutoFocus="true" OnKeyUp="OnEnterNext" />
+                                     Min="1" Immediate="true" AutoFocus="Device.AutoFocus" OnKeyUp="OnEnterNext" />
                     <MudNumericField T="int" @bind-Value="_gameTimeMinutes" Label="@L["GameTime"]" Variant="Variant.Outlined"
                                      Min="1" Immediate="true" OnKeyUp="OnEnterNext" />
                     <MudNumericField T="int" @bind-Value="_incrementSeconds" Label="@L["Increment"]" Variant="Variant.Outlined"
@@ -68,7 +69,7 @@
                 <MudText Typo="Typo.body2" Class="mb-3">@L["WizardPointsIntro"]</MudText>
                 <div class="d-flex flex-column gap-3">
                     <MudNumericField T="double" @bind-Value="_pointsForWin" Label="@L["PointsForWin"]" Variant="Variant.Outlined"
-                                     Min="0" Step="0.5" Immediate="true" AutoFocus="true" Culture="CultureInfo.CurrentCulture" />
+                                     Min="0" Step="0.5" Immediate="true" AutoFocus="Device.AutoFocus" Culture="CultureInfo.CurrentCulture" />
                     <MudNumericField T="double" @bind-Value="_pointsForDraw" Label="@L["PointsForDraw"]" Variant="Variant.Outlined"
                                      Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
                     <MudNumericField T="double" @bind-Value="_pointsForLoss" Label="@L["PointsForLoss"]" Variant="Variant.Outlined"
@@ -85,7 +86,7 @@
                 <MudText Typo="Typo.body2" Class="mb-3">@L["WizardDetailsIntro"]</MudText>
                 <div class="d-flex flex-column gap-3">
                     <MudTextField @bind-Value="_location" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
-                                  Variant="Variant.Outlined" Immediate="true" AutoFocus="true" MaxLength="200" Disabled="_busy"
+                                  Variant="Variant.Outlined" Immediate="true" AutoFocus="Device.AutoFocus" MaxLength="200" Disabled="_busy"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Place" />
                     <MudTextField @bind-Value="_description" Label="@L["Description"]" Placeholder="@L["DescriptionPlaceholder"]"
                                   Variant="Variant.Outlined" Immediate="true" Lines="4" Sizing="InputSizing.Auto" MaxLines="10"

@@ -1,5 +1,6 @@
-@inject TournamentApi Api
+﻿@inject TournamentApi Api
 @inject IStringLocalizer<Strings> L
+@inject DeviceInfo Device
 
 @* Wizard before the AI writes the report. Step 1: noteworthy events that are not in the results
    (e.g. someone knocked over their tea). Step 2: the writing style. Pre-filled with what was given last time.
@@ -108,7 +109,8 @@
     {
         _events.AddRange((Report?.Events ?? []).Select(text => new EventLine { Text = text }));
         _events.Add(new EventLine()); // an empty line to start typing
-        _focus = _events[^1];
+        // Not on a phone or tablet: focusing opens the keyboard before the user wants to type. Adding a line still focuses it.
+        _focus = Device.AutoFocus ? _events[^1] : null;
 
         try
         {
