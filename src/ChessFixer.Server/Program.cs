@@ -76,6 +76,7 @@ builder.Services.AddScoped<IAiTextGenerator, ClaudeTextGenerator>();
 builder.Services.AddHttpClient(OllamaTextGenerator.HttpClientName, client => client.Timeout = TimeSpan.FromMinutes(10));
 builder.Services.AddSingleton<ReportQueue>();
 builder.Services.AddScoped<TournamentReportWriter>();
+builder.Services.AddScoped<WritingStyleService>();
 builder.Services.AddHostedService<ReportWorker>();
 builder.Services.AddDbContext<ChessFixerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("ChessFixer")));

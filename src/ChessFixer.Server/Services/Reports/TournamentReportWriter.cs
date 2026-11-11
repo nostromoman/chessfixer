@@ -19,9 +19,9 @@ public class TournamentReportWriter(
 {
     public async Task WriteAsync(int tournamentId, CancellationToken cancellationToken)
     {
-        var status = await db.Tournaments
-            .Where(t => t.Id == tournamentId)
-            .Select(t => (ReportStatus?)t.ReportStatus)
+        var status = await db.TournamentReports
+            .Where(r => r.TournamentId == tournamentId)
+            .Select(r => (ReportStatus?)r.Status)
             .SingleOrDefaultAsync(cancellationToken);
         if (status != ReportStatus.Generating) return; // deleted, or already handled
 
@@ -36,7 +36,7 @@ public class TournamentReportWriter(
         var model = ai.Generator.Describe(ai.Settings);
         try
         {
-            prompt = await BuildPromptAsync(tournamentId);
+            prompt = await BuildPromptAsync(tournamentId, AiSettingsService.PromptOptionsOf(ai.Settings));
             logger.LogInformation("Writing the report of tournament {TournamentId} with {Model}.", tournamentId, model);
             text = await ai.Generator.GenerateAsync(ai.Settings, prompt, cancellationToken);
         }
@@ -48,16 +48,16 @@ public class TournamentReportWriter(
             return;
         }
 
-        await db.Tournaments
-            .Where(t => t.Id == tournamentId && t.ReportStatus == ReportStatus.Generating)
+        await db.TournamentReports
+            .Where(r => r.TournamentId == tournamentId && r.Status == ReportStatus.Generating)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.ReportModel, model)
-                .SetProperty(t => t.ReportSystemPrompt, prompt.System)
-                .SetProperty(t => t.ReportUserPrompt, prompt.User), cancellationToken);
+                .SetProperty(r => r.Model, model)
+                .SetProperty(r => r.SystemPrompt, prompt.System)
+                .SetProperty(r => r.UserPrompt, prompt.User), cancellationToken);
         await StoreAsync(tournamentId, ReportStatus.Ready, text, null, cancellationToken);
     }
 
-    private async Task<AiPrompt> BuildPromptAsync(int tournamentId)
+    private async Task<AiPrompt> BuildPromptAsync(int tournamentId, ReportPromptOptions options)
     {
         var tournament = await tournaments.GetAsync(tournamentId);
         var rounds = await tournaments.GetRoundsAsync(tournamentId);
@@ -70,25 +70,30 @@ public class TournamentReportWriter(
             .Select(r => r.StartedAt)
             .OrderBy(s => s)
             .ToListAsync();
+        var wizard = await db.TournamentReports
+            .Where(r => r.TournamentId == tournamentId)
+            .Select(r => new { r.Events, r.WritingStyleDescription })
+            .SingleAsync();
 
         return TournamentReportPrompt.Build(new TournamentReportData(
-            tournament, rounds, standings, players, startedAt.FirstOrDefault(), startedAt.LastOrDefault()));
+            tournament, rounds, standings, players, startedAt.FirstOrDefault(), startedAt.LastOrDefault(),
+            wizard.Events, wizard.WritingStyleDescription), options);
     }
 
     /// <summary>
-    /// Only touches the report columns, so it cannot conflict with other changes to the tournament.
+    /// Only touches the report, so it cannot conflict with other changes to the tournament.
     /// When writing failed (text null), an earlier report is kept.
     /// </summary>
     private async Task StoreAsync(int tournamentId, ReportStatus status, string? text, string? error, CancellationToken cancellationToken)
     {
         DateTime? generatedAt = text is null ? null : time.GetUtcNow().UtcDateTime;
-        await db.Tournaments
-            .Where(t => t.Id == tournamentId && t.ReportStatus == ReportStatus.Generating)
+        await db.TournamentReports
+            .Where(r => r.TournamentId == tournamentId && r.Status == ReportStatus.Generating)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.ReportStatus, status)
-                .SetProperty(t => t.ReportText, t => text ?? t.ReportText)
-                .SetProperty(t => t.ReportGeneratedAt, t => generatedAt ?? t.ReportGeneratedAt)
-                .SetProperty(t => t.ReportError, error), cancellationToken);
+                .SetProperty(r => r.Status, status)
+                .SetProperty(r => r.Text, r => text ?? r.Text)
+                .SetProperty(r => r.GeneratedAt, r => generatedAt ?? r.GeneratedAt)
+                .SetProperty(r => r.Error, error), cancellationToken);
 
         await hub.Clients.All.SendAsync(TournamentHubContract.TournamentChanged, tournamentId, cancellationToken);
     }

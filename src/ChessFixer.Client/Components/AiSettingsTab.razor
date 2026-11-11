@@ -2,8 +2,8 @@
 @inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
 
-@* Settings tab "AI-verslag": the AI that writes a report when a tournament is closed.
-   Every provider (Ollama, Claude) has its own block of fields. *@
+@* Settings tab "AI-verslag": the AI that writes the report of a closed tournament (every provider, Ollama and
+   Claude, has its own block of fields), and the writing styles to choose from in the report wizard. *@
 <MudPaper Class="pa-4" Elevation="0" Style="max-width: 48em">
     <div class="d-flex align-center gap-2 mb-1">
         <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Color="Color.Primary" />
@@ -67,6 +67,46 @@
             <MudAlert Severity="Severity.Error" Dense="true" Class="mt-4">@L["AiTestFailed", failed.Error ?? ""]</MudAlert>
         }
 
+        @* The prompt: the same for every provider. *@
+        <MudDivider Class="my-5" />
+        <div class="d-flex align-center gap-2 mb-1">
+            <MudIcon Icon="@Icons.Material.Filled.Notes" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@L["ReportPromptSettings"]</MudText>
+        </div>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L["ReportPromptSettingsIntro"]</MudText>
+
+        <div class="d-flex flex-column gap-3">
+            <div>
+                <MudTextField @bind-Value="_form.SystemPrompt" Label="@L["ReportSystemPrompt"]" HelperText="@L["ReportSystemPromptHelp"]"
+                              Variant="Variant.Outlined" Immediate="true" Disabled="_busy" MaxLength="10000"
+                              Lines="12" Sizing="InputSizing.Auto" MaxLines="30" Class="prompt-field" />
+                @if (_form.SystemPrompt.Trim() != _loaded.Report.DefaultSystemPrompt.Trim())
+                {
+                    <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.Restore" Disabled="_busy"
+                               OnClick="() => _form.SystemPrompt = _loaded.Report.DefaultSystemPrompt">@L["RestoreDefault"]</MudButton>
+                }
+            </div>
+            @if (_styles.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">@L["ReportDefaultStyleNoStyles"]</MudAlert>
+            }
+            else
+            {
+                <MudSelect T="int?" @bind-Value="_form.DefaultWritingStyleId" Label="@L["ReportDefaultStyle"]"
+                           HelperText="@L["ReportDefaultStyleHelp"]" Variant="Variant.Outlined" Disabled="_busy"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem T="int?" Value="null">@L["ReportDefaultStyleNone"]</MudSelectItem>
+                    @foreach (var style in _styles)
+                    {
+                        <MudSelectItem T="int?" Value="style.Id">@style.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            <MudNumericField T="int" @bind-Value="_form.UpsetRatingDifference" Label="@L["ReportUpsetRatingDifference"]"
+                             HelperText="@L["ReportUpsetRatingDifferenceHelp", _loaded.Report.DefaultUpsetRatingDifference]"
+                             Variant="Variant.Outlined" Min="0" Max="1000" Step="25" Immediate="true" Disabled="_busy" />
+        </div>
+
         <div class="d-flex gap-2 justify-end mt-4">
             @if (_form.Provider != AiProvider.None)
             {
@@ -80,8 +120,12 @@
     }
 </MudPaper>
 
+<WritingStylesSection @ref="_stylesSection" OnChanged="OnStylesChangedAsync" />
+
 @code {
     private AiSettingsDto? _loaded;
+    private List<WritingStyleDto> _styles = [];
+    private WritingStylesSection? _stylesSection;
     private Form _form = new();
     private AiConnectionTestResult? _test;
     private bool _busy;
@@ -106,9 +150,21 @@
     protected override async Task OnInitializedAsync() =>
         await RunAsync(async () =>
         {
+            var styles = Api.GetWritingStylesAsync();
             _loaded = await Api.GetAiSettingsAsync();
             _form = Form.From(_loaded);
+            _styles = await styles;
         });
+
+    /// <summary>A style was added, changed or deleted below: update the dropdown. A deleted standard style is
+    /// cleared by the server; do the same here without losing other unsaved changes.</summary>
+    private async Task OnStylesChangedAsync()
+    {
+        await RunAsync(async () => _styles = await Api.GetWritingStylesAsync());
+        if (_loaded is null || _styles.Any(s => s.Id == _loaded.Report.DefaultWritingStyleId)) return;
+        _loaded = _loaded with { Report = _loaded.Report with { DefaultWritingStyleId = null } };
+        if (!_styles.Any(s => s.Id == _form.DefaultWritingStyleId)) _form.DefaultWritingStyleId = null;
+    }
 
     private Task TestAsync() =>
         RunAsync(async () => _test = await Api.TestAiSettingsAsync(_form.ToRequest()));
@@ -119,6 +175,8 @@
             _loaded = await Api.UpdateAiSettingsAsync(_form.ToRequest());
             _form = Form.From(_loaded);
             Snackbar.Add(L["Saved"], Severity.Success);
+            // The list below marks the standard style.
+            if (_stylesSection is not null) await _stylesSection.ReloadAsync();
         });
 
     private async Task RunAsync(Func<Task> action)
@@ -150,18 +208,25 @@
         public string ClaudeModel { get; set; } = "";
         /// <summary>Empty: keep the stored API key.</summary>
         public string ClaudeApiKey { get; set; } = "";
+        public string SystemPrompt { get; set; } = "";
+        public int? DefaultWritingStyleId { get; set; }
+        public int UpsetRatingDifference { get; set; }
 
         public static Form From(AiSettingsDto s) => new()
         {
             Provider = s.Provider,
             OllamaUrl = s.Ollama.Url,
             OllamaModel = s.Ollama.Model,
-            ClaudeModel = s.Claude.Model
+            ClaudeModel = s.Claude.Model,
+            SystemPrompt = s.Report.SystemPrompt,
+            DefaultWritingStyleId = s.Report.DefaultWritingStyleId,
+            UpsetRatingDifference = s.Report.UpsetRatingDifference
         };
 
         public UpdateAiSettingsRequest ToRequest() => new(
             Provider,
             new UpdateOllamaSettings(OllamaUrl, OllamaModel),
-            new UpdateClaudeSettings(ClaudeModel, ClaudeApiKey.Length > 0 ? ClaudeApiKey : null));
+            new UpdateClaudeSettings(ClaudeModel, ClaudeApiKey.Length > 0 ? ClaudeApiKey : null),
+            new UpdateReportPromptSettings(SystemPrompt, DefaultWritingStyleId, UpsetRatingDifference));
     }
 }

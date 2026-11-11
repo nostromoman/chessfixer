@@ -3,8 +3,8 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 
-@* The report of a closed tournament, written by an AI in the background after closing.
-   The page reloads (SignalR) when the report is ready. *@
+@* The report of a closed tournament. The leader asks for it with the report wizard (noteworthy events and a
+   writing style); the AI writes it in the background and the page reloads (SignalR) when it is ready. *@
 <div class="report">
     @switch (Report.Status)
     {
@@ -28,9 +28,7 @@
             break;
 
         case ReportStatus.None when Report.Text is null:
-            <MudAlert Severity="Severity.Info" Class="mb-4">
-                @L["ReportNone"] <MudLink Href="settings">@L["ReportConfigureAi"]</MudLink>
-            </MudAlert>
+            <MudAlert Severity="Severity.Info" Class="mb-4">@L["ReportNone"]</MudAlert>
             break;
     }
 
@@ -61,7 +59,7 @@
     {
         <div class="d-flex flex-wrap gap-2 mt-4">
             <MudButton Variant="@(Report.Text is null ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="Disabled" OnClick="OnGenerate">
+                       StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="Disabled" OnClick="OpenWizardAsync">
                 @(Report.Text is null ? L["ReportGenerate"] : L["ReportRegenerate"])
             </MudButton>
             @if (Report.Text is not null)
@@ -84,7 +82,17 @@
     [Parameter, EditorRequired] public int TournamentId { get; set; }
     [Parameter, EditorRequired] public TournamentReportDto Report { get; set; } = null!;
     [Parameter] public bool Disabled { get; set; }
-    [Parameter] public EventCallback OnGenerate { get; set; }
+    /// <summary>The leader finished the report wizard.</summary>
+    [Parameter] public EventCallback<GenerateReportRequest> OnGenerate { get; set; }
+
+    private async Task OpenWizardAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<ReportWizardDialog>(L["ReportWizardTitle"],
+            new DialogParameters<ReportWizardDialog> { { d => d.Report, Report } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false, CloseButton = true });
+        if (await dialog.Result is { Canceled: false, Data: GenerateReportRequest request })
+            await OnGenerate.InvokeAsync(request);
+    }
 
     /// <summary>The first line is the title (as the AI is asked to write it); the rest are paragraphs.</summary>
     private static (string? Title, List<string> Paragraphs) Split(string text)

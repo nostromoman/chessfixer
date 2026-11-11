@@ -24,7 +24,7 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
             .Where(p => includeDeleted || !p.IsDeleted)
             .OrderBy(p => p.Name)
             .Select(p => new PlayerDto(p.Id, p.FirstName, p.LastName, p.Name, p.Rating, p.BirthDate, p.City, p.Club,
-                p.Photo == null ? null : p.PhotoVersion, p.IsDeleted))
+                p.Photo == null ? (int?)null : p.PhotoVersion, p.IsDeleted))
             .ToListAsync();
 
     /// <summary>Tournament results and games of the player.</summary>
@@ -86,7 +86,7 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
     [HttpPut("{id:int}")]
     public async Task<PlayerDto> Update(int id, UpdatePlayerRequest request)
     {
-        var player = await FindAsync(id);
+        var player = await FindWithPhotoAsync(id); // the response tells whether the player has a photo
         Apply(player, request.FirstName, request.LastName, request.Rating ?? player.Rating,
             request.BirthDate, request.City, request.Club);
         await db.SaveChangesAsync();
@@ -109,15 +109,12 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
     [HttpGet("{id:int}/photo")]
     public async Task<IActionResult> GetPhoto(int id)
     {
-        var photo = await db.Players
-            .Where(p => p.Id == id && p.Photo != null)
-            .Select(p => new { p.Photo, p.PhotoContentType })
-            .SingleOrDefaultAsync();
+        var photo = await db.PlayerPhotos.AsNoTracking().SingleOrDefaultAsync(p => p.PlayerId == id);
         if (photo is null) return NotFound();
 
         // The URL contains the photo version, so the image can be cached for a long time.
         Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        return File(photo.Photo!, photo.PhotoContentType ?? "image/jpeg");
+        return File(photo.Data, photo.ContentType);
     }
 
     /// <summary>Replaces the profile photo. The body is the raw image (max 1 MB).</summary>
@@ -133,9 +130,10 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
         await Request.Body.CopyToAsync(buffer);
         if (buffer.Length == 0 || buffer.Length > MaxPhotoBytes) throw new ApiException(ApiErrorCode.InvalidPhoto);
 
-        var player = await FindAsync(id);
-        player.Photo = buffer.ToArray();
-        player.PhotoContentType = contentType;
+        var player = await FindWithPhotoAsync(id);
+        player.Photo ??= new PlayerPhoto { Data = [], ContentType = "" };
+        player.Photo.Data = buffer.ToArray();
+        player.Photo.ContentType = contentType;
         player.PhotoVersion++;
         await db.SaveChangesAsync();
         return ToDto(player);
@@ -144,9 +142,9 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
     [HttpDelete("{id:int}/photo")]
     public async Task<PlayerDto> DeletePhoto(int id)
     {
-        var player = await FindAsync(id);
+        var player = await FindWithPhotoAsync(id);
+        if (player.Photo is not null) db.PlayerPhotos.Remove(player.Photo);
         player.Photo = null;
-        player.PhotoContentType = null;
         player.PhotoVersion++;
         await db.SaveChangesAsync();
         return ToDto(player);
@@ -154,6 +152,10 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
 
     private async Task<Player> FindAsync(int id) =>
         await db.Players.FindAsync(id) ?? throw new ApiException(ApiErrorCode.PlayerNotFound);
+
+    private async Task<Player> FindWithPhotoAsync(int id) =>
+        await db.Players.Include(p => p.Photo).SingleOrDefaultAsync(p => p.Id == id)
+        ?? throw new ApiException(ApiErrorCode.PlayerNotFound);
 
     private static void Apply(Player player, string firstName, string? lastName, int rating,
         DateOnly? birthDate, string? city, string? club)

@@ -29,12 +29,18 @@ public class TournamentsController(TournamentService service) : ControllerBase
     [HttpPost("{id:int}/rounds/start")]
     public Task<TournamentDto> StartNextRound(int id) => service.StartNextRoundAsync(id);
 
+    /// <summary>Cancels the round in progress: its pairing and any results are removed, rating changes are undone.</summary>
+    [HttpPost("{id:int}/rounds/cancel")]
+    public Task<TournamentDto> CancelRound(int id) => service.CancelRoundAsync(id);
+
     [HttpPost("{id:int}/close")]
     public Task<TournamentDto> Close(int id) => service.CloseAsync(id);
 
-    /// <summary>Has the AI (re)write the report of a closed tournament. The report is written in the background.</summary>
+    /// <summary>Has the AI (re)write the report of a closed tournament, with the noteworthy events and writing style
+    /// from the report wizard. The report is written in the background.</summary>
     [HttpPost("{id:int}/report")]
-    public Task<TournamentDto> GenerateReport(int id) => service.GenerateReportAsync(id);
+    public Task<TournamentDto> GenerateReport(int id, GenerateReportRequest? request) =>
+        service.GenerateReportAsync(id, request ?? new GenerateReportRequest());
 
     /// <summary>The prompt that was sent to the AI for the current report.</summary>
     [HttpGet("{id:int}/report/prompt")]

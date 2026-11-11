@@ -28,6 +28,7 @@ public class TournamentService(
     IHubContext<TournamentHub> hub,
     TimeProvider time,
     AiSettingsService aiSettings,
+    WritingStyleService writingStyles,
     ReportQueue reportQueue)
 {
     private const int MaxLocationLength = 200;
@@ -39,7 +40,14 @@ public class TournamentService(
         await db.Tournaments
             .OrderByDescending(t => t.Id)
             .Select(t => new TournamentSummaryDto(
-                t.Id, t.Title, t.State, t.PairingSystem,
+                t.Id, t.Title,
+                // Same rules as StateOf, translated to SQL.
+                t.ClosedAt != null ? TournamentState.Closed
+                : !t.Rounds.Any(r => r.StartedAt != null) ? TournamentState.New
+                : t.Rounds.Where(r => r.StartedAt != null).OrderByDescending(r => r.Number).First()
+                    .Games.Any(g => g.Result == GameResult.NotPlayed) ? TournamentState.RoundActive
+                : TournamentState.WaitingForNextRound,
+                t.PairingSystem,
                 t.Players.Count(p => p.IsActive),
                 t.Boards, t.GameTimeMinutes, t.IncrementSeconds,
                 t.Rounds.Count(r => r.StartedAt != null)))
@@ -60,14 +68,16 @@ public class TournamentService(
     /// <summary>The prompt that produced the current report.</summary>
     public async Task<ReportPromptDto> GetReportPromptAsync(int id)
     {
-        var prompt = await db.Tournaments
-            .Where(t => t.Id == id)
-            .Select(t => new { t.ReportSystemPrompt, t.ReportUserPrompt, t.ReportModel })
-            .SingleOrDefaultAsync() ?? throw new ApiException(ApiErrorCode.TournamentNotFound);
+        if (!await db.Tournaments.AnyAsync(t => t.Id == id)) throw new ApiException(ApiErrorCode.TournamentNotFound);
 
-        if (prompt.ReportSystemPrompt is null || prompt.ReportUserPrompt is null)
+        var prompt = await db.TournamentReports
+            .Where(r => r.TournamentId == id)
+            .Select(r => new { r.SystemPrompt, r.UserPrompt, r.Model })
+            .SingleOrDefaultAsync();
+
+        if (prompt?.SystemPrompt is null || prompt.UserPrompt is null)
             throw new ApiException(ApiErrorCode.ReportNotAvailable);
-        return new ReportPromptDto(prompt.ReportSystemPrompt, prompt.ReportUserPrompt, prompt.ReportModel);
+        return new ReportPromptDto(prompt.SystemPrompt, prompt.UserPrompt, prompt.Model);
     }
 
     /// <summary>All rounds in order; the last one may be the pending (not started) round.</summary>
@@ -85,7 +95,8 @@ public class TournamentService(
                     g.Board,
                     new GamePlayerDto(g.White.PlayerId, g.White.Player.Name, g.White.Player.IsDeleted),
                     g.Black is null ? null : new GamePlayerDto(g.Black.PlayerId, g.Black.Player.Name, g.Black.Player.IsDeleted),
-                    g.Result)).ToList()))
+                    g.Result)).ToList(),
+                r.StartedAt))
             .ToList();
     }
 
@@ -130,7 +141,7 @@ public class TournamentService(
                 tournament.Players.Select(p => p.Id), PlayedGames(tournament), scoring);
             var row = standings.Single(r => r.PlayerId == participant.Id);
             results.Add(new PlayerTournamentResultDto(
-                tournament.Id, tournament.Title, tournament.State, row.Rank, standings.Count,
+                tournament.Id, tournament.Title, StateOf(tournament), row.Rank, standings.Count,
                 row.Points, row.Played, row.Wins, row.Draws, row.Losses));
 
             var participants = tournament.Players.ToDictionary(p => p.Id);
@@ -195,8 +206,7 @@ public class TournamentService(
                 && settings == current) return;
 
             // Settings can change between rounds, not during a round or after closing.
-            if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
-            if (tournament.State == TournamentState.RoundActive) throw new ApiException(ApiErrorCode.RoundInProgress);
+            EnsureBetweenRounds(tournament);
 
             // Once round 1 has started, only the title, location, description, time control and boards can change.
             var onlyFreeSettingsChanged = settings with
@@ -279,7 +289,7 @@ public class TournamentService(
                               ?? throw new ApiException(ApiErrorCode.PlayerNotInTournament);
 
             // A player cannot withdraw in the middle of a game (playing or waiting for a board).
-            var inUnfinishedGame = tournament.State == TournamentState.RoundActive
+            var inUnfinishedGame = StateOf(tournament) == TournamentState.RoundActive
                 && StartedRounds(tournament).Last().Games.Any(g =>
                     g.Result == GameResult.NotPlayed && (g.WhiteId == participant.Id || g.BlackId == participant.Id));
             if (inUnfinishedGame) throw new ApiException(ApiErrorCode.PlayerInActiveGame);
@@ -304,14 +314,51 @@ public class TournamentService(
     public Task<TournamentDto> StartNextRoundAsync(int id) =>
         MutateAsync(id, async tournament =>
         {
-            if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
-            if (tournament.State == TournamentState.RoundActive) throw new ApiException(ApiErrorCode.RoundInProgress);
+            EnsureBetweenRounds(tournament);
 
             // Normally the pending round exists already. If pairing failed earlier, try again to report why.
             var round = PendingRound(tournament) ?? await PairPendingRoundAsync(tournament, throwOnError: true);
 
             round!.StartedAt = time.GetUtcNow().UtcDateTime;
-            tournament.State = TournamentState.RoundActive;
+        });
+
+    /// <summary>
+    /// Cancels the round in progress, as if it was never started: its games (and results) are removed, rating
+    /// changes are undone, and the round is paired again as the pending round.
+    /// </summary>
+    public Task<TournamentDto> CancelRoundAsync(int id) =>
+        MutateAsync(id, async tournament =>
+        {
+            var state = StateOf(tournament);
+            if (state == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
+            if (state != TournamentState.RoundActive) throw new ApiException(ApiErrorCode.NoRoundInProgress);
+
+            var round = StartedRounds(tournament).Last();
+            foreach (var game in round.Games.Where(g => g.IsRated))
+            {
+                game.White.Player.Rating -= game.WhiteRatingChange!.Value;
+                game.Black!.Player.Rating -= game.BlackRatingChange!.Value;
+            }
+
+            await RemovePendingRoundAsync(tournament);
+            tournament.Rounds.Remove(round);
+            db.Rounds.Remove(round);
+
+            // A player who withdrew during this round and has no other games is removed completely,
+            // as if they withdrew before the round.
+            var withdrawnWithoutGames = tournament.Players
+                .Where(p => !p.IsActive && !StartedRounds(tournament).SelectMany(r => r.Games)
+                    .Any(g => g.WhiteId == p.Id || g.BlackId == p.Id))
+                .ToList();
+            foreach (var participant in withdrawnWithoutGames)
+            {
+                tournament.Players.Remove(participant);
+                db.TournamentPlayers.Remove(participant);
+            }
+
+            // Save now so the round can be paired again under the same number (unique index).
+            await db.SaveChangesAsync();
+            await RefreshPendingRoundAsync(tournament);
         });
 
     public Task<TournamentDto> SetResultAsync(int id, int gameId, GameResult result) =>
@@ -320,7 +367,7 @@ public class TournamentService(
             var game = tournament.Rounds.SelectMany(r => r.Games).SingleOrDefault(g => g.Id == gameId)
                        ?? throw new ApiException(ApiErrorCode.GameNotFound);
 
-            if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
+            if (StateOf(tournament) == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
 
             // Only the most recent started round can be (corrected) entered.
             var lastStarted = StartedRounds(tournament).LastOrDefault();
@@ -343,16 +390,11 @@ public class TournamentService(
             // A finished game frees its board for the next game in the queue.
             AssignBoards(lastStarted, tournament.Boards);
 
-            if (lastStarted.Games.All(g => g.Result != GameResult.NotPlayed))
-            {
-                tournament.State = TournamentState.WaitingForNextRound;
+            // The round is over when all games have a result: the next round is paired. A cleared result reopens it.
+            if (StateOf(tournament) == TournamentState.WaitingForNextRound)
                 await RefreshPendingRoundAsync(tournament);
-            }
             else
-            {
-                tournament.State = TournamentState.RoundActive;
                 await RemovePendingRoundAsync(tournament);
-            }
         });
 
     /// <summary>
@@ -393,46 +435,52 @@ public class TournamentService(
         db.Games.CountAsync(g => g.Id != exceptGameId && g.RatedAt != null
                                  && (g.White.PlayerId == playerId || g.Black!.PlayerId == playerId));
 
-    /// <summary>Closes the tournament. When an AI is configured, it writes the report in the background.</summary>
-    public async Task<TournamentDto> CloseAsync(int id)
-    {
-        var writeReport = await aiSettings.IsConfiguredAsync();
-
-        var result = await MutateAsync(id, async tournament =>
+    /// <summary>Closes the tournament. The report is not written automatically: the leader asks for it
+    /// (with the report wizard) on the Report tab.</summary>
+    public Task<TournamentDto> CloseAsync(int id) =>
+        MutateAsync(id, async tournament =>
         {
-            if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
-            if (tournament.State == TournamentState.RoundActive) throw new ApiException(ApiErrorCode.RoundInProgress);
+            EnsureBetweenRounds(tournament);
 
             await RemovePendingRoundAsync(tournament);
-            tournament.State = TournamentState.Closed;
-            if (writeReport) RequestReport(tournament);
+            tournament.ClosedAt = time.GetUtcNow().UtcDateTime;
         });
 
-        if (writeReport) reportQueue.Enqueue(id);
-        return result;
-    }
-
-    /// <summary>(Re)writes the report of a closed tournament, e.g. after the AI was configured or failed.</summary>
-    public async Task<TournamentDto> GenerateReportAsync(int id)
+    /// <summary>
+    /// (Re)writes the report of a closed tournament in the background, with the noteworthy events and the
+    /// writing style the leader gave in the report wizard.
+    /// </summary>
+    public async Task<TournamentDto> GenerateReportAsync(int id, GenerateReportRequest request)
     {
         if (!await aiSettings.IsConfiguredAsync()) throw new ApiException(ApiErrorCode.AiNotConfigured);
+        // No style chosen: the standard style from the settings; none when that is not set (no style is sent).
+        var style = request.WritingStyleId is { } styleId ? await writingStyles.FindAsync(styleId)
+            : await aiSettings.GetDefaultWritingStyleIdAsync() is { } defaultId ? await writingStyles.FindAsync(defaultId)
+            : null;
+        var events = (request.Events ?? [])
+            .Select(e => e?.Trim() ?? "")
+            .Where(e => e.Length > 0)
+            .Select(e => e.Length <= WritingStyleRules.MaxEventLength ? e : e[..WritingStyleRules.MaxEventLength])
+            .Take(WritingStyleRules.MaxEvents)
+            .ToList();
 
         var result = await MutateAsync(id, tournament =>
         {
-            if (tournament.State != TournamentState.Closed) throw new ApiException(ApiErrorCode.ReportNotAvailable);
-            RequestReport(tournament);
+            if (StateOf(tournament) != TournamentState.Closed) throw new ApiException(ApiErrorCode.ReportNotAvailable);
+
+            // An earlier report stays until the new one is ready.
+            var report = tournament.Report ??= new TournamentReport();
+            report.Status = ReportStatus.Generating;
+            report.Error = null;
+            report.Events = events;
+            report.WritingStyleId = style?.Id;
+            report.WritingStyleName = style?.Name;
+            report.WritingStyleDescription = style?.Description;
             return Task.CompletedTask;
         });
 
         reportQueue.Enqueue(id);
         return result;
-    }
-
-    /// <summary>Marks the report as being written; an earlier report stays until the new one is ready.</summary>
-    private static void RequestReport(Tournament tournament)
-    {
-        tournament.ReportStatus = ReportStatus.Generating;
-        tournament.ReportError = null;
     }
 
     // ---------- Helpers ----------
@@ -456,6 +504,7 @@ public class TournamentService(
         await db.Tournaments
             .Include(t => t.Players).ThenInclude(p => p.Player)
             .Include(t => t.Rounds).ThenInclude(r => r.Games)
+            .Include(t => t.Report)
             .AsSplitQuery()
             .SingleOrDefaultAsync(t => t.Id == id)
         ?? throw new ApiException(ApiErrorCode.TournamentNotFound);
@@ -472,13 +521,36 @@ public class TournamentService(
     /// </summary>
     private static void EnsurePlayersCanChange(Tournament tournament)
     {
-        if (tournament.State == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
+        if (StateOf(tournament) == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
+    }
+
+    /// <summary>Settings, the start of a round and closing are only possible between rounds.</summary>
+    private static void EnsureBetweenRounds(Tournament tournament)
+    {
+        var state = StateOf(tournament);
+        if (state == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
+        if (state == TournamentState.RoundActive) throw new ApiException(ApiErrorCode.RoundInProgress);
+    }
+
+    /// <summary>
+    /// The state is not stored but follows from the data: closed when the leader closed it, new before round 1,
+    /// round active while the last started round has games without a result, otherwise waiting for the next round.
+    /// Keep in sync with the SQL version in <see cref="GetAllAsync"/>.
+    /// </summary>
+    private static TournamentState StateOf(Tournament tournament)
+    {
+        if (tournament.ClosedAt is not null) return TournamentState.Closed;
+        var lastStarted = StartedRounds(tournament).LastOrDefault();
+        if (lastStarted is null) return TournamentState.New;
+        return lastStarted.Games.Any(g => g.Result == GameResult.NotPlayed)
+            ? TournamentState.RoundActive
+            : TournamentState.WaitingForNextRound;
     }
 
     private async Task RefreshPendingRoundAsync(Tournament tournament)
     {
         await RemovePendingRoundAsync(tournament);
-        if (tournament.State is TournamentState.New or TournamentState.WaitingForNextRound)
+        if (StateOf(tournament) is TournamentState.New or TournamentState.WaitingForNextRound)
             await PairPendingRoundAsync(tournament, throwOnError: false);
     }
 
@@ -577,10 +649,13 @@ public class TournamentService(
         t.Title,
         t.Location,
         t.Description,
-        t.State,
+        StateOf(t),
         SettingsOf(t),
         StartedRounds(t).Count(),
         IsSettingsLocked(t),
-        new TournamentReportDto(t.ReportStatus, t.ReportText, t.ReportGeneratedAt, t.ReportError,
-            t.ReportModel, t.ReportUserPrompt is not null));
+        t.Report is { } report
+            ? new TournamentReportDto(report.Status, report.Text, report.GeneratedAt, report.Error,
+                report.Model, report.UserPrompt is not null,
+                report.Events, report.WritingStyleId, report.WritingStyleName)
+            : new TournamentReportDto(ReportStatus.None, null, null, null, null, false));
 }

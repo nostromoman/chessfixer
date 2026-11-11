@@ -20,11 +20,13 @@ public class Player
     public string? City { get; set; }
     public string? Club { get; set; }
 
-    /// <summary>Profile photo (small, resized by the client). Null when the player has no photo.</summary>
-    public byte[]? Photo { get; set; }
-    public string? PhotoContentType { get; set; }
+    /// <summary>Profile photo, in its own table so loading players never loads the image data. Null without a photo.</summary>
+    public PlayerPhoto? Photo { get; set; }
 
-    /// <summary>Incremented on every photo change, so clients can bust their image cache.</summary>
+    /// <summary>
+    /// Incremented on every photo change (also on removal), so clients can bust their image cache.
+    /// Kept on the player, not on the photo, so it keeps counting when a photo is removed and a new one added.
+    /// </summary>
     public int PhotoVersion { get; set; }
 
     /// <summary>
@@ -34,13 +36,20 @@ public class Player
     public bool IsDeleted { get; set; }
 }
 
+/// <summary>The profile photo of a player (small, resized by the client).</summary>
+public class PlayerPhoto
+{
+    public int PlayerId { get; set; }
+    public required byte[] Data { get; set; }
+    public required string ContentType { get; set; }
+}
+
 public class Tournament
 {
     public int Id { get; set; }
     public required string Title { get; set; }
     public string? Location { get; set; }
     public string? Description { get; set; }
-    public TournamentState State { get; set; } = TournamentState.New;
 
     public PairingSystem PairingSystem { get; set; } = PairingSystem.RoundRobin;
     public int GameTimeMinutes { get; set; } = 15;
@@ -56,22 +65,61 @@ public class Tournament
     /// <summary>Number of boards (playing places). Games that do not fit wait in a queue for a free board.</summary>
     public int Boards { get; set; } = 8;
 
+    /// <summary>
+    /// When the leader closed the tournament; null while it is open. The other states (new, round active,
+    /// waiting for the next round) are not stored: they follow from the rounds and results.
+    /// </summary>
+    public DateTime? ClosedAt { get; set; }
+
     public List<TournamentPlayer> Players { get; set; } = [];
     public List<Round> Rounds { get; set; } = [];
 
-    // ----- Report, written by an AI after closing -----
+    /// <summary>The AI-written report; null when none was requested.</summary>
+    public TournamentReport? Report { get; set; }
+}
 
-    public ReportStatus ReportStatus { get; set; } = ReportStatus.None;
-    public string? ReportText { get; set; }
-    public DateTime? ReportGeneratedAt { get; set; }
-    public string? ReportError { get; set; }
+/// <summary>The report of a closed tournament, written by an AI.</summary>
+public class TournamentReport
+{
+    public int TournamentId { get; set; }
+
+    /// <summary>Generating, Ready or Failed (no row means <see cref="ReportStatus.None"/>).</summary>
+    public ReportStatus Status { get; set; } = ReportStatus.Generating;
+
+    /// <summary>The current report; an earlier report stays while a new one is written or when writing fails.</summary>
+    public string? Text { get; set; }
+    public DateTime? GeneratedAt { get; set; }
+
+    /// <summary>Why the last attempt failed.</summary>
+    public string? Error { get; set; }
 
     /// <summary>The AI (provider and model) that wrote the current report.</summary>
-    public string? ReportModel { get; set; }
+    public string? Model { get; set; }
 
     /// <summary>The prompt that produced the current report.</summary>
-    public string? ReportSystemPrompt { get; set; }
-    public string? ReportUserPrompt { get; set; }
+    public string? SystemPrompt { get; set; }
+    public string? UserPrompt { get; set; }
+
+    // ----- What the leader gave in the report wizard for the last requested report -----
+
+    /// <summary>Noteworthy events that are not in the results (stored as a JSON array).</summary>
+    public List<string> Events { get; set; } = [];
+
+    /// <summary>The chosen writing style. Not a foreign key: the style may be changed or deleted later,
+    /// so its name and description are copied (the report is written in the background).</summary>
+    public int? WritingStyleId { get; set; }
+    public string? WritingStyleName { get; set; }
+    public string? WritingStyleDescription { get; set; }
+}
+
+/// <summary>A writing style for the AI report (Settings, AI-verslag), chosen in the report wizard.</summary>
+public class WritingStyle
+{
+    public int Id { get; set; }
+    public required string Name { get; set; }
+
+    /// <summary>Instructions for the AI on how to write.</summary>
+    public required string Description { get; set; }
 }
 
 /// <summary>A player's participation in one tournament.</summary>
@@ -94,7 +142,7 @@ public class Round
     public Tournament Tournament { get; set; } = null!;
     public int Number { get; set; }
 
-    /// <summary>Null while the round is paired but not yet started.</summary>
+    /// <summary>Null while the round is paired but not yet started (the pending round; at most one per tournament).</summary>
     public DateTime? StartedAt { get; set; }
 
     public List<Game> Games { get; set; } = [];
@@ -114,7 +162,7 @@ public class Game
     public int WhiteId { get; set; }
     public TournamentPlayer White { get; set; } = null!;
 
-    /// <summary>Null when White has a bye.</summary>
+    /// <summary>Null when White has a bye (and then the result is always <see cref="GameResult.Bye"/>).</summary>
     public int? BlackId { get; set; }
     public TournamentPlayer? Black { get; set; }
 
@@ -151,6 +199,15 @@ public class AppSettings
     // Claude (Anthropic API).
     public string ClaudeApiKey { get; set; } = "";
     public string ClaudeModel { get; set; } = "claude-opus-5-5";
+
+    // The report prompt. Null means the built-in default (TournamentReportPrompt), so improvements to the
+    // default reach everyone who did not change it.
+    public string? ReportSystemPrompt { get; set; }
+    public int? ReportUpsetRatingDifference { get; set; }
+
+    /// <summary>The writing style that is preselected in the report wizard; null preselects the first style.
+    /// Becomes null when that style is deleted.</summary>
+    public int? DefaultWritingStyleId { get; set; }
 }
 
 /// <summary>
@@ -174,11 +231,4 @@ public class AppUser
     public string SecurityStamp { get; set; } = NewSecurityStamp();
 
     public static string NewSecurityStamp() => Guid.NewGuid().ToString("N");
-}
-
-/// <summary>Stores a hash of the database schema so the database can be recreated when the model changes.</summary>
-public class SchemaInfo
-{
-    public int Id { get; set; }
-    public required string Hash { get; set; }
 }

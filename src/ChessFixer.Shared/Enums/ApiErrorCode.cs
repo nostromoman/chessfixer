@@ -11,6 +11,7 @@ public enum ApiErrorCode
     PlayerNotFound,
     GameNotFound,
     UserNotFound,
+    WritingStyleNotFound,
 
     // 400
     TitleRequired,
@@ -23,6 +24,7 @@ public enum ApiErrorCode
     DisplayNameRequired,
     PasswordTooShort,
     CurrentPasswordIncorrect,
+    WritingStyleNameRequired,
 
     // 401
     InvalidCredentials,
@@ -33,6 +35,7 @@ public enum ApiErrorCode
     // 409
     TournamentClosed,
     RoundInProgress,
+    NoRoundInProgress,
     SettingsLocked,
     PlayerAlreadyInTournament,
     PlayerNotInTournament,

@@ -1,0 +1,159 @@
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* Wizard before the AI writes the report. Step 1: noteworthy events that are not in the results
+   (e.g. someone knocked over their tea). Step 2: the writing style. Pre-filled with what was given last time.
+   Returns a GenerateReportRequest; the caller sends it. *@
+<MudDialog>
+    <DialogContent>
+        <div class="d-flex align-center gap-2 mb-4">
+            <MudChip T="string" Size="Size.Small" Class="ma-0" Color="@StepColor(0)" Variant="@StepVariant(0)">
+                1. @L["ReportWizardStepEvents"]
+            </MudChip>
+            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="mud-text-secondary" />
+            <MudChip T="string" Size="Size.Small" Class="ma-0" Color="@StepColor(1)" Variant="@StepVariant(1)">
+                2. @L["ReportWizardStepStyle"]
+            </MudChip>
+        </div>
+
+        @if (_step == 0)
+        {
+            <MudText Typo="Typo.body1" Class="mb-1">@L["ReportWizardEventsIntro"]</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3" Style="white-space: pre-line">@L["ReportWizardEventsExamples"]</MudText>
+
+            <div class="d-flex flex-column gap-2">
+                @for (var i = 0; i < _events.Count; i++)
+                {
+                    var line = _events[i];
+                    <div @key="line" class="d-flex align-center gap-1">
+                        <MudTextField T="string" @bind-Value="line.Text"
+                                      Placeholder="@L["ReportWizardEventPlaceholder"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Immediate="true" MaxLength="500" Class="flex-grow-1"
+                                      AutoFocus="@(line == _focus)" OnKeyDown="e => OnEventKeyDown(e, line)" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" aria-label="@L["ReportWizardRemoveEvent"]"
+                                       OnClick="() => RemoveEvent(line)" />
+                    </div>
+                }
+            </div>
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" Class="mt-2" OnClick="AddEvent">
+                @L["ReportWizardAddEvent"]
+            </MudButton>
+        }
+        else
+        {
+            <MudText Typo="Typo.body1" Class="mb-3">@L["ReportWizardStyleIntro"]</MudText>
+            @if (_styles is null)
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+            else if (_styles.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">@L["ReportWizardNoStyles"]</MudAlert>
+            }
+            else
+            {
+                <MudSelect T="int?" @bind-Value="_styleId" Label="@L["WritingStyle"]" Variant="Variant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var style in _styles)
+                    {
+                        <MudSelectItem T="int?" Value="style.Id">@style.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_styles.FirstOrDefault(s => s.Id == _styleId) is { } chosen && !string.IsNullOrWhiteSpace(chosen.Description))
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2" Style="white-space: pre-line">@chosen.Description</MudText>
+                }
+            }
+
+            @if (EventTexts.Count > 0)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-4">@L["ReportWizardEventCount", EventTexts.Count]</MudText>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_step == 0)
+        {
+            <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ChevronRight"
+                       OnClick="() => _step = 1">@L["Next"]</MudButton>
+        }
+        else
+        {
+            <MudButton StartIcon="@Icons.Material.Filled.ChevronLeft" OnClick="() => _step = 0">@L["Back"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome"
+                       Disabled="@(_styles is null)" OnClick="Finish">@L["ReportWizardCreate"]</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>The current report: its events and writing style pre-fill the wizard.</summary>
+    [Parameter] public TournamentReportDto? Report { get; set; }
+
+    private int _step;
+    private readonly List<EventLine> _events = [];
+    private EventLine? _focus;
+    private List<WritingStyleDto>? _styles;
+    private int? _styleId;
+
+    private List<string> EventTexts => _events.Select(e => e.Text.Trim()).Where(t => t.Length > 0).ToList();
+
+    private Color StepColor(int step) => step == _step ? Color.Primary : Color.Default;
+    private Variant StepVariant(int step) => step == _step ? Variant.Filled : Variant.Outlined;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _events.AddRange((Report?.Events ?? []).Select(text => new EventLine { Text = text }));
+        _events.Add(new EventLine()); // an empty line to start typing
+        _focus = _events[^1];
+
+        try
+        {
+            _styles = await Api.GetWritingStylesAsync();
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _styles = [];
+        }
+
+        // The style of the previous report, otherwise the standard style, otherwise the first one.
+        _styleId = _styles.Any(s => s.Id == Report?.WritingStyleId) ? Report!.WritingStyleId
+            : (_styles.FirstOrDefault(s => s.IsDefault) ?? _styles.FirstOrDefault())?.Id;
+    }
+
+    private void AddEvent()
+    {
+        // Reuse an empty line at the end instead of adding another one.
+        if (_events.Count > 0 && _events[^1].Text.Trim().Length == 0)
+        {
+            _focus = _events[^1];
+            return;
+        }
+        _focus = new EventLine();
+        _events.Add(_focus);
+    }
+
+    private void RemoveEvent(EventLine line)
+    {
+        _events.Remove(line);
+        if (_events.Count == 0) _events.Add(new EventLine());
+        _focus = null;
+    }
+
+    /// <summary>Enter in the last line adds a new line.</summary>
+    private void OnEventKeyDown(KeyboardEventArgs e, EventLine line)
+    {
+        if (e is { Key: "Enter", ShiftKey: false } && line == _events[^1] && line.Text.Trim().Length > 0) AddEvent();
+    }
+
+    private void Finish() => Dialog.Close(DialogResult.Ok(new GenerateReportRequest(EventTexts, _styleId)));
+
+    /// <summary>A class (not a string) so each line keeps its identity (@key) when lines are removed.</summary>
+    private sealed class EventLine
+    {
+        public string Text { get; set; } = "";
+    }
+}

@@ -262,10 +262,10 @@
   <data name="Report" xml:space="preserve"><value>Verslag</value></data>
   <data name="ReportGenerating" xml:space="preserve"><value>De AI schrijft het verslag van dit toernooi. Dit kan enkele minuten duren; het verslag verschijnt hier vanzelf.</value></data>
   <data name="ReportFailed" xml:space="preserve"><value>Het verslag kon niet geschreven worden.</value></data>
-  <data name="ReportNone" xml:space="preserve"><value>Er is nog geen verslag. Het verslag wordt bij het afsluiten door een AI geschreven als die is ingesteld.</value></data>
+  <data name="ReportNone" xml:space="preserve"><value>Er is nog geen verslag. Klik op 'Verslag genereren': je kunt dan bijzondere gebeurtenissen opgeven en een schrijfstijl kiezen, waarna een AI het verslag schrijft.</value></data>
   <data name="ReportConfigureAi" xml:space="preserve"><value>AI instellen</value></data>
-  <data name="ReportGenerate" xml:space="preserve"><value>Verslag schrijven</value></data>
-  <data name="ReportRegenerate" xml:space="preserve"><value>Opnieuw schrijven</value></data>
+  <data name="ReportGenerate" xml:space="preserve"><value>Verslag genereren</value></data>
+  <data name="ReportRegenerate" xml:space="preserve"><value>Opnieuw genereren</value></data>
   <data name="ReportCopy" xml:space="preserve"><value>Kopiëren</value></data>
   <data name="ReportCopied" xml:space="preserve"><value>Het verslag is gekopieerd.</value></data>
   <data name="ReportCopyFailed" xml:space="preserve"><value>Kopiëren is niet gelukt.</value></data>
@@ -274,7 +274,7 @@
   <!-- Application settings -->
   <data name="AppSettings" xml:space="preserve"><value>Instellingen</value></data>
   <data name="AiReportSettings" xml:space="preserve"><value>AI-verslag</value></data>
-  <data name="AiReportSettingsIntro" xml:space="preserve"><value>Bij het afsluiten van een toernooi schrijft een AI een verslag, op basis van de spelers, de uitslagen, de eindstand en de locatie en omschrijving van het toernooi.</value></data>
+  <data name="AiReportSettingsIntro" xml:space="preserve"><value>Een AI schrijft op verzoek een verslag van een afgesloten toernooi, op basis van de spelers, de uitslagen, de eindstand, de locatie en omschrijving van het toernooi en de bijzondere gebeurtenissen die je opgeeft.</value></data>
   <data name="AiProvider" xml:space="preserve"><value>AI-aanbieder</value></data>
   <data name="AiProvider_None" xml:space="preserve"><value>Geen (geen verslag schrijven)</value></data>
   <data name="AiProvider_Ollama" xml:space="preserve"><value>Ollama</value></data>
@@ -343,4 +343,63 @@
   <data name="LeaderSaved" xml:space="preserve"><value>{0} is opgeslagen.</value></data>
   <data name="UserNameHelp" xml:space="preserve"><value>Hiermee logt de toernooileider in (hoofdletters maken niet uit).</value></data>
   <data name="LeaderPasswordKeepHelp" xml:space="preserve"><value>Laat leeg om het wachtwoord te houden. Een nieuw wachtwoord (minimaal {0} tekens) logt de toernooileider overal uit.</value></data>
+
+  <!-- Cancel round -->
+  <data name="CancelCurrentRound" xml:space="preserve"><value>Annuleer huidige ronde</value></data>
+  <data name="CancelRoundTitle" xml:space="preserve"><value>Ronde {0} annuleren?</value></data>
+  <data name="CancelRoundWarning" xml:space="preserve"><value>Ronde {0} wordt geannuleerd, alsof hij nooit gestart is. De indeling vervalt en alle ingevulde uitslagen van deze ronde gaan verloren (ook de ratingwijzigingen worden teruggedraaid).</value></data>
+  <data name="CancelRoundResultsLost" xml:space="preserve"><value>Er zijn al {0} uitslag(en) ingevuld die verloren gaan.</value></data>
+  <data name="CancelRoundRunningFor" xml:space="preserve"><value>De ronde is al {0} minuut/minuten bezig.</value></data>
+  <data name="CancelRoundConfirm" xml:space="preserve"><value>Ronde annuleren</value></data>
+  <data name="RoundCancelled" xml:space="preserve"><value>Ronde {0} is geannuleerd.</value></data>
+  <data name="GoBack" xml:space="preserve"><value>Terug</value></data>
+  <data name="Error_NoRoundInProgress" xml:space="preserve"><value>Er is geen ronde bezig.</value></data>
+
+  <!-- Report wizard -->
+  <data name="ReportWizardTitle" xml:space="preserve"><value>Verslag genereren</value></data>
+  <data name="ReportWizardStepEvents" xml:space="preserve"><value>Gebeurtenissen</value></data>
+  <data name="ReportWizardStepStyle" xml:space="preserve"><value>Schrijfstijl</value></data>
+  <data name="ReportWizardEventsIntro" xml:space="preserve"><value>Zijn er noemenswaardige gebeurtenissen die niet in de uitslagen staan, maar wel leuk of belangrijk zijn voor het verslag? Zet ze hieronder, één per regel. Dit is niet verplicht.</value></data>
+  <data name="ReportWizardEventsExamples" xml:space="preserve"><value>Bijvoorbeeld:
+• Teun liet in ronde 4 een glas hete thee over het bord vallen
+• Jan kwam binnen met zijn voet in het gips, want hij was van de trap gevallen
+• Ronde 7 had een half uur vertraging omdat er een speler kwijt was</value></data>
+  <data name="ReportWizardEventPlaceholder" xml:space="preserve"><value>Wat gebeurde er?</value></data>
+  <data name="ReportWizardAddEvent" xml:space="preserve"><value>Gebeurtenis toevoegen</value></data>
+  <data name="ReportWizardRemoveEvent" xml:space="preserve"><value>Gebeurtenis verwijderen</value></data>
+  <data name="ReportWizardStyleIntro" xml:space="preserve"><value>In welke stijl moet het verslag geschreven worden?</value></data>
+  <data name="ReportWizardNoStyles" xml:space="preserve"><value>Er zijn geen schrijfstijlen, dus de AI krijgt geen schrijfstijl mee. Schrijfstijlen beheer je bij Instellingen, AI-verslag.</value></data>
+  <data name="ReportWizardEventCount" xml:space="preserve"><value>{0} bijzondere gebeurtenis(sen) worden in het verslag verwerkt.</value></data>
+  <data name="ReportWizardCreate" xml:space="preserve"><value>Maak verslag</value></data>
+  <data name="ReportRequested" xml:space="preserve"><value>De AI gaat het verslag schrijven.</value></data>
+  <data name="WritingStyle" xml:space="preserve"><value>Schrijfstijl</value></data>
+
+  <!-- Writing styles (settings) -->
+  <data name="WritingStyles" xml:space="preserve"><value>Schrijfstijlen</value></data>
+  <data name="WritingStylesIntro" xml:space="preserve"><value>Bij het genereren van een verslag kies je een schrijfstijl. De beschrijving vertelt de AI hoe het verslag geschreven moet worden (doelgroep, toon, lengte).</value></data>
+  <data name="NoWritingStyles" xml:space="preserve"><value>Er zijn nog geen schrijfstijlen.</value></data>
+  <data name="NewWritingStyle" xml:space="preserve"><value>Nieuwe schrijfstijl</value></data>
+  <data name="EditWritingStyle" xml:space="preserve"><value>Schrijfstijl wijzigen</value></data>
+  <data name="DeleteWritingStyle" xml:space="preserve"><value>Verwijderen</value></data>
+  <data name="DeleteWritingStyleTitle" xml:space="preserve"><value>Schrijfstijl verwijderen?</value></data>
+  <data name="DeleteWritingStyleText" xml:space="preserve"><value>Weet je zeker dat je de schrijfstijl '{0}' wilt verwijderen? Bestaande verslagen blijven ongewijzigd.</value></data>
+  <data name="WritingStyleDescription" xml:space="preserve"><value>Beschrijving van de schrijfstijl</value></data>
+  <data name="WritingStyleDescriptionHelp" xml:space="preserve"><value>Bijvoorbeeld: schrijf zodat het geschikt is om te plaatsen in een nieuwsbrief van een basisschool, voor kinderen van groep 6 en hoger.</value></data>
+  <data name="WritingStyleSaved" xml:space="preserve"><value>{0} is opgeslagen.</value></data>
+  <data name="Error_WritingStyleNotFound" xml:space="preserve"><value>Deze schrijfstijl bestaat niet meer.</value></data>
+  <data name="Error_WritingStyleNameRequired" xml:space="preserve"><value>Vul een naam in (maximaal 100 tekens).</value></data>
+
+  <!-- Report prompt (settings) -->
+  <data name="ReportPromptSettings" xml:space="preserve"><value>Prompt</value></data>
+  <data name="ReportPromptSettingsIntro" xml:space="preserve"><value>Hiermee bepaal je wat de AI meekrijgt bij het schrijven van een verslag. De toernooigegevens (spelers, uitslagen, eindstand, bijzondere gebeurtenissen) worden altijd automatisch meegestuurd.</value></data>
+  <data name="ReportSystemPrompt" xml:space="preserve"><value>Systeemprompt (instructies voor de AI)</value></data>
+  <data name="ReportSystemPromptHelp" xml:space="preserve"><value>De vaste regels voor elk verslag. Onder deze tekst wordt automatisch de gekozen schrijfstijl toegevoegd (als er schrijfstijlen zijn). Laat leeg voor de standaardtekst.</value></data>
+  <data name="ReportDefaultStyle" xml:space="preserve"><value>Standaard schrijfstijl</value></data>
+  <data name="ReportDefaultStyleHelp" xml:space="preserve"><value>Deze schrijfstijl staat vooraf geselecteerd bij het genereren van een verslag. Schrijfstijlen beheer je hieronder.</value></data>
+  <data name="ReportUpsetRatingDifference" xml:space="preserve"><value>Opvallende uitslag vanaf ratingverschil</value></data>
+  <data name="ReportUpsetRatingDifferenceHelp" xml:space="preserve"><value>Winst tegen een speler met minstens zoveel hogere rating wordt als opvallende uitslag aan de AI gemeld (remise bij het dubbele verschil). 0 = niet melden. Standaard {0}.</value></data>
+  <data name="RestoreDefault" xml:space="preserve"><value>Standaard herstellen</value></data>
+  <data name="ReportDefaultStyleNone" xml:space="preserve"><value>Geen (de eerste in de lijst)</value></data>
+  <data name="ReportDefaultStyleNoStyles" xml:space="preserve"><value>Er zijn geen schrijfstijlen; de AI krijgt dan geen schrijfstijl mee. Voeg hieronder schrijfstijlen toe om een standaard te kiezen.</value></data>
+  <data name="StandardStyle" xml:space="preserve"><value>standaard</value></data>
 </root>

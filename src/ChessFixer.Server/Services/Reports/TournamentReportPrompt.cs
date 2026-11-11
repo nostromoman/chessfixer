@@ -9,25 +9,39 @@ namespace ChessFixer.Server.Services.Reports;
 
 /// <param name="Players">Player details from the central player list, by player id.</param>
 /// <param name="FirstRoundStartedAt">UTC; null when no round has been played.</param>
+/// <param name="Events">Noteworthy events from the report wizard that are not in the results.</param>
+/// <param name="WritingStyle">Instructions for the writing style; null for the default style.</param>
 public record TournamentReportData(
     TournamentDto Tournament,
     IReadOnlyList<RoundDto> Rounds,
     IReadOnlyList<StandingDto> Standings,
     IReadOnlyDictionary<int, Player> Players,
     DateTime? FirstRoundStartedAt,
-    DateTime? LastRoundStartedAt);
+    DateTime? LastRoundStartedAt,
+    IReadOnlyList<string>? Events = null,
+    string? WritingStyle = null);
+
+/// <summary>The configurable parts of the report prompt (Settings, AI-verslag).</summary>
+/// <param name="SystemPrompt">The instructions for the AI; the writing style (if any) is added below it.</param>
+/// <param name="UpsetRatingDifference">A win against a player rated at least this much higher is mentioned as an
+/// upset (a draw at twice the difference); 0 mentions no upsets.</param>
+public record ReportPromptOptions(string SystemPrompt, int UpsetRatingDifference)
+{
+    public static ReportPromptOptions Default { get; } = new(
+        TournamentReportPrompt.DefaultSystemPrompt, TournamentReportPrompt.DefaultUpsetRatingDifference);
+}
 
 /// <summary>Builds the (Dutch) prompt that asks the AI for a report of a tournament.</summary>
 public static class TournamentReportPrompt
 {
-    /// <summary>A win against a player rated at least this much higher is mentioned as an upset.</summary>
-    private const int UpsetRatingDifference = 100;
+    public const int DefaultUpsetRatingDifference = 100;
+    public const int MaxUpsetRatingDifference = 1000;
+    public const int MaxSystemPromptLength = 10000;
 
     private static readonly CultureInfo Dutch = CultureInfo.GetCultureInfo("nl-NL");
 
-    private const string SystemPrompt = """
-        Je bent een enthousiaste verslaggever van een schaakclub. Je schrijft in het Nederlands een levendig verslag
-        van een rapidschaaktoernooi, voor de website of nieuwsbrief van de club.
+    public const string DefaultSystemPrompt = """
+        Je bent een verslaggever van een schaakclub. Je schrijft in het Nederlands een verslag van een rapidschaaktoernooi.
 
         Regels:
         - Gebruik alleen de feiten uit de gegevens. Verzin geen zetten, openingen, partijverloop, citaten of andere feiten.
@@ -35,12 +49,26 @@ public static class TournamentReportPrompt
         - Besteed aandacht aan opvallende uitslagen (bijvoorbeeld een speler die wint van een veel hoger gerateerde tegenstander),
           aan spannende ontknopingen in de laatste rondes en aan spelers die het goed deden.
         - Gebruik de locatie en de omschrijving van het toernooi als die gegeven zijn.
+        - Zijn er bijzondere gebeurtenissen gegeven, verwerk die dan op een natuurlijke plek in het verslag. Ze maken het
+          verslag persoonlijker, maar blijf bij wat er staat en dik ze niet aan.
         - Schrijf platte tekst zonder Markdown, opsommingstekens of tabellen.
-        - Begin met een pakkende titel op de eerste regel. Schrijf daarna 4 tot 6 alinea's, gescheiden door een lege regel.
+        - Begin met een pakkende titel op de eerste regel. Schrijf daarna de alinea's, gescheiden door een lege regel.
         """;
 
-    public static AiPrompt Build(TournamentReportData data)
+    /// <summary>The system prompt, with the writing style below it. Without a style, no style is sent.</summary>
+    private static string SystemPrompt(string? style, ReportPromptOptions options) =>
+        string.IsNullOrWhiteSpace(style)
+            ? options.SystemPrompt.Trim()
+            : $"""
+              {options.SystemPrompt.Trim()}
+
+              Schrijfstijl (volg deze nauwkeurig, ook wat betreft lengte en toon):
+              {style.Trim()}
+              """;
+
+    public static AiPrompt Build(TournamentReportData data, ReportPromptOptions? options = null)
     {
+        options ??= ReportPromptOptions.Default;
         var t = data.Tournament;
         var s = t.Settings;
         var text = new StringBuilder();
@@ -84,17 +112,23 @@ public static class TournamentReportPrompt
                 }
 
                 text.AppendLine($"- {NameWithRating(game.White, data)} (wit) tegen {NameWithRating(game.Black, data)} (zwart): {Result(game.Result)}");
-                if (Upset(game, round.Number, data) is { } upset) upsets.Add(upset);
+                if (Upset(game, round.Number, data, options.UpsetRatingDifference) is { } upset) upsets.Add(upset);
             }
         }
 
         if (upsets.Count > 0)
         {
-            text.AppendLine().AppendLine($"OPVALLENDE UITSLAGEN (winst tegen een minstens {UpsetRatingDifference} punten hoger gerateerde tegenstander)");
+            text.AppendLine().AppendLine($"OPVALLENDE UITSLAGEN (winst tegen een minstens {options.UpsetRatingDifference} punten hoger gerateerde tegenstander)");
             upsets.ForEach(u => text.AppendLine($"- {u}"));
         }
 
-        return new AiPrompt(SystemPrompt, text.ToString());
+        if (data.Events is { Count: > 0 } events)
+        {
+            text.AppendLine().AppendLine("BIJZONDERE GEBEURTENISSEN (geen schaakuitslagen, maar wel het vermelden waard; door de toernooileider opgegeven)");
+            foreach (var e in events) text.AppendLine($"- {e.ReplaceLineEndings(" ")}");
+        }
+
+        return new AiPrompt(SystemPrompt(data.WritingStyle, options), text.ToString());
     }
 
     private static string DescribePlayer(StandingDto standing, TournamentReportData data)
@@ -118,18 +152,19 @@ public static class TournamentReportPrompt
     private static int? Rating(GamePlayerDto player, TournamentReportData data) =>
         data.Players.TryGetValue(player.PlayerId, out var p) ? p.Rating : null;
 
-    private static string? Upset(GameDto game, int round, TournamentReportData data)
+    private static string? Upset(GameDto game, int round, TournamentReportData data, int threshold)
     {
+        if (threshold <= 0) return null;
         if (game.Black is null || Rating(game.White, data) is not { } white || Rating(game.Black, data) is not { } black)
             return null;
 
         return game.Result switch
         {
-            GameResult.WhiteWins when black - white >= UpsetRatingDifference =>
+            GameResult.WhiteWins when black - white >= threshold =>
                 $"Ronde {round}: {game.White.Name} ({white}) won van {game.Black.Name} ({black})",
-            GameResult.BlackWins when white - black >= UpsetRatingDifference =>
+            GameResult.BlackWins when white - black >= threshold =>
                 $"Ronde {round}: {game.Black.Name} ({black}) won van {game.White.Name} ({white})",
-            GameResult.Draw when Math.Abs(white - black) >= UpsetRatingDifference * 2 =>
+            GameResult.Draw when Math.Abs(white - black) >= threshold * 2 =>
                 $"Ronde {round}: {game.White.Name} ({white}) speelde remise tegen {game.Black.Name} ({black})",
             _ => null
         };

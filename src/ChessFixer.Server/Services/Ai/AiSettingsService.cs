@@ -1,5 +1,7 @@
 using System.Text.Json;
 using ChessFixer.Server.Data;
+using ChessFixer.Server.Errors;
+using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Dtos;
 using ChessFixer.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +17,9 @@ public class AiSettingsService(ChessFixerDbContext db, IEnumerable<IAiTextGenera
 
     public async Task<AiSettingsDto> UpdateAsync(UpdateAiSettingsRequest request)
     {
+        if (request.Report?.DefaultWritingStyleId is { } styleId && !await db.WritingStyles.AnyAsync(s => s.Id == styleId))
+            throw new ApiException(ApiErrorCode.WritingStyleNotFound);
+
         var settings = await LoadAsync();
         Apply(settings, request);
         await db.SaveChangesAsync();
@@ -80,10 +85,45 @@ public class AiSettingsService(ChessFixerDbContext db, IEnumerable<IAiTextGenera
             settings.ClaudeModel = claude.Model?.Trim() ?? "";
             if (claude.ApiKey is not null) settings.ClaudeApiKey = claude.ApiKey.Trim();
         }
+
+        if (request.Report is { } report)
+        {
+            // The default (or empty) is stored as null: "use the built-in default".
+            settings.ReportSystemPrompt = CustomText(report.SystemPrompt, TournamentReportPrompt.DefaultSystemPrompt,
+                TournamentReportPrompt.MaxSystemPromptLength);
+            settings.DefaultWritingStyleId = report.DefaultWritingStyleId;
+            var upset = Math.Clamp(report.UpsetRatingDifference, 0, TournamentReportPrompt.MaxUpsetRatingDifference);
+            settings.ReportUpsetRatingDifference = upset == TournamentReportPrompt.DefaultUpsetRatingDifference ? null : upset;
+        }
     }
 
-    private static AiSettingsDto ToDto(AppSettings s) => new(
-        s.AiProvider,
-        new OllamaSettingsDto(s.OllamaUrl, s.OllamaModel),
-        new ClaudeSettingsDto(s.ClaudeModel, s.ClaudeApiKey.Length > 0));
+    private static string? CustomText(string? text, string defaultText, int maxLength)
+    {
+        var trimmed = text?.Trim() ?? "";
+        if (trimmed.Length == 0 || Normalize(trimmed) == Normalize(defaultText)) return null;
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
+
+        static string Normalize(string s) => s.ReplaceLineEndings("\n").Trim();
+    }
+
+    /// <summary>The prompt settings, with the built-in defaults for what was not changed.</summary>
+    public static ReportPromptOptions PromptOptionsOf(AppSettings s) => new(
+        s.ReportSystemPrompt ?? TournamentReportPrompt.DefaultSystemPrompt,
+        s.ReportUpsetRatingDifference ?? TournamentReportPrompt.DefaultUpsetRatingDifference);
+
+    /// <summary>The writing style preselected in the report wizard; null when none is set.</summary>
+    public async Task<int?> GetDefaultWritingStyleIdAsync() =>
+        await db.AppSettings.Where(s => s.Id == AppSettings.SingletonId).Select(s => s.DefaultWritingStyleId).SingleOrDefaultAsync();
+
+    private static AiSettingsDto ToDto(AppSettings s)
+    {
+        var prompt = PromptOptionsOf(s);
+        return new AiSettingsDto(
+            s.AiProvider,
+            new OllamaSettingsDto(s.OllamaUrl, s.OllamaModel),
+            new ClaudeSettingsDto(s.ClaudeModel, s.ClaudeApiKey.Length > 0),
+            new ReportPromptSettingsDto(
+                prompt.SystemPrompt, s.DefaultWritingStyleId, prompt.UpsetRatingDifference,
+                TournamentReportPrompt.DefaultSystemPrompt, TournamentReportPrompt.DefaultUpsetRatingDifference));
+    }
 }

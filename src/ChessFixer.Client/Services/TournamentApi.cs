@@ -31,12 +31,16 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<TournamentDto> StartNextRoundAsync(int id) =>
         SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/rounds/start");
 
+    /// <summary>Cancels the round in progress (its pairing and results are removed).</summary>
+    public Task<TournamentDto> CancelRoundAsync(int id) =>
+        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/rounds/cancel");
+
     public Task<TournamentDto> CloseAsync(int id) =>
         SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/close");
 
     /// <summary>Has the AI (re)write the report of a closed tournament, in the background.</summary>
-    public Task<TournamentDto> GenerateReportAsync(int id) =>
-        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/report");
+    public Task<TournamentDto> GenerateReportAsync(int id, GenerateReportRequest request) =>
+        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/report", request);
 
     /// <summary>The prompt that was sent to the AI for the current report.</summary>
     public Task<ReportPromptDto> GetReportPromptAsync(int id) =>
@@ -75,6 +79,18 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     /// <summary>Tests the settings without saving them.</summary>
     public Task<AiConnectionTestResult> TestAiSettingsAsync(UpdateAiSettingsRequest request) =>
         SendAsync<AiConnectionTestResult>(HttpMethod.Post, "api/settings/ai/test", request);
+
+    public Task<List<WritingStyleDto>> GetWritingStylesAsync() =>
+        SendAsync<List<WritingStyleDto>>(HttpMethod.Get, "api/settings/writing-styles");
+
+    public Task<WritingStyleDto> CreateWritingStyleAsync(SaveWritingStyleRequest request) =>
+        SendAsync<WritingStyleDto>(HttpMethod.Post, "api/settings/writing-styles", request);
+
+    public Task<WritingStyleDto> UpdateWritingStyleAsync(int id, SaveWritingStyleRequest request) =>
+        SendAsync<WritingStyleDto>(HttpMethod.Put, $"api/settings/writing-styles/{id}", request);
+
+    public Task DeleteWritingStyleAsync(int id) =>
+        SendCoreAsync(HttpMethod.Delete, $"api/settings/writing-styles/{id}");
 
     // ----- Central player list -----
 

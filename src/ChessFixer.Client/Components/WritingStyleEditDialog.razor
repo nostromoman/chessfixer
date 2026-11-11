@@ -1,0 +1,68 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Creates or changes a writing style for the AI report: a name and instructions for the AI. *@
+<MudDialog>
+    <DialogContent>
+        <div class="d-flex flex-column gap-3">
+            <MudTextField @bind-Value="_name" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
+                          AutoFocus="true" Disabled="_busy" MaxLength="100" />
+            <MudTextField @bind-Value="_description" Label="@L["WritingStyleDescription"]" HelperText="@L["WritingStyleDescriptionHelp"]"
+                          Variant="Variant.Outlined" Immediate="true" Disabled="_busy" MaxLength="2000"
+                          Lines="5" Sizing="InputSizing.Auto" MaxLines="15" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="_busy">@L["Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@(!CanSave)" OnClick="SaveAsync">@L["Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>The style to change; null to create a new one.</summary>
+    [Parameter] public WritingStyleDto? Style { get; set; }
+
+    private string _name = "";
+    private string _description = "";
+    private bool _busy;
+
+    private bool CanSave => !_busy && !string.IsNullOrWhiteSpace(_name);
+
+    protected override void OnInitialized()
+    {
+        _name = Style?.Name ?? "";
+        _description = Style?.Description ?? "";
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave) return;
+
+        _busy = true;
+        try
+        {
+            var request = new SaveWritingStyleRequest(_name, _description);
+            var saved = Style is null
+                ? await Api.CreateWritingStyleAsync(request)
+                : await Api.UpdateWritingStyleAsync(Style.Id, request);
+            Snackbar.Add(L["WritingStyleSaved", saved.Name], Severity.Success);
+            Dialog.Close(DialogResult.Ok(saved));
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

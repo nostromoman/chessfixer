@@ -331,6 +331,74 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
+    public async Task CancelRound_RemovesTheRoundAndUndoesRatings()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+        await FinishActiveRoundAsync(id);
+        var ratingsAfterRound1 = await RatingsAsync(players);
+
+        var tournament = await StartRoundAsync(id);
+        Assert.Equal(2, tournament.RoundsStarted);
+        var round2 = (await GetRoundsAsync(id)).Last(r => r.IsStarted);
+        Assert.NotNull(round2.StartedAt);
+        await SetResultAsync(id, round2.Games.First(g => g.Black is not null).Id, GameResult.BlackWins);
+        Assert.NotEqual(ratingsAfterRound1, await RatingsAsync(players));
+
+        tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/cancel", null);
+        Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
+        Assert.Equal(1, tournament.RoundsStarted);
+        Assert.Equal(ratingsAfterRound1, await RatingsAsync(players));
+
+        // Round 2 is paired again, and can be started again.
+        var rounds = await GetRoundsAsync(id);
+        Assert.Equal([1, 2], rounds.Select(r => r.Number));
+        Assert.False(rounds[1].IsStarted);
+        tournament = await StartRoundAsync(id);
+        Assert.Equal(2, tournament.RoundsStarted);
+    }
+
+    [Fact]
+    public async Task CancelRound_OnlyWhileARoundIsInProgress()
+    {
+        var id = await CreateTournamentAsync();
+        await AddNewPlayersAsync(id, 2);
+        await AssertErrorAsync(await Client.PostAsync($"api/tournaments/{id}/rounds/cancel", null),
+            HttpStatusCode.Conflict, ApiErrorCode.NoRoundInProgress);
+
+        await StartRoundAsync(id);
+        var tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/cancel", null);
+        Assert.Equal(TournamentState.New, tournament.State);
+        Assert.False(Assert.Single(await GetRoundsAsync(id)).IsStarted);
+    }
+
+    [Fact]
+    public async Task CancelRound_RemovesAPlayerWhoWithdrewWithoutOtherGames()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+        var game = (await GetRoundsAsync(id))[0].Games.First(g => g.Black is not null);
+        await SetResultAsync(id, game.Id, GameResult.Draw);
+        await Client.DeleteAsync($"api/tournaments/{id}/players/{game.White.PlayerId}");
+
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/cancel", null);
+
+        var participants = await GetAsync<List<TournamentPlayerDto>>($"api/tournaments/{id}/players");
+        Assert.DoesNotContain(participants, p => p.PlayerId == game.White.PlayerId);
+        Assert.Equal(3, participants.Count);
+    }
+
+    private async Task<List<int>> RatingsAsync(IEnumerable<int> playerIds)
+    {
+        var ratings = new List<int>();
+        foreach (var playerId in playerIds)
+            ratings.Add((await GetAsync<PlayerRatingDto>($"api/players/{playerId}/rating")).Rating);
+        return ratings;
+    }
+
+    [Fact]
     public async Task CannotCloseDuringARound()
     {
         var id = await CreateTournamentAsync();

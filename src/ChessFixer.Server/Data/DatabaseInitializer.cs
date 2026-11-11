@@ -1,76 +1,77 @@
-using System.Security.Cryptography;
-using System.Text;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChessFixer.Server.Data;
 
 /// <summary>
-/// Development approach: no migrations. When the model changes, the database is dropped and recreated.
-/// A new database is seeded with the system administrator, a tournament leader and (unless disabled with
-/// the setting <c>Seed:DemoPlayers = false</c>) a few players.
+/// Brings the database up to date with EF Core migrations, so existing data is kept.
+/// Before migrating an existing database, a copy is made next to it. A new database only gets the
+/// system administrator account.
 /// </summary>
 public static class DatabaseInitializer
 {
+    public const string AdminUserName = "admin";
+    public const string AdminDisplayName = "Systeembeheerder";
+
+    /// <summary>Initial password of the administrator. Change it after the first login.</summary>
+    public const string InitialAdminPassword = "HelloWorld1!";
+
     public static async Task InitializeAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ChessFixerDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<ChessFixerDbContext>>();
 
-        var currentHash = Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(db.Database.GenerateCreateScript())));
-
-        if (await GetStoredHashAsync(db) != currentHash)
-        {
-            logger.LogWarning("Database schema changed or missing; recreating the database. All data is lost.");
-            await db.Database.EnsureDeletedAsync();
-            await db.Database.EnsureCreatedAsync();
-            db.SchemaInfo.Add(new SchemaInfo { Hash = currentHash });
-            Seed(db,
-                scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>(),
-                scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("Seed:DemoPlayers", true));
-            await db.SaveChangesAsync();
-        }
+        await DropPreMigrationsDatabaseAsync(db, logger);
+        await BackUpBeforeMigratingAsync(db, logger);
+        await db.Database.MigrateAsync();
+        await SeedAdminAsync(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>(), logger);
     }
 
-    /// <summary>Development accounts. Change these passwords before using the application for real.</summary>
-    private static void Seed(ChessFixerDbContext db, IPasswordHasher<AppUser> hasher, bool demoPlayers)
+    /// <summary>
+    /// Databases from before the migrations were created without migration history (they had a SchemaInfo table).
+    /// They cannot be migrated, so they are replaced once by a new database.
+    /// </summary>
+    private static async Task DropPreMigrationsDatabaseAsync(ChessFixerDbContext db, ILogger logger)
     {
-        AddUser("admin", "Systeembeheerder", "HelloWorld1!", UserRole.Admin);
-        AddUser("roel", "Roel Gielen", "Appelsap1!", UserRole.TournamentLeader);
+        if (!await TableExistsAsync(db, "SchemaInfo")) return;
 
-        if (demoPlayers)
-        {
-            db.Players.AddRange(
-                new Player { FirstName = "Roel", LastName = "Gielen", BirthDate = new DateOnly(1982, 1, 15), Rating = 1400 },
-                new Player { FirstName = "Bram", LastName = "Gielen", BirthDate = new DateOnly(2014, 6, 17), Rating = 800 });
-        }
-
-        void AddUser(string userName, string displayName, string password, UserRole role)
-        {
-            var user = new AppUser { UserName = userName, DisplayName = displayName, Role = role };
-            user.PasswordHash = hasher.HashPassword(user, password);
-            db.Users.Add(user);
-        }
+        logger.LogWarning("Database from before the migrations found; recreating it. Its data is lost.");
+        await db.Database.EnsureDeletedAsync();
     }
 
-    private static async Task<string?> GetStoredHashAsync(ChessFixerDbContext db)
+    private static async Task BackUpBeforeMigratingAsync(ChessFixerDbContext db, ILogger logger)
     {
-        try
-        {
-            var tableExists = await db.Database
-                .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = 'SchemaInfo'")
-                .SingleAsync() > 0;
-            if (!tableExists) return null;
+        if (!await TableExistsAsync(db, "__EFMigrationsHistory")) return; // new database: nothing to keep
+        if (!(await db.Database.GetPendingMigrationsAsync()).Any()) return;
 
-            return await db.SchemaInfo.OrderBy(s => s.Id).Select(s => s.Hash).FirstOrDefaultAsync();
-        }
-        catch (Exception)
-        {
-            // Database or table does not exist, or has an old structure.
-            return null;
-        }
+        var path = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()).DataSource;
+        if (string.IsNullOrEmpty(path) || path == ":memory:") return;
+
+        var backup = $"{Path.GetFullPath(path)}.{DateTime.UtcNow:yyyyMMdd-HHmmss}.bak";
+        logger.LogInformation("Database schema will be updated; making a backup first: {Backup}", backup);
+        await db.Database.ExecuteSqlAsync($"VACUUM INTO {backup}");
+    }
+
+    private static async Task SeedAdminAsync(ChessFixerDbContext db, IPasswordHasher<AppUser> hasher, ILogger logger)
+    {
+        if (await db.Users.AnyAsync(u => u.Role == UserRole.Admin)) return;
+
+        var admin = new AppUser { UserName = AdminUserName, DisplayName = AdminDisplayName, Role = UserRole.Admin };
+        admin.PasswordHash = hasher.HashPassword(admin, InitialAdminPassword);
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+        logger.LogWarning("Created the system administrator '{UserName}' with the initial password; change it after logging in.",
+            AdminUserName);
+    }
+
+    private static async Task<bool> TableExistsAsync(ChessFixerDbContext db, string table)
+    {
+        if (!await db.Database.CanConnectAsync()) return false;
+        return await db.Database
+            .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {table}")
+            .SingleAsync() > 0;
     }
 }

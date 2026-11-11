@@ -71,7 +71,17 @@ public class TournamentReportTests : ApiTestBase
     }
 
     [Fact]
-    public async Task Close_WithAi_WritesReportInTheBackground()
+    public async Task Close_WithAi_DoesNotWriteReportByItself()
+    {
+        await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
+        var id = await PlayAndCloseAsync();
+
+        Assert.Equal(ReportStatus.None, (await GetTournamentAsync(id)).Report.Status);
+        Assert.Empty(_ai.Prompts);
+    }
+
+    [Fact]
+    public async Task GenerateReport_WritesReportInTheBackground_WithEventsAndWritingStyle()
     {
         await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
         var created = await PostAsync<TournamentDto>("api/tournaments",
@@ -80,9 +90,12 @@ public class TournamentReportTests : ApiTestBase
         await AddNewPlayersAsync(id, 3);
         await StartRoundAsync(id);
         await FinishActiveRoundAsync(id);
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/close", null);
 
-        var closed = await PostAsync<TournamentDto>($"api/tournaments/{id}/close", null);
-        Assert.Equal(ReportStatus.Generating, closed.Report.Status);
+        var style = (await GetAsync<List<WritingStyleDto>>("api/settings/writing-styles")).Single(s => s.Name == "NOS nieuws");
+        var requested = await PostAsync<TournamentDto>($"api/tournaments/{id}/report",
+            new GenerateReportRequest(["Teun liet hete thee over het bord vallen", "  ", " Jan kwam met zijn voet in het gips "], style.Id));
+        Assert.Equal(ReportStatus.Generating, requested.Report.Status);
 
         var report = await WaitForReportAsync(id);
         Assert.Equal(ReportStatus.Ready, report.Status);
@@ -103,6 +116,46 @@ public class TournamentReportTests : ApiTestBase
         Assert.Contains("Jaarlijks toernooi", prompt.User);
         Assert.Contains("Speler 1", prompt.User);
         Assert.Contains("EINDSTAND", prompt.User);
+        Assert.Contains("- Teun liet hete thee over het bord vallen", prompt.User);
+        Assert.Contains("- Jan kwam met zijn voet in het gips\n", prompt.User.ReplaceLineEndings("\n"));
+        Assert.Contains(style.Description, prompt.System);
+
+        // The wizard is pre-filled with what was given last time.
+        Assert.Equal(["Teun liet hete thee over het bord vallen", "Jan kwam met zijn voet in het gips"], report.Events);
+        Assert.Equal(style.Id, report.WritingStyleId);
+        Assert.Equal("NOS nieuws", report.WritingStyleName);
+    }
+
+    [Fact]
+    public async Task GenerateReport_UnknownWritingStyle_IsRefused()
+    {
+        await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
+        var id = await PlayAndCloseAsync();
+        await AssertErrorAsync(await Client.PostAsJsonAsync($"api/tournaments/{id}/report", new GenerateReportRequest([], 999)),
+            HttpStatusCode.NotFound, ApiErrorCode.WritingStyleNotFound);
+    }
+
+    [Fact]
+    public async Task WritingStyles_HaveDefaultsAndCanBeManaged()
+    {
+        var styles = await GetAsync<List<WritingStyleDto>>("api/settings/writing-styles");
+        Assert.Contains(styles, s => s.Name == "Voor basisschool kind niveau" && s.Description.Contains("groep 6"));
+        Assert.Contains(styles, s => s.Name == "NOS nieuws");
+        Assert.Contains(styles, s => s.Name == "Kort en bondig");
+
+        var created = await PostAsync<WritingStyleDto>("api/settings/writing-styles",
+            new SaveWritingStyleRequest("  Sinterklaas  ", "Schrijf op rijm."));
+        Assert.Equal("Sinterklaas", created.Name);
+
+        var updated = await PutAsync<WritingStyleDto>($"api/settings/writing-styles/{created.Id}",
+            new SaveWritingStyleRequest("Sinterklaasgedicht", "Schrijf een sinterklaasgedicht."));
+        Assert.Equal("Sinterklaasgedicht", updated.Name);
+
+        await AssertErrorAsync(await Client.PutAsJsonAsync($"api/settings/writing-styles/{created.Id}",
+            new SaveWritingStyleRequest(" ", "x")), HttpStatusCode.BadRequest, ApiErrorCode.WritingStyleNameRequired);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/settings/writing-styles/{created.Id}")).StatusCode);
+        Assert.DoesNotContain(await GetAsync<List<WritingStyleDto>>("api/settings/writing-styles"), s => s.Id == created.Id);
     }
 
     [Fact]
@@ -111,13 +164,14 @@ public class TournamentReportTests : ApiTestBase
         await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
         _ai.Fail = true;
         var id = await PlayAndCloseAsync();
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/report", new GenerateReportRequest());
 
         var report = await WaitForReportAsync(id);
         Assert.Equal(ReportStatus.Failed, report.Status);
         Assert.Equal("AI is stuk", report.Error);
 
         _ai.Fail = false;
-        await PostAsync<TournamentDto>($"api/tournaments/{id}/report", null);
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/report", new GenerateReportRequest());
         report = await WaitForReportAsync(id);
         Assert.Equal(ReportStatus.Ready, report.Status);
         Assert.Null(report.Error);
@@ -152,6 +206,72 @@ public class TournamentReportTests : ApiTestBase
         settings = await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
         Assert.True(settings.Claude.HasApiKey);
         Assert.Equal("claude-sonnet-5-5", settings.Claude.Model);
+    }
+
+    [Fact]
+    public async Task PromptSettings_DefaultToTheBuiltInPrompt_AndCanBeChangedAndRestored()
+    {
+        var settings = await GetAsync<AiSettingsDto>("api/settings/ai");
+        Assert.Equal(settings.Report.DefaultSystemPrompt, settings.Report.SystemPrompt);
+        Assert.Contains("Verzin geen zetten", settings.Report.SystemPrompt);
+        Assert.Equal(100, settings.Report.UpsetRatingDifference);
+
+        Assert.Null(settings.Report.DefaultWritingStyleId);
+
+        // Leaving out the prompt block keeps the prompt settings.
+        var kort = (await GetAsync<List<WritingStyleDto>>("api/settings/writing-styles")).Single(s => s.Name == "Kort en bondig");
+        settings = await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings() with
+        {
+            Report = new UpdateReportPromptSettings("Schrijf als een piraat.", kort.Id, 5000)
+        });
+        Assert.Equal("Schrijf als een piraat.", settings.Report.SystemPrompt);
+        Assert.Equal(kort.Id, settings.Report.DefaultWritingStyleId);
+        Assert.Equal(1000, settings.Report.UpsetRatingDifference); // capped
+        settings = await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
+        Assert.Equal("Schrijf als een piraat.", settings.Report.SystemPrompt);
+        Assert.True((await GetAsync<List<WritingStyleDto>>("api/settings/writing-styles")).Single(s => s.Id == kort.Id).IsDefault);
+
+        // The changed prompt is used; no writing style chosen, so the standard style.
+        var id = await PlayAndCloseAsync();
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/report", new GenerateReportRequest());
+        var report = await WaitForReportAsync(id);
+        Assert.Equal("Kort en bondig", report.WritingStyleName);
+        var prompt = Assert.Single(_ai.Prompts);
+        Assert.StartsWith("Schrijf als een piraat.", prompt.System);
+        Assert.Contains(kort.Description, prompt.System);
+        Assert.DoesNotContain("Verzin geen zetten", prompt.System);
+
+        // An unknown standard style is refused; deleting the standard style clears it.
+        await AssertErrorAsync(await Client.PutAsJsonAsync("api/settings/ai", OllamaSettings() with
+        {
+            Report = new UpdateReportPromptSettings("", 999, 100)
+        }), HttpStatusCode.NotFound, ApiErrorCode.WritingStyleNotFound);
+        await Client.DeleteAsync($"api/settings/writing-styles/{kort.Id}");
+        Assert.Null((await GetAsync<AiSettingsDto>("api/settings/ai")).Report.DefaultWritingStyleId);
+
+        // An empty system prompt restores the default.
+        settings = await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings() with
+        {
+            Report = new UpdateReportPromptSettings("", null, 100)
+        });
+        Assert.Equal(settings.Report.DefaultSystemPrompt, settings.Report.SystemPrompt);
+    }
+
+    [Fact]
+    public async Task WithoutWritingStyles_NoStyleIsSentToTheAi()
+    {
+        await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
+        foreach (var style in await GetAsync<List<WritingStyleDto>>("api/settings/writing-styles"))
+            await Client.DeleteAsync($"api/settings/writing-styles/{style.Id}");
+
+        var id = await PlayAndCloseAsync();
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/report", new GenerateReportRequest(["Taart na afloop"]));
+        var report = await WaitForReportAsync(id);
+        Assert.Null(report.WritingStyleName);
+
+        var prompt = Assert.Single(_ai.Prompts);
+        Assert.DoesNotContain("Schrijfstijl", prompt.System);
+        Assert.Contains("Verzin geen zetten", prompt.System);
     }
 
     [Fact]

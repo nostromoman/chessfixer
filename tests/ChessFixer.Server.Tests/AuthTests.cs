@@ -23,14 +23,14 @@ public class AuthTests : ApiTestBase
     }
 
     [Fact]
-    public async Task SeededAccounts_CanLogIn_UserNameIgnoresCase()
+    public async Task Accounts_CanLogIn_UserNameIgnoresCase()
     {
         using var admin = await CreateClientAsync("ADMIN", AdminPassword);
         var me = await ReadAsync<CurrentUserDto>(await admin.GetAsync("api/auth/me"));
         Assert.Equal(("admin", "Systeembeheerder", UserRole.Admin), (me.UserName, me.DisplayName, me.Role));
 
         var leader = await GetAsync<CurrentUserDto>("api/auth/me");
-        Assert.Equal(("roel", "Roel Gielen", UserRole.TournamentLeader), (leader.UserName, leader.DisplayName, leader.Role));
+        Assert.Equal((LeaderUserName, LeaderDisplayName, UserRole.TournamentLeader), (leader.UserName, leader.DisplayName, leader.Role));
     }
 
     [Theory]
@@ -66,7 +66,7 @@ public class AuthTests : ApiTestBase
         using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
 
         var leaders = await ReadAsync<List<LeaderDto>>(await admin.GetAsync("api/leaders"));
-        Assert.Equal("roel", Assert.Single(leaders).UserName); // the admin account is not in the list
+        Assert.Equal(LeaderUserName, Assert.Single(leaders).UserName); // the admin account is not in the list
 
         var piet = await ReadAsync<LeaderDto>(
             await admin.PostAsJsonAsync("api/leaders", new CreateLeaderRequest(" piet ", " Piet Jansen ", "Wachtwoord1")));
@@ -97,7 +97,7 @@ public class AuthTests : ApiTestBase
     {
         using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
 
-        await AssertErrorAsync(await admin.PostAsJsonAsync("api/leaders", new CreateLeaderRequest("ROEL", "Ander", "Wachtwoord1")),
+        await AssertErrorAsync(await admin.PostAsJsonAsync("api/leaders", new CreateLeaderRequest(LeaderUserName.ToUpperInvariant(), "Ander", "Wachtwoord1")),
             HttpStatusCode.Conflict, ApiErrorCode.UserNameTaken);
         await AssertErrorAsync(await admin.PostAsJsonAsync("api/leaders", new CreateLeaderRequest(" ", "Ander", "Wachtwoord1")),
             HttpStatusCode.BadRequest, ApiErrorCode.UserNameRequired);
@@ -135,17 +135,50 @@ public class AuthTests : ApiTestBase
     }
 }
 
-public class SeedTests : ApiTestBase
+/// <summary>Database creation and updates: a new database only has the administrator, and restarting keeps the data.</summary>
+public class DatabaseTests : IDisposable
 {
-    protected override bool SeedDemoPlayers => true;
+    private readonly string _path = Path.Combine(Path.GetTempPath(), $"chessfixer-test-{Guid.NewGuid():N}.db");
 
     [Fact]
-    public async Task NewDatabase_HasDemoPlayers()
+    public async Task NewDatabase_OnlyHasTheAdministrator()
     {
-        var players = await GetAsync<List<PlayerDto>>("api/players");
+        await using var factory = CreateFactory();
+        using var admin = await LogInAsAdminAsync(factory);
 
-        Assert.Collection(players,
-            bram => Assert.Equal(("Bram Gielen", 800, new DateOnly(2014, 6, 17)), (bram.Name, bram.Rating, bram.BirthDate)),
-            roel => Assert.Equal(("Roel Gielen", 1400, new DateOnly(1982, 1, 15)), (roel.Name, roel.Rating, roel.BirthDate)));
+        Assert.Empty(await ApiTestBase.ReadAsync<List<LeaderDto>>(await admin.GetAsync("api/leaders")));
+        Assert.Empty(await ApiTestBase.ReadAsync<List<PlayerDto>>(await admin.GetAsync("api/players?includeDeleted=true")));
+        Assert.Empty(await ApiTestBase.ReadAsync<List<TournamentSummaryDto>>(await admin.GetAsync("api/tournaments")));
     }
+
+    [Fact]
+    public async Task Restart_KeepsTheData()
+    {
+        await using (var factory = CreateFactory())
+        {
+            using var admin = await LogInAsAdminAsync(factory);
+            await ApiTestBase.ReadAsync<PlayerDto>(await admin.PostAsJsonAsync("api/players", new CreatePlayerRequest("Magnus", "Carlsen", 2800)));
+        }
+
+        await using (var factory = CreateFactory())
+        {
+            using var admin = await LogInAsAdminAsync(factory);
+            var player = Assert.Single(await ApiTestBase.ReadAsync<List<PlayerDto>>(await admin.GetAsync("api/players")));
+            Assert.Equal(("Magnus Carlsen", 2800), (player.Name, player.Rating));
+        }
+    }
+
+    private Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> CreateFactory() =>
+        new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ConnectionStrings:ChessFixer", $"Data Source={_path};Pooling=False"));
+
+    private static async Task<HttpClient> LogInAsAdminAsync(Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> factory)
+    {
+        var client = factory.CreateClient();
+        await ApiTestBase.ReadAsync<CurrentUserDto>(await client.PostAsJsonAsync("api/auth/login",
+            new LoginRequest(ApiTestBase.AdminUserName, ApiTestBase.AdminPassword)));
+        return client;
+    }
+
+    public void Dispose() => File.Delete(_path);
 }

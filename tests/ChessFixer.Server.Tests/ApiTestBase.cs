@@ -17,21 +17,24 @@ public abstract class ApiTestBase : IAsyncLifetime
 
     public const string AdminUserName = "admin";
     public const string AdminPassword = "HelloWorld1!";
-    public const string LeaderUserName = "roel";
+    public const string LeaderUserName = "leider";
+    public const string LeaderDisplayName = "Toernooi Leider";
     public const string LeaderPassword = "Appelsap1!";
 
-    /// <summary>Whether the new database gets the demo players; off by default so tests start with an empty player list.</summary>
-    protected virtual bool SeedDemoPlayers => false;
-
-    /// <summary>Starts the server and logs <see cref="Client"/> in as the seeded tournament leader.</summary>
+    /// <summary>
+    /// Starts the server with a new database (which only has the administrator), has the administrator create a
+    /// tournament leader and logs <see cref="Client"/> in as that leader.
+    /// </summary>
     public async Task InitializeAsync()
     {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ConnectionStrings:ChessFixer", $"Data Source={_databasePath};Pooling=False");
-            builder.UseSetting("Seed:DemoPlayers", SeedDemoPlayers.ToString());
             builder.ConfigureTestServices(ConfigureServices);
         });
+        using (var admin = await CreateClientAsync(AdminUserName, AdminPassword))
+            await ReadAsync<LeaderDto>(await admin.PostAsJsonAsync("api/leaders",
+                new CreateLeaderRequest(LeaderUserName, LeaderDisplayName, LeaderPassword)));
         Client = await CreateClientAsync(LeaderUserName, LeaderPassword);
     }
 
@@ -97,7 +100,7 @@ public abstract class ApiTestBase : IAsyncLifetime
     protected async Task<T> PostAsync<T>(string url, object? body) => await ReadAsync<T>(await Client.PostAsJsonAsync(url, body));
     protected async Task<T> PutAsync<T>(string url, object body) => await ReadAsync<T>(await Client.PutAsJsonAsync(url, body));
 
-    protected static async Task<T> ReadAsync<T>(HttpResponseMessage response)
+    public static async Task<T> ReadAsync<T>(HttpResponseMessage response)
     {
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"{(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");

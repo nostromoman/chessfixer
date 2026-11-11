@@ -26,10 +26,21 @@ else
         </div>
 
         <div class="d-flex flex-wrap align-center gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
-                       Disabled="@(StartBlockedReason is not null || !CanStartNextRound || IsBusy)" OnClick="StartNextRoundAsync">
-                @L["StartRound", Tournament.RoundsStarted + 1]
-            </MudButton>
+            @if (Tournament.State == TournamentState.RoundActive)
+            {
+                @* During a round the start button becomes the cancel button. *@
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Cancel"
+                           Disabled="IsBusy" OnClick="CancelRoundAsync">
+                    @L["CancelCurrentRound"]
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
+                           Disabled="@(StartBlockedReason is not null || !CanStartNextRound || IsBusy)" OnClick="StartNextRoundAsync">
+                    @L["StartRound", Tournament.RoundsStarted + 1]
+                </MudButton>
+            }
             <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Flag"
                        Disabled="@(!CanClose || IsBusy)" OnClick="CloseAsync">
                 @L["CloseTournament"]
@@ -300,6 +311,31 @@ else
         if (Tournament?.State == TournamentState.RoundActive) _activeTab = MatchesTab;
     }
 
+    /// <summary>A round without results that started less than this long ago is cancelled without asking.</summary>
+    private static readonly TimeSpan CancelWithoutConfirmation = TimeSpan.FromMinutes(1);
+
+    private async Task CancelRoundAsync()
+    {
+        if (_rounds.LastOrDefault(r => r.IsStarted) is not { } round) return;
+
+        var resultCount = round.Games.Count(g => g.Black is not null && g.Result != GameResult.NotPlayed);
+        var running = round.StartedAt is { } startedAt ? DateTime.UtcNow - startedAt : TimeSpan.Zero;
+        if (resultCount > 0 || running > CancelWithoutConfirmation)
+        {
+            var dialog = await Dialogs.ShowAsync<CancelRoundDialog>(null,
+                new DialogParameters<CancelRoundDialog>
+                {
+                    { d => d.RoundNumber, round.Number },
+                    { d => d.ResultCount, resultCount },
+                    { d => d.MinutesRunning, (int)running.TotalMinutes }
+                },
+                new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseOnEscapeKey = true });
+            if (await dialog.Result is not { Canceled: false }) return;
+        }
+
+        await RunAsync(() => Api.CancelRoundAsync(Id), L["RoundCancelled", round.Number]);
+    }
+
     private async Task CloseAsync()
     {
         var confirmed = await Dialogs.ShowMessageBoxAsync(
@@ -307,11 +343,12 @@ else
         if (confirmed != true) return;
 
         await RunAsync(() => Api.CloseAsync(Id), L["TournamentClosed"]);
-        // The AI is writing the report: show it.
-        if (IsClosed && HasReport) _activeTab = ReportTab;
+        // The report is written on request: show the tab with the button for it.
+        if (IsClosed) _activeTab = ReportTab;
     }
 
-    private Task GenerateReportAsync() => RunAsync(() => Api.GenerateReportAsync(Id));
+    private Task GenerateReportAsync(GenerateReportRequest request) =>
+        RunAsync(() => Api.GenerateReportAsync(Id, request), L["ReportRequested"]);
 
     /// <summary>A report exists or is being written.</summary>
     private bool HasReport => Tournament?.Report is { } r && (r.Text is not null || r.Status == ReportStatus.Generating);

@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# Automatic database backups made before migrating
+*.db.*.bak

@@ -1,0 +1,113 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject IStringLocalizer<Strings> L
+
+@* Part of the settings tab "AI-verslag": the writing styles the leader chooses from in the report wizard.
+   A style is a name plus a description that tells the AI how to write. *@
+<MudPaper Class="pa-4 mt-4" Elevation="0" Style="max-width: 48em">
+    <div class="d-flex align-center gap-2 mb-1">
+        <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" />
+        <MudText Typo="Typo.h6">@L["WritingStyles"]</MudText>
+        <MudSpacer />
+        <MudTooltip Text="@L["NewWritingStyle"]">
+            <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                    aria-label="@L["NewWritingStyle"]" OnClick="() => EditAsync(null)" Disabled="_busy" />
+        </MudTooltip>
+    </div>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["WritingStylesIntro"]</MudText>
+
+    @if (_styles is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_styles.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["NoWritingStyles"]</MudText>
+    }
+    else
+    {
+        <div class="writing-styles">
+            @foreach (var style in _styles)
+            {
+                <div @key="style.Id" class="writing-style d-flex align-start gap-2">
+                    <div class="flex-grow-1" style="min-width: 0">
+                        <MudLink Typo="Typo.subtitle1" OnClick="() => EditAsync(style)"><b>@style.Name</b></MudLink>
+                        @if (style.IsDefault)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2 my-0">@L["StandardStyle"]</MudChip>
+                        }
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary writing-style-description">@style.Description</MudText>
+                    </div>
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditWritingStyle"]"
+                                   Disabled="_busy" OnClick="() => EditAsync(style)" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                   aria-label="@L["DeleteWritingStyle"]" Disabled="_busy" OnClick="() => DeleteAsync(style)" />
+                </div>
+            }
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private List<WritingStyleDto>? _styles;
+    private bool _busy;
+
+    /// <summary>A style was added, changed or deleted.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    /// <summary>Reloads the list, e.g. after the standard style changed.</summary>
+    public Task ReloadAsync() => RunAsync(LoadAsync);
+
+    protected override Task OnInitializedAsync() => RunAsync(LoadAsync);
+
+    private async Task LoadAsync() => _styles = await Api.GetWritingStylesAsync();
+
+    /// <param name="style">Null to create a new style.</param>
+    private async Task EditAsync(WritingStyleDto? style)
+    {
+        var dialog = await Dialogs.ShowAsync<WritingStyleEditDialog>(
+            style is null ? L["NewWritingStyle"] : L["EditWritingStyle"],
+            new DialogParameters<WritingStyleEditDialog> { { d => d.Style, style } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false });
+        if (await dialog.Result is not { Canceled: false }) return;
+        await RunAsync(LoadAsync);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task DeleteAsync(WritingStyleDto style)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            L["DeleteWritingStyleTitle"], L["DeleteWritingStyleText", style.Name],
+            yesText: L["DeleteWritingStyle"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        await RunAsync(async () =>
+        {
+            await Api.DeleteWritingStyleAsync(style.Id);
+            await LoadAsync();
+        });
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

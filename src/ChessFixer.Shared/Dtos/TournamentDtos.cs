@@ -35,8 +35,18 @@ public record TournamentDto(
 /// <param name="Error">Technical error message when writing failed.</param>
 /// <param name="Model">The AI that wrote the report, e.g. "Claude (claude-opus-5-5)".</param>
 /// <param name="HasPrompt">Whether the prompt that produced the report can be fetched (api/tournaments/{id}/report/prompt).</param>
+/// <param name="Events">The noteworthy events given for the last requested report (pre-fills the wizard next time).</param>
+/// <param name="WritingStyleId">The writing style chosen for the last requested report.</param>
+/// <param name="WritingStyleName">Name of that writing style, as it was when the report was requested.</param>
 public record TournamentReportDto(
-    ReportStatus Status, string? Text, DateTime? GeneratedAt, string? Error, string? Model, bool HasPrompt);
+    ReportStatus Status, string? Text, DateTime? GeneratedAt, string? Error, string? Model, bool HasPrompt,
+    IReadOnlyList<string>? Events = null, int? WritingStyleId = null, string? WritingStyleName = null);
+
+/// <summary>Asks the AI for a report of a closed tournament.</summary>
+/// <param name="Events">Noteworthy events that are not in the results (e.g. "Teun knocked over his tea in round 4").
+/// Empty lines are ignored.</param>
+/// <param name="WritingStyleId">The writing style (see api/settings/writing-styles); null for no specific style.</param>
+public record GenerateReportRequest(IReadOnlyList<string>? Events = null, int? WritingStyleId = null);
 
 /// <summary>The prompt that was sent to the AI to write the report: instructions (system) and the tournament data (user).</summary>
 public record ReportPromptDto(string System, string User, string? Model);
@@ -72,7 +82,8 @@ public record TournamentPlayerDto(int PlayerId, string Name, int Rating, bool Is
 public record AddTournamentPlayerRequest(int PlayerId);
 
 /// <param name="IsStarted">False for the next round that is paired but not started yet.</param>
-public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games);
+/// <param name="StartedAt">When the round was started (UTC); null for the pending round.</param>
+public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games, DateTime? StartedAt = null);
 
 /// <param name="Number">Order of the game in the pairing; queued games get a board in this order.</param>
 /// <param name="Board">The board the game is (or was) played on; null while it waits in the queue, and for a bye.</param>

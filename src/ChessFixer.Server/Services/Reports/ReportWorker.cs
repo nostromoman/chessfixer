@@ -40,9 +40,9 @@ public class ReportWorker(ReportQueue queue, IServiceScopeFactory scopes, ILogge
         {
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ChessFixerDbContext>();
-            var ids = await db.Tournaments
-                .Where(t => t.ReportStatus == ReportStatus.Generating)
-                .Select(t => t.Id)
+            var ids = await db.TournamentReports
+                .Where(r => r.Status == ReportStatus.Generating)
+                .Select(r => r.TournamentId)
                 .ToListAsync(cancellationToken);
             ids.ForEach(queue.Enqueue);
         }

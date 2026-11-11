@@ -16,7 +16,7 @@ the running games and the standings.
 - User names are case-insensitive. Passwords have at least 8 characters.
 - The app bar shows the logged-in user with a menu to change the password and to log out. Changing a password (own, or by the administrator for a leader) logs that user out on all other devices; deleting a leader logs them out right away.
 - At most 10 login attempts per minute per client address.
-- A new database is seeded with the administrator (`admin` / `HelloWorld1!`), one tournament leader (`roel`, *Roel Gielen* / `Appelsap1!`) and two players: Roel Gielen (15-01-1982, rating 1400) and Bram Gielen (17-06-2014, rating 800). These are development passwords.
+- A new database only contains the system administrator (`admin` / `HelloWorld1!`; change the password after the first login). There are no other seeded accounts, players or tournaments.
 
 ## 3. Core features (must have)
 - Create and configure tournaments.
@@ -147,7 +147,7 @@ Application settings, in tabs. Tab **Toernooileiders** (only visible to the syst
 - **SignalR** pushes live updates to the frontend (all open pages).
 - **SQLite** database.
 - Authentication with an HttpOnly, SameSite=Strict cookie set by the Web API; every API endpoint and the SignalR hub require a login. Passwords are stored hashed (ASP.NET Core Identity password hasher).
-- During development: no migrations or data fixes. When the data model changes, drop the database and recreate it.
+- The data is kept across updates: schema changes are EF Core migrations, applied automatically on startup after a backup of the database file.
 
 ## 9. Out of scope (first version)
 - Players registering themselves
