@@ -9,7 +9,7 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["Players"]</MudText>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-2 pa-sm-4" Elevation="1">
     <div class="d-flex align-center gap-2 gap-sm-4 mb-3">
         <MudTextField @bind-Value="_filter" Placeholder="@L["Search"]" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -31,24 +31,25 @@
     }
     else
     {
-        <MudTable T="PlayerDto" Items="FilteredPlayers" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <MudTable T="PlayerDto" Items="FilteredPlayers" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+            @* Also a table on a phone (no stacked cards): photo, city and club are left out there. *@
             <HeaderContent>
-                <MudTh Style="width: 3em"></MudTh>
+                <MudTh Class="hide-xs" Style="width: 3em"></MudTh>
                 <MudTh>
                     <MudTableSortLabel T="PlayerDto" SortBy="p => p.FirstName" InitialDirection="SortDirection.Ascending">
                         @L["FirstName"]
                     </MudTableSortLabel>
                 </MudTh>
                 <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.LastName">@L["LastName"]</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.City ?? string.Empty">@L["City"]</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => ClubOf(p) ?? string.Empty">@L["Club"]</MudTableSortLabel></MudTh>
+                <MudTh Class="hide-xs"><MudTableSortLabel T="PlayerDto" SortBy="p => p.City ?? string.Empty">@L["City"]</MudTableSortLabel></MudTh>
+                <MudTh Class="hide-xs"><MudTableSortLabel T="PlayerDto" SortBy="p => ClubOf(p) ?? string.Empty">@L["Club"]</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align: right">
                     <MudTableSortLabel T="PlayerDto" SortBy="p => p.Rating">@L["Rating"]</MudTableSortLabel>
                 </MudTh>
-                <MudTh Style="width: 3em"></MudTh>
+                <MudTh Style="width: 1%"></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd>
+                <MudTd Class="hide-xs">
                     <PlayerAvatar FirstName="@context.FirstName" LastName="@context.LastName" PhotoUrl="@context.PhotoUrl" />
                 </MudTd>
                 <MudTd DataLabel="@L["FirstName"]">
@@ -61,10 +62,10 @@
                         <GuestChip ClubName="@context.ClubName" />
                     }
                 </MudTd>
-                <MudTd DataLabel="@L["City"]">@context.City</MudTd>
-                <MudTd DataLabel="@L["Club"]">@ClubOf(context)</MudTd>
+                <MudTd DataLabel="@L["City"]" Class="hide-xs">@context.City</MudTd>
+                <MudTd DataLabel="@L["Club"]" Class="hide-xs">@ClubOf(context)</MudTd>
                 <MudTd DataLabel="@L["Rating"]" Style="text-align: right">@context.Rating</MudTd>
-                <MudTd Style="text-align: right">
+                <MudTd Style="text-align: right; width: 1%">
                     <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
                                    aria-label="@L["DeletePlayer"]" Disabled="_busy" OnClick="() => DeleteAsync(context)" />
                 </MudTd>
