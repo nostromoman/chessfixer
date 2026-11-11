@@ -12,6 +12,7 @@ using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Hubs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.HttpOnly = true;
         // Strict: the cookie is never sent with requests started by another site (protects against CSRF).
         options.Cookie.SameSite = SameSiteMode.Strict;
+        // Secure (HTTPS only) when the request came in over HTTPS, also via the reverse proxy (see forwarded headers);
+        // plain HTTP on the LAN (http://<ip>:5016) keeps working.
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
         options.Events.OnValidatePrincipal = UserSession.ValidateAsync;
@@ -65,6 +69,16 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 
+// Behind a reverse proxy (e.g. Nginx Proxy Manager with Let's Encrypt) every request comes from the proxy.
+// Take the real client address and scheme from X-Forwarded-For/-Proto, so the login rate limit works per client
+// and the app knows the request was HTTPS. Only proxies on the local/private network are trusted.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    foreach (var network in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7" })
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+});
+
 builder.Services.AddSignalR();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -90,6 +104,7 @@ var app = builder.Build();
 
 await DatabaseInitializer.InitializeAsync(app.Services);
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
