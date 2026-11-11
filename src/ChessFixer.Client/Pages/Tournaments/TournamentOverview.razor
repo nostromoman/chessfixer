@@ -11,7 +11,7 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["Tournaments"]</MudText>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-2 pa-sm-4" Elevation="1">
     <div class="d-flex align-center mb-3">
         <MudSpacer />
         <MudTooltip Text="@L["NewTournament"]">
@@ -21,21 +21,22 @@
     </div>
 
     <MudTable T="TournamentSummaryDto" Items="_tournaments" Hover="true" Loading="_tournaments is null" Elevation="0"
-              OnRowClick="OnRowClick" Style="cursor: pointer" Breakpoint="Breakpoint.Sm">
+              OnRowClick="OnRowClick" Style="cursor: pointer" Breakpoint="Breakpoint.None">
+        @* Also a table on a phone (no stacked cards): type, boards and time control are left out there. *@
         <HeaderContent>
             <MudTh>@L["Title"]</MudTh>
-            <MudTh>@L["Type"]</MudTh>
+            <MudTh Class="hide-xs">@L["Type"]</MudTh>
             <MudTh Style="text-align: right">@L["Players"]</MudTh>
-            <MudTh Style="text-align: right">@L["Boards"]</MudTh>
-            <MudTh><span title="@L["TimeControlHelp"]">@L["TimeControl"]</span></MudTh>
+            <MudTh Class="hide-xs" Style="text-align: right">@L["Boards"]</MudTh>
+            <MudTh Class="hide-xs"><span title="@L["TimeControlHelp"]">@L["TimeControl"]</span></MudTh>
             <MudTh>@L["State"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="@L["Title"]">@context.Title</MudTd>
-            <MudTd DataLabel="@L["Type"]">@L[$"PairingSystem_{context.PairingSystem}"]</MudTd>
+            <MudTd DataLabel="@L["Type"]" Class="hide-xs">@L[$"PairingSystem_{context.PairingSystem}"]</MudTd>
             <MudTd DataLabel="@L["Players"]" Style="text-align: right">@context.PlayerCount</MudTd>
-            <MudTd DataLabel="@L["Boards"]" Style="text-align: right">@context.Boards</MudTd>
-            <MudTd DataLabel="@L["TimeControl"]">@Display.TimeControl(context.GameTimeMinutes, context.IncrementSeconds)</MudTd>
+            <MudTd DataLabel="@L["Boards"]" Class="hide-xs" Style="text-align: right">@context.Boards</MudTd>
+            <MudTd DataLabel="@L["TimeControl"]" Class="hide-xs">@Display.TimeControl(context.GameTimeMinutes, context.IncrementSeconds)</MudTd>
             <MudTd DataLabel="@L["State"]">
                 <MudChip T="string" Size="Size.Small" Color="Display.StateColor(context.State)" Class="ma-0">
                     @L[$"State_{context.State}"]

@@ -9,7 +9,7 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">@L["Clubs"]</MudText>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-2 pa-sm-4" Elevation="1">
     <div class="d-flex align-center gap-2 gap-sm-4 mb-3">
         <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["ClubsIntro"]</MudText>
         <MudSpacer />
@@ -29,14 +29,15 @@
     }
     else
     {
-        <MudTable T="ClubDto" Items="_clubs" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <MudTable T="ClubDto" Items="_clubs" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+            @* Also a table on a phone (no stacked cards): city, description and guest players are left out there. *@
             <HeaderContent>
-                <MudTh Style="width: 3em"></MudTh>
+                <MudTh Style="width: 1%"></MudTh>
                 <MudTh>@L["Name"]</MudTh>
-                <MudTh>@L["City"]</MudTh>
-                <MudTh>@L["Description"]</MudTh>
-                <MudTh Style="text-align: right">@L["GuestPlayers"]</MudTh>
-                <MudTh Style="width: 6em"></MudTh>
+                <MudTh Class="hide-xs">@L["City"]</MudTh>
+                <MudTh Class="hide-xs">@L["Description"]</MudTh>
+                <MudTh Class="hide-xs" Style="text-align: right">@L["GuestPlayers"]</MudTh>
+                <MudTh Style="width: 1%"></MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>
@@ -50,12 +51,12 @@
                     <MudLink OnClick="() => EditAsync(context)"><b>@context.Name</b></MudLink>
                     @if (context.IsOwnClub)
                     {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2 my-0">@L["OwnClub"]</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2 my-0 hide-xs">@L["OwnClub"]</MudChip>
                     }
                 </MudTd>
-                <MudTd DataLabel="@L["City"]">@context.City</MudTd>
-                <MudTd DataLabel="@L["Description"]"><span class="club-description">@context.Description</span></MudTd>
-                <MudTd DataLabel="@L["GuestPlayers"]" Style="text-align: right">@(context.IsOwnClub ? "" : context.GuestPlayers.ToString())</MudTd>
+                <MudTd DataLabel="@L["City"]" Class="hide-xs">@context.City</MudTd>
+                <MudTd DataLabel="@L["Description"]" Class="hide-xs"><span class="club-description">@context.Description</span></MudTd>
+                <MudTd DataLabel="@L["GuestPlayers"]" Class="hide-xs" Style="text-align: right">@(context.IsOwnClub ? "" : context.GuestPlayers.ToString())</MudTd>
                 <MudTd Style="text-align: right; white-space: nowrap">
                     <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditClub"]"
                                    Disabled="_busy" OnClick="() => EditAsync(context)" />

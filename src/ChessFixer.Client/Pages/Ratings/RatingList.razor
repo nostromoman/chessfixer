@@ -14,7 +14,7 @@
     <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Href="rating-log">@L["RatingLog"]</MudButton>
 </div>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-2 pa-sm-4" Elevation="1">
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["RatingListIntro"]</MudText>
 
     @if (_entries is null)
@@ -27,10 +27,11 @@
     }
     else
     {
-        <MudTable T="RatingListEntryDto" Items="_entries" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <MudTable T="RatingListEntryDto" Items="_entries" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+            @* Also a table on a phone (no stacked cards): photo, trend and games are left out there. *@
             <HeaderContent>
                 <MudTh Style="width: 3em; text-align: right">#</MudTh>
-                <MudTh Style="width: 3em"></MudTh>
+                <MudTh Class="hide-xs" Style="width: 3em"></MudTh>
                 <MudTh><MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.Name">@L["Name"]</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align: right">
                     <MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.Rating" InitialDirection="SortDirection.Descending">@L["Rating"]</MudTableSortLabel>
@@ -38,14 +39,14 @@
                 <MudTh Style="text-align: right">
                     <MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.Change30Days">@L["RatingChange30Days"]</MudTableSortLabel>
                 </MudTh>
-                <MudTh>@L["RatingTrend"]</MudTh>
-                <MudTh Style="text-align: right">
+                <MudTh Class="hide-xs">@L["RatingTrend"]</MudTh>
+                <MudTh Class="hide-xs" Style="text-align: right">
                     <MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.RatedGames">@L["RatingGames"]</MudTableSortLabel>
                 </MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd Style="text-align: right" Class="mud-text-secondary">@(_ranks.GetValueOrDefault(context.PlayerId))</MudTd>
-                <MudTd><PlayerAvatar FirstName="@context.FirstName" LastName="@context.LastName" PhotoUrl="@context.PhotoUrl" /></MudTd>
+                <MudTd Class="hide-xs"><PlayerAvatar FirstName="@context.FirstName" LastName="@context.LastName" PhotoUrl="@context.PhotoUrl" /></MudTd>
                 <MudTd DataLabel="@L["Name"]">
                     <MudLink OnClick="() => OpenPlayer(context.PlayerId)">@context.Name</MudLink>
                 </MudTd>
@@ -56,8 +57,8 @@
                         @Signed(context.Change30Days)
                     </span>
                 </MudTd>
-                <MudTd DataLabel="@L["RatingTrend"]"><RatingSparkline Values="context.Trend" /></MudTd>
-                <MudTd DataLabel="@L["RatingGames"]" Style="text-align: right">@context.RatedGames</MudTd>
+                <MudTd DataLabel="@L["RatingTrend"]" Class="hide-xs"><RatingSparkline Values="context.Trend" /></MudTd>
+                <MudTd DataLabel="@L["RatingGames"]" Class="hide-xs" Style="text-align: right">@context.RatedGames</MudTd>
             </RowTemplate>
         </MudTable>
     }
