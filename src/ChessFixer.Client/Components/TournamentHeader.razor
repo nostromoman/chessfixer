@@ -1,8 +1,8 @@
-@inject IStringLocalizer<Strings> L
+﻿@inject IStringLocalizer<Strings> L
 
 @* Title of a tournament, with a gear button that opens the settings. *@
-<div class="d-flex align-start justify-space-between gap-4 mb-4">
-    <div>
+<div class="d-flex align-start justify-space-between gap-2 mb-4">
+    <div style="min-width: 0">
         <MudText Typo="Typo.h4">@Tournament.Title</MudText>
         @if (!string.IsNullOrWhiteSpace(Tournament.Location))
         {

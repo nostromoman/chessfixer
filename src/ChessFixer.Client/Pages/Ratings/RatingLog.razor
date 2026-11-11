@@ -1,4 +1,4 @@
-@page "/rating-log"
+﻿@page "/rating-log"
 @using System.Globalization
 @inject TournamentApi Api
 @inject IStringLocalizer<Strings> L
@@ -6,7 +6,7 @@
 @* The rating log: every rating change, newest first, a page at a time; optionally of one player. *@
 <PageTitle>@L["RatingLog"]</PageTitle>
 
-<div class="d-flex align-center gap-2 mb-4">
+<div class="d-flex flex-wrap align-center gap-2 mb-4">
     <MudText Typo="Typo.h4">@L["RatingLog"]</MudText>
     <MudSpacer />
     <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Leaderboard" Href="rating">@L["RatingList"]</MudButton>
@@ -27,7 +27,7 @@
     </div>
 
     <MudTable @ref="_table" T="RatingLogEntryDto" ServerData="LoadPageAsync" Dense="true" Hover="true" Striped="true"
-              Elevation="0" RowsPerPage="50">
+              Elevation="0" RowsPerPage="50" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
             <MudTh>@L["RatingLogWhen"]</MudTh>
             <MudTh>@L["Player"]</MudTh>
@@ -52,6 +52,8 @@
                 </MudChip>
             </MudTd>
             <MudTd DataLabel="@L["RatingLogDetails"]">
+                @* One block, so a stacked row (phone) keeps the details together. *@
+                <div class="stacked-cell">
                 @if (context.TournamentTitle is not null)
                 {
                     <MudLink Href="@(context.TournamentId is { } id ? $"tournament/{id}" : null)" Disabled="@(context.TournamentId is null)">
@@ -78,6 +80,7 @@
                         }
                     </div>
                 }
+                </div>
             </MudTd>
             <MudTd DataLabel="@L["RatingLogChangedBy"]">@context.ChangedBy</MudTd>
         </RowTemplate>

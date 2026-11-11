@@ -1,4 +1,4 @@
-@page "/clubs"
+﻿@page "/clubs"
 @inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
@@ -10,7 +10,7 @@
 <MudText Typo="Typo.h4" Class="mb-4">@L["Clubs"]</MudText>
 
 <MudPaper Class="pa-4" Elevation="1">
-    <div class="d-flex align-center gap-4 mb-3">
+    <div class="d-flex align-center gap-2 gap-sm-4 mb-3">
         <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["ClubsIntro"]</MudText>
         <MudSpacer />
         <MudTooltip Text="@L["NewClub"]">
@@ -29,7 +29,7 @@
     }
     else
     {
-        <MudTable T="ClubDto" Items="_clubs" Dense="true" Hover="true" Striped="true" Elevation="0">
+        <MudTable T="ClubDto" Items="_clubs" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh Style="width: 3em"></MudTh>
                 <MudTh>@L["Name"]</MudTh>

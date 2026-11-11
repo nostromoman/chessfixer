@@ -1,4 +1,4 @@
-@inject TournamentApi Api
+﻿@inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
 
@@ -6,7 +6,7 @@
    pick an existing player, or type a name that does not exist yet to create a new player (first name only). *@
 <div class="d-flex align-center gap-2 mb-3">
     <MudSpacer />
-    <div style="width: 20em; max-width: 100%">
+    <div class="player-search">
         <MudAutocomplete @ref="_search" T="PlayerDto" Placeholder="@L["SearchOrNewPlayer"]" Variant="Variant.Outlined"
                          Margin="Margin.Dense" SearchFunc="SearchAsync" ToStringFunc="@(p => p?.Name)"
                          ValueChanged="OnPickedAsync" TextChanged="t => _searchText = t"
@@ -60,7 +60,7 @@ else
             <tr>
                 <th style="width: 3em"></th>
                 <th>@L["Name"]</th>
-                <th style="text-align: right">@L["Rating"]</th>
+                <th class="hide-xs" style="text-align: right">@L["Rating"]</th>
                 <th>@L["State"]</th>
                 <th style="width: 6em"></th>
             </tr>
@@ -82,7 +82,7 @@ else
                             <GuestChip ClubName="@info.ClubName" />
                         }
                     </td>
-                    <td style="text-align: right">@player.Rating</td>
+                    <td class="hide-xs" style="text-align: right">@player.Rating</td>
                     <td>
                         <MudChip T="string" Size="Size.Small" Class="ma-0" Color="@StatusColor(status)"
                                  Variant="@(status == PlayerStatus.Playing ? Variant.Filled : Variant.Outlined)">

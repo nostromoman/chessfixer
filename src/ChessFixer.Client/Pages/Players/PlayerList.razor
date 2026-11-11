@@ -1,4 +1,4 @@
-@page "/players"
+﻿@page "/players"
 @inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
@@ -10,7 +10,7 @@
 <MudText Typo="Typo.h4" Class="mb-4">@L["Players"]</MudText>
 
 <MudPaper Class="pa-4" Elevation="1">
-    <div class="d-flex align-center gap-4 mb-3">
+    <div class="d-flex align-center gap-2 gap-sm-4 mb-3">
         <MudTextField @bind-Value="_filter" Placeholder="@L["Search"]" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                       Clearable="true" Style="max-width: 20em" />
@@ -31,7 +31,7 @@
     }
     else
     {
-        <MudTable T="PlayerDto" Items="FilteredPlayers" Dense="true" Hover="true" Striped="true" Elevation="0">
+        <MudTable T="PlayerDto" Items="FilteredPlayers" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh Style="width: 3em"></MudTh>
                 <MudTh>

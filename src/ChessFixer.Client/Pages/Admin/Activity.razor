@@ -1,4 +1,4 @@
-@page "/admin/activity"
+﻿@page "/admin/activity"
 @attribute [Authorize(Roles = nameof(UserRole.Admin))]
 @using System.Globalization
 @inject TournamentApi Api
@@ -7,7 +7,7 @@
 @* Beheer > Activiteit (system administrator only): per user a summary, below it the activity log, newest first. *@
 <PageTitle>@L["ActivityLog"]</PageTitle>
 
-<div class="d-flex align-center gap-2 mb-2">
+<div class="d-flex flex-wrap align-center gap-2 mb-2">
     <MudText Typo="Typo.h4">@L["ActivityLog"]</MudText>
     <MudSpacer />
     <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshAsync">@L["ActivityRefresh"]</MudButton>
@@ -25,7 +25,7 @@
     }
     else
     {
-        <MudTable T="ActivityUserDto" Items="_users" Dense="true" Hover="true" Elevation="0"
+        <MudTable T="ActivityUserDto" Items="_users" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm"
                   OnRowClick="args => OnUserChangedAsync(args.Item?.Id == _userId ? null : args.Item?.Id)"
                   RowClassFunc="@((user, _) => user.Id == _userId ? "mud-selected-item cursor-pointer" : "cursor-pointer")">
             <HeaderContent>
@@ -77,7 +77,7 @@
     </div>
 
     <MudTable @ref="_table" T="ActivityLogEntryDto" ServerData="LoadPageAsync" Dense="true" Hover="true" Striped="true"
-              Elevation="0" RowsPerPage="50">
+              Elevation="0" RowsPerPage="50" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
             <MudTh>@L["ActivityWhen"]</MudTh>
             <MudTh>@L["ActivityUser"]</MudTh>
@@ -91,6 +91,7 @@
                 @context.At.ToLocalTime().ToString("G", CultureInfo.CurrentCulture)
             </MudTd>
             <MudTd DataLabel="@L["ActivityUser"]">
+                <div class="stacked-cell">
                 @if (context.DisplayName is { } name)
                 {
                     <span>@name</span> <span class="mud-text-secondary">(@context.UserName)</span>
@@ -103,6 +104,7 @@
                         <span class="mud-text-secondary"> @L["ActivityUnknownUser"]</span>
                     }
                 }
+                </div>
             </MudTd>
             <MudTd DataLabel="@L["ActivityWhat"]">
                 @if (context.Kind == ActivityKind.Action)

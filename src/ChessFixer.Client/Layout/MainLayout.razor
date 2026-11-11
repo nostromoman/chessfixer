@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject ServerAuthenticationStateProvider Auth
 @inject IDialogService Dialogs
+@inject IBrowserViewportService Viewport
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -15,7 +16,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                        OnClick="() => _menuOpen = !_menuOpen" aria-label="@L["ToggleMenu"]" />
         <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Class="ml-2 mr-2" />
-        <MudLink Href="" Color="Color.Inherit" Typo="Typo.h6" Underline="Underline.None">@L["AppTitle"]</MudLink>
+        <MudLink Href="" Color="Color.Inherit" Typo="Typo.h6" Underline="Underline.None" Class="appbar-title">@L["AppTitle"]</MudLink>
         <MudSpacer />
 
         @* The logged-in user, with a menu to change the password and to log out. *@
@@ -23,9 +24,10 @@
             <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@L["Account"]">
                 <ActivatorContent>
                     @* Since MudBlazor 9 a custom activator must open the menu itself, via the MenuContext. *@
-                    <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" Class="text-none"
-                               OnClick="e => context.ToggleAsync(e)">
-                        @auth.User.Identity?.Name
+                    @* On a phone only the icon is shown, the name would push the title off the screen. *@
+                    <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" Class="text-none appbar-user"
+                               OnClick="e => context.ToggleAsync(e)" aria-label="@L["Account"]">
+                        <span class="appbar-user-name">@auth.User.Identity?.Name</span>
                     </MudButton>
                 </ActivatorContent>
                 <ChildContent>
@@ -86,7 +88,7 @@
     </MudDrawer>
 
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="main-container py-4 py-sm-6">
             @Body
         </MudContainer>
     </MudMainContent>
@@ -95,11 +97,41 @@
 @code {
     private bool _menuOpen = true;
 
+    /// <summary>Below this breakpoint the menu is a temporary drawer over the page (the Responsive drawer's default).</summary>
+    private const Breakpoint MenuBreakpoint = Breakpoint.Md;
+
     private bool IsOn(string page) => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith(page, StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+    /// <summary>On a phone or tablet the menu starts closed, so the page itself is visible.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _menuOpen && await IsSmallScreenAsync())
+        {
+            _menuOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>On a small screen the menu covers the page: close it after choosing a page.</summary>
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(async () =>
+    {
+        if (_menuOpen && await IsSmallScreenAsync()) _menuOpen = false;
+        StateHasChanged();
+    });
+
+    private async Task<bool> IsSmallScreenAsync()
+    {
+        try
+        {
+            return await Viewport.GetCurrentBreakpointAsync() < MenuBreakpoint;
+        }
+        catch (JSException)
+        {
+            return false;
+        }
+    }
 
     public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
 

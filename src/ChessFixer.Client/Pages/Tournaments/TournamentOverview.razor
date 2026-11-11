@@ -1,4 +1,4 @@
-@page "/tournament"
+﻿@page "/tournament"
 @implements IDisposable
 @inject TournamentApi Api
 @inject TournamentHubClient Hub
@@ -21,7 +21,7 @@
     </div>
 
     <MudTable T="TournamentSummaryDto" Items="_tournaments" Hover="true" Loading="_tournaments is null" Elevation="0"
-              OnRowClick="OnRowClick" Style="cursor: pointer">
+              OnRowClick="OnRowClick" Style="cursor: pointer" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
             <MudTh>@L["Title"]</MudTh>
             <MudTh>@L["Type"]</MudTh>

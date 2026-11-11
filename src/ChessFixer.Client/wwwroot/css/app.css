@@ -1,4 +1,4 @@
-.valid.modified:not([type=checkbox]) {
+﻿.valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
 
@@ -93,12 +93,59 @@ tr.withdrawn td {
     font-style: italic;
 }
 
-/* Side drawers (player, new tournament, settings): half the screen, full width on small screens. */
+/* Side drawers (player, tournament settings): half the screen, full width on small screens.
+   The Width parameter sets --mud-drawer-width inline; a closed drawer is parked at right: -var(--mud-drawer-width).
+   That variable must change as well, otherwise a closed 100vw drawer still covers half the screen. */
 @media (max-width: 959.98px) {
     .side-drawer {
+        --mud-drawer-width: 100vw !important;
         --mud-drawer-width-right: 100vw !important;
         width: 100vw !important;
     }
+}
+
+/* A closed drawer is moved off the screen; it must never make the page wider (sideways scrolling on a phone). */
+html, body {
+    overflow-x: hidden;
+}
+
+@supports (overflow-x: clip) {
+    html, body {
+        overflow-x: clip;
+    }
+}
+
+/* Wide tables scroll sideways inside their card instead of stretching the whole page. */
+.mud-table-container {
+    overflow-x: auto;
+}
+
+/* App bar: the title shortens with "..." when there is not enough room. */
+.appbar-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A table cell with several parts: in a stacked table (phone) the parts stay together, right of the label. */
+.mud-xs-table .stacked-cell,
+.mud-sm-table .stacked-cell {
+    text-align: end;
+    min-width: 0;
+}
+
+/* Card headers on the home page: the "all" button stays on one line. */
+.dash-card .mud-button-root {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Search field above the players of a tournament: fixed width, the full width on a phone. */
+.player-search {
+    width: 20em;
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* Standings: centered instead of the full width, easier to read. */
@@ -861,3 +908,126 @@ tr.withdrawn td {
 }
 
 .help-list li + li { margin-top: 6px; }
+
+/* ---------- Phones (MudBlazor breakpoint xs); at the end, so it overrides the rules above ---------- */
+@media (max-width: 599.98px) {
+    .hide-xs {
+        display: none !important;
+    }
+
+    /* Only the account icon in the app bar, not the name. */
+    .appbar-user-name {
+        display: none;
+    }
+
+    .appbar-user {
+        min-width: 0 !important;
+    }
+
+    .appbar-user .mud-button-icon-start {
+        margin: 0;
+    }
+
+    .main-container.mud-container--gutters {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    /* Page titles: smaller, so they fit next to their buttons. */
+    .mud-typography-h4 {
+        font-size: 1.6rem;
+    }
+
+    .mud-typography-h5 {
+        font-size: 1.3rem;
+    }
+
+    .player-search {
+        flex: 1 1 auto;
+    }
+
+    /* Simple tables (standings, players of a tournament, statistics): less padding, so more columns fit. */
+    .mud-simple-table.mud-table-dense table * tr > td,
+    .mud-simple-table.mud-table-dense table * tr > th {
+        padding: 6px 8px;
+    }
+
+    /* Dialogs: almost the full width of the screen. */
+    .mud-dialog.mud-dialog-width-full {
+        width: calc(100% - 16px);
+    }
+
+    .mud-dialog .mud-dialog-content {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    /* Game cards: smaller photos and texts, so two players and the score fit next to each other. */
+    .game-card {
+        padding: 10px 10px 12px;
+    }
+
+    .mud-avatar.game-card-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+
+    .game-card-center {
+        min-width: 3rem;
+    }
+
+    .game-card-vs {
+        font-size: 1.6rem;
+    }
+
+    .game-card-score {
+        font-size: 1.15rem;
+    }
+
+    .game-side-name {
+        font-size: 1rem;
+    }
+
+    .game-side-color {
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+    }
+
+    /* Home page. */
+    .dash-hero {
+        padding: 20px;
+        border-radius: 12px;
+    }
+
+    .dash-hero-pieces {
+        font-size: 64px;
+    }
+
+    .dash-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .dash-stat {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .dash-stat-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .dash-stat-value {
+        font-size: 1.5rem;
+    }
+
+    .dash-donut {
+        width: 140px;
+        height: 140px;
+    }
+}

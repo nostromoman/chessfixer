@@ -1,4 +1,4 @@
-@page "/rating"
+﻿@page "/rating"
 @inject TournamentApi Api
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
@@ -7,7 +7,7 @@
 @* The rating list of the own players (no guests), with the trend of their rating. *@
 <PageTitle>@L["RatingList"]</PageTitle>
 
-<div class="d-flex align-center gap-2 mb-4">
+<div class="d-flex flex-wrap align-center gap-2 mb-4">
     <MudText Typo="Typo.h4">@L["RatingList"]</MudText>
     <MudSpacer />
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Info" OnClick="ShowInfoAsync">@L["RatingInfo"]</MudButton>
@@ -27,7 +27,7 @@
     }
     else
     {
-        <MudTable T="RatingListEntryDto" Items="_entries" Dense="true" Hover="true" Striped="true" Elevation="0">
+        <MudTable T="RatingListEntryDto" Items="_entries" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh Style="width: 3em; text-align: right">#</MudTh>
                 <MudTh Style="width: 3em"></MudTh>
