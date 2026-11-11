@@ -12,7 +12,7 @@
     <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Leaderboard" Href="rating">@L["RatingList"]</MudButton>
 </div>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-2 pa-sm-4" Elevation="1">
     <div class="d-flex flex-wrap align-center gap-4 mb-3">
         <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["RatingLogIntro"]</MudText>
         <MudSpacer />
@@ -27,31 +27,34 @@
     </div>
 
     <MudTable @ref="_table" T="RatingLogEntryDto" ServerData="LoadPageAsync" Dense="true" Hover="true" Striped="true"
-              Elevation="0" RowsPerPage="50" Breakpoint="Breakpoint.Sm">
+              Elevation="0" RowsPerPage="50" Breakpoint="Breakpoint.None">
+        @* Also a table on a phone (no stacked cards): old rating, reason, details and changed by are left out there. *@
         <HeaderContent>
             <MudTh>@L["RatingLogWhen"]</MudTh>
             <MudTh>@L["Player"]</MudTh>
-            <MudTh Style="text-align: right">@L["RatingLogBefore"]</MudTh>
+            <MudTh Class="hide-xs" Style="text-align: right">@L["RatingLogBefore"]</MudTh>
             <MudTh Style="text-align: right">@L["RatingChange"]</MudTh>
             <MudTh Style="text-align: right">@L["RatingAfter"]</MudTh>
-            <MudTh>@L["RatingLogReason"]</MudTh>
-            <MudTh>@L["RatingLogDetails"]</MudTh>
-            <MudTh>@L["RatingLogChangedBy"]</MudTh>
+            <MudTh Class="hide-xs">@L["RatingLogReason"]</MudTh>
+            <MudTh Class="hide-xs">@L["RatingLogDetails"]</MudTh>
+            <MudTh Class="hide-xs">@L["RatingLogChangedBy"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="@L["RatingLogWhen"]" Style="white-space: nowrap">
-                @context.At.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
+                @* On a phone only the date (day-month), the full date and time do not fit. *@
+                <span class="hide-xs">@context.At.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</span>
+                <span class="show-xs" title="@context.At.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)">@context.At.ToLocalTime().ToString("d-M", CultureInfo.CurrentCulture)</span>
             </MudTd>
             <MudTd DataLabel="@L["Player"]"><PlayerName Name="@context.Player.Name" IsDeleted="context.Player.IsDeleted" /></MudTd>
-            <MudTd DataLabel="@L["RatingLogBefore"]" Style="text-align: right">@context.RatingBefore</MudTd>
+            <MudTd DataLabel="@L["RatingLogBefore"]" Class="hide-xs" Style="text-align: right">@context.RatingBefore</MudTd>
             <MudTd DataLabel="@L["RatingChange"]" Style="text-align: right" Class="@ChangeClass(context)">@ChangeText(context)</MudTd>
             <MudTd DataLabel="@L["RatingAfter"]" Style="text-align: right"><b>@context.RatingAfter</b></MudTd>
-            <MudTd DataLabel="@L["RatingLogReason"]">
+            <MudTd DataLabel="@L["RatingLogReason"]" Class="hide-xs">
                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@ReasonColor(context.Reason)" Class="ma-0">
                     @L[$"RatingReason_{context.Reason}"]
                 </MudChip>
             </MudTd>
-            <MudTd DataLabel="@L["RatingLogDetails"]">
+            <MudTd DataLabel="@L["RatingLogDetails"]" Class="hide-xs">
                 @* One block, so a stacked row (phone) keeps the details together. *@
                 <div class="stacked-cell">
                 @if (context.TournamentTitle is not null)
@@ -82,7 +85,7 @@
                 }
                 </div>
             </MudTd>
-            <MudTd DataLabel="@L["RatingLogChangedBy"]">@context.ChangedBy</MudTd>
+            <MudTd DataLabel="@L["RatingLogChangedBy"]" Class="hide-xs">@context.ChangedBy</MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <MudText Typo="Typo.body2">@L["RatingLogEmpty"]</MudText>

@@ -25,6 +25,10 @@
         <a href="." class="reload">Herladen</a>
         <span class="dismiss">&#x2715;</span>
     </div>
+    <script>
+        // Used by DeviceInfo: a touchscreen as the main input (phone, tablet).
+        window.chessFixer = { isTouch: () => window.matchMedia("(pointer: coarse)").matches };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>

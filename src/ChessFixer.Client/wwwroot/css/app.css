@@ -141,6 +141,11 @@ html, body {
     flex-shrink: 0;
 }
 
+/* Only shown on a phone (the counterpart of .hide-xs). */
+.show-xs {
+    display: none;
+}
+
 /* Search field above the players of a tournament: fixed width, the full width on a phone. */
 .player-search {
     width: 20em;
@@ -913,6 +918,10 @@ html, body {
 @media (max-width: 599.98px) {
     .hide-xs {
         display: none !important;
+    }
+
+    .show-xs {
+        display: inline;
     }
 
     /* Only the account icon in the app bar, not the name. */

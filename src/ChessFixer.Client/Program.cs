@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using ChessFixer.Client;
 using ChessFixer.Client.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -17,6 +17,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<TournamentApi>();
+builder.Services.AddScoped<DeviceInfo>();
 
 // Login: the server sets a cookie; the app asks the server who is logged in.
 builder.Services.AddAuthorizationCore();
