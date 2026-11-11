@@ -25,7 +25,8 @@
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mx-6 mb-2">@L["PlayerDeletedInfo"]</MudAlert>
             }
             @* Keyed on the player, so the statistics reload and the first tab is shown for every player opened. *@
-            <MudTabs @key="_editing.Id" Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="px-6 pt-4 pb-6">
+            <MudTabs @key="_editing.Id" @bind-ActivePanelIndex="_tab" Elevation="0" ApplyEffectsToContainer="true"
+                     TabPanelsClass="px-6 pt-4 pb-6">
                 <MudTabPanel Text="@L["PlayerTabGeneral"]" Icon="@Icons.Material.Outlined.Person">
                     @GeneralForm
                 </MudTabPanel>
@@ -149,8 +150,15 @@
         }
     }
 
-    public void OpenEdit(PlayerDto player)
+    /// <summary>Index of the rating tab, for <see cref="OpenEdit"/>.</summary>
+    public const int RatingTab = 2;
+
+    private int _tab;
+
+    /// <param name="tab">The tab to show; the first (general) tab by default.</param>
+    public void OpenEdit(PlayerDto player, int tab = 0)
     {
+        _tab = tab;
         _editing = new EditModel(player.Id, player.PhotoUrl)
         {
             IsDeleted = player.IsDeleted,

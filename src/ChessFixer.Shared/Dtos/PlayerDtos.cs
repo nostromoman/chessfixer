@@ -64,22 +64,56 @@ public record PlayerGameDto(
     GameResult Result,
     double? Points);
 
-/// <summary>The player's current rating and every rated game, oldest first.</summary>
-/// <param name="RatedGames">Number of rated games.</param>
-public record PlayerRatingDto(int Rating, int RatedGames, IReadOnlyList<RatingChangeDto> History);
+/// <summary>The player's rating history: every rating change (for the chart) and every tournament with its games.</summary>
+/// <param name="RatedGames">Number of games that changed the rating.</param>
+/// <param name="Timeline">The rating after every change, oldest first (from the rating log).</param>
+/// <param name="Tournaments">The rated tournaments the player played, newest first, with every game and its change.</param>
+public record PlayerRatingDto(
+    int Rating,
+    int RatedGames,
+    IReadOnlyList<RatingPointDto> Timeline,
+    IReadOnlyList<RatingTournamentDto> Tournaments);
 
-/// <summary>The rating change of one game.</summary>
-public record RatingChangeDto(
-    DateTime Date,
+/// <summary>One rating change in the chart.</summary>
+public record RatingPointDto(DateTime At, int RatingBefore, int RatingAfter, RatingChangeReason Reason, string? TournamentTitle)
+{
+    public int Change => RatingAfter - RatingBefore;
+}
+
+/// <summary>A rated tournament of the player.</summary>
+/// <param name="IsProcessed">The ratings have been processed (the tournament is closed). Otherwise the changes are
+/// what they would be if the tournament were closed now.</param>
+/// <param name="RatingBefore">The rating the games were (or will be) calculated with.</param>
+/// <param name="ExactChange">The changes of all games added up, before rounding.</param>
+/// <param name="Change">The change of the rating: <see cref="ExactChange"/> rounded.</param>
+public record RatingTournamentDto(
     int TournamentId,
-    string TournamentTitle,
-    int Round,
-    bool IsWhite,
-    GamePlayerDto Opponent,
-    int OpponentRating,
-    GameResult Result,
+    string Title,
+    DateTime? Date,
+    bool IsProcessed,
     int RatingBefore,
-    int Change)
+    decimal ExactChange,
+    int Change,
+    IReadOnlyList<RatingGameDto> Games)
 {
     public int RatingAfter => RatingBefore + Change;
 }
+
+/// <summary>One game of the player in a rated tournament.</summary>
+/// <param name="CountsForRating">False for a game against a guest player (and for forfeits, which are not listed).</param>
+/// <param name="Rating">The player's rating the game was calculated with.</param>
+/// <param name="ExpectedScore">From the FIDE table; null when the game does not count.</param>
+/// <param name="K">The K-factor; null when the game does not count or was rated before it was stored.</param>
+/// <param name="Change">The exact change of this game; null when the game does not count.</param>
+public record RatingGameDto(
+    int Round,
+    bool IsWhite,
+    GamePlayerDto Opponent,
+    GameResult Result,
+    bool CountsForRating,
+    int Rating,
+    int OpponentRating,
+    decimal Score,
+    decimal? ExpectedScore,
+    int? K,
+    decimal? Change);

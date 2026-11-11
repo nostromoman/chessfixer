@@ -64,7 +64,18 @@ public class TournamentReportWriter(
         var standings = await tournaments.GetStandingsAsync(tournamentId);
 
         var playerIds = standings.Select(s => s.PlayerId).ToList();
-        var players = await db.Players.Include(p => p.Club).Where(p => playerIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+        var players = await db.Players.AsNoTracking().Include(p => p.Club).Where(p => playerIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+        // The ratings changed when the tournament was closed: the report uses the ratings the players had before it.
+        var ratedGames = await db.Games
+            .Where(g => g.Round.TournamentId == tournamentId && g.RatedAt != null)
+            .Select(g => new { White = g.White.PlayerId, Black = g.Black!.PlayerId, g.WhiteRatingBefore, g.BlackRatingBefore })
+            .ToListAsync();
+        foreach (var game in ratedGames)
+        {
+            if (players.TryGetValue(game.White, out var white)) white.Rating = game.WhiteRatingBefore!.Value;
+            if (players.TryGetValue(game.Black, out var black)) black.Rating = game.BlackRatingBefore!.Value;
+        }
         var startedAt = await db.Rounds
             .Where(r => r.TournamentId == tournamentId && r.StartedAt != null)
             .Select(r => r.StartedAt)

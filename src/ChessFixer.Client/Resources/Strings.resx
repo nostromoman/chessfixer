@@ -89,7 +89,7 @@
   <data name="StartFirstRoundText" xml:space="preserve"><value>Na het starten van ronde 1 kunnen het indelingssysteem, de punten en of het toernooi meetelt voor de rating niet meer gewijzigd worden. Titel, bedenktijd, increment en borden kunnen tussen de rondes wel gewijzigd worden.</value></data>
   <data name="CloseTournament" xml:space="preserve"><value>Toernooi afsluiten</value></data>
   <data name="CloseConfirmTitle" xml:space="preserve"><value>Toernooi afsluiten?</value></data>
-  <data name="CloseConfirmText" xml:space="preserve"><value>Na het afsluiten kunnen er geen rondes en uitslagen meer worden ingevoerd. Dit kan niet ongedaan worden gemaakt.</value></data>
+  <data name="CloseConfirmText" xml:space="preserve"><value>Na het afsluiten kunnen er geen rondes en uitslagen meer worden ingevoerd. Bij een toernooi dat meetelt voor de rating worden nu de ratings van de spelers bijgewerkt. Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="TournamentClosed" xml:space="preserve"><value>Het toernooi is afgesloten.</value></data>
   <data name="NewInfo" xml:space="preserve"><value>Voeg spelers toe, controleer de instellingen en start ronde 1.</value></data>
   <data name="RoundInProgressStatus" xml:space="preserve"><value>{0} van {1} wedstrijden van ronde {2} zijn afgerond</value></data>
@@ -145,8 +145,8 @@
   <data name="RatingHelpNew" xml:space="preserve"><value>Spelers zonder rating beginnen op 1400.</value></data>
   <data name="RatingHelp" xml:space="preserve"><value>Wordt na iedere partij in een toernooi dat meetelt automatisch bijgewerkt.</value></data>
   <data name="RatingCurrent" xml:space="preserve"><value>Huidige rating</value></data>
-  <data name="RatingGames" xml:space="preserve"><value>Partijen met rating</value></data>
-  <data name="RatingNoGames" xml:space="preserve"><value>Er zijn nog geen partijen gespeeld die meetellen voor de rating.</value></data>
+  <data name="RatingGames" xml:space="preserve"><value>Verwerkte partijen</value></data>
+  <data name="RatingNoGames" xml:space="preserve"><value>Er zijn nog geen partijen gespeeld in toernooien die meetellen voor de rating.</value></data>
   <data name="RatingHistory" xml:space="preserve"><value>Ratingverloop</value></data>
   <data name="RatingChartLabel" xml:space="preserve"><value>Grafiek van het ratingverloop, van {0} naar {1}</value></data>
   <data name="RatingChange" xml:space="preserve"><value>+/-</value></data>
@@ -456,8 +456,8 @@
   <data name="RatingInfoFormula" xml:space="preserve"><value>nieuwe rating = oude rating + K × (score − verwachte score)</value></data>
   <data name="RatingInfoScore" xml:space="preserve"><value>Score: 1 voor winst, ½ voor remise, 0 voor verlies.</value></data>
   <data name="RatingInfoExpected" xml:space="preserve"><value>Verwachte score: hoeveel punten je gemiddeld haalt tegen deze tegenstander. Die komt uit de FIDE-tabel (hieronder), op basis van het ratingverschil. Een verschil van meer dan {0} telt als {0} (niet voor spelers vanaf {1}).</value></data>
-  <data name="RatingInfoRounding" xml:space="preserve"><value>De uitkomst wordt afgerond op hele punten (½ van nul af).</value></data>
-  <data name="RatingInfoImmediate" xml:space="preserve"><value>De rating verandert direct na iedere uitslag. Wordt een uitslag gecorrigeerd of een ronde geannuleerd, dan wordt de wijziging teruggedraaid. Alles staat in het ratinglogboek.</value></data>
+  <data name="RatingInfoRounding" xml:space="preserve"><value>Het rekenvoorbeeld hieronder laat één partij zien. In een toernooi worden de mutaties van alle partijen eerst opgeteld en daarna afgerond op hele punten (½ van nul af).</value></data>
+  <data name="RatingInfoImmediate" xml:space="preserve"><value>De rating verandert pas als het toernooi wordt afgesloten. Alle partijen van het toernooi worden berekend met de rating van vóór het toernooi; per speler worden de mutaties opgeteld en wordt het totaal één keer afgerond. Tijdens het toernooi zie je bij de speler (tabblad Rating) wat het tot nu toe zou opleveren. Alles staat in het ratinglogboek.</value></data>
   <data name="RatingInfoNotRated" xml:space="preserve"><value>Telt niet mee: partijen met een gastspeler, reglementaire uitslagen, vrije rondes en toernooien die niet meetellen voor de rating.</value></data>
   <data name="RatingInfoValuesTitle" xml:space="preserve"><value>Gebruikte waardes</value></data>
   <data name="RatingInfoStartRating" xml:space="preserve"><value>Startrating van een nieuwe speler</value></data>
@@ -485,4 +485,13 @@
   <data name="KReason_Junior" xml:space="preserve"><value>jeugd</value></data>
   <data name="KReason_Master" xml:space="preserve"><value>rating 2400+</value></data>
   <data name="KReason_WasMaster" xml:space="preserve"><value>ooit 2400+</value></data>
+  <data name="RatingExpected" xml:space="preserve"><value>Verwacht na afsluiten</value></data>
+  <data name="RatingTournaments" xml:space="preserve"><value>Toernooien</value></data>
+  <data name="RatingProvisionalTournament" xml:space="preserve"><value>voorlopig</value></data>
+  <data name="RatingProvisionalTournamentHelp" xml:space="preserve"><value>Het toernooi loopt nog: de rating verandert pas bij afsluiten. Dit is wat het nu zou opleveren.</value></data>
+  <data name="RatingMutation" xml:space="preserve"><value>Mutatie</value></data>
+  <data name="RatingGameNotCounted" xml:space="preserve"><value>telt niet mee (gastspeler)</value></data>
+  <data name="RatingTournamentTotal" xml:space="preserve"><value>Totaal: {0}, afgerond</value></data>
+  <data name="RatingReason_Tournament" xml:space="preserve"><value>Toernooi afgesloten</value></data>
+  <data name="RatingLogGames" xml:space="preserve"><value>{0} partijen</value></data>
 </root>

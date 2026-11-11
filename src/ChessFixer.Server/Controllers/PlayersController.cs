@@ -33,46 +33,9 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
     [HttpGet("{id:int}/statistics")]
     public Task<PlayerStatisticsDto> GetStatistics(int id) => tournaments.GetPlayerStatisticsAsync(id);
 
-    /// <summary>The current rating and the rating change of every rated game, oldest first.</summary>
+    /// <summary>The rating history: every change, and every rated tournament with the change of each game.</summary>
     [HttpGet("{id:int}/rating")]
-    public async Task<PlayerRatingDto> GetRating(int id)
-    {
-        var player = await FindAsync(id);
-        var games = await db.Games
-            .Where(g => g.RatedAt != null && (g.White.PlayerId == id || g.Black!.PlayerId == id))
-            .Select(g => new
-            {
-                g.Id,
-                RatedAt = g.RatedAt!.Value,
-                g.Round.TournamentId,
-                g.Round.Tournament.Title,
-                Round = g.Round.Number,
-                White = new GamePlayerDto(g.White.PlayerId, g.White.Player.Name, g.White.Player.IsDeleted),
-                Black = new GamePlayerDto(g.Black!.PlayerId, g.Black.Player.Name, g.Black.Player.IsDeleted),
-                WhiteBefore = g.WhiteRatingBefore!.Value,
-                BlackBefore = g.BlackRatingBefore!.Value,
-                WhiteChange = g.WhiteRatingChange!.Value,
-                BlackChange = g.BlackRatingChange!.Value,
-                g.Result
-            })
-            .ToListAsync();
-
-        var history = games
-            .OrderBy(g => g.RatedAt).ThenBy(g => g.Id)
-            .Select(g =>
-            {
-                var isWhite = g.White.PlayerId == id;
-                return new RatingChangeDto(
-                    g.RatedAt, g.TournamentId, g.Title, g.Round, isWhite,
-                    isWhite ? g.Black : g.White,
-                    isWhite ? g.BlackBefore : g.WhiteBefore,
-                    g.Result,
-                    isWhite ? g.WhiteBefore : g.BlackBefore,
-                    isWhite ? g.WhiteChange : g.BlackChange);
-            })
-            .ToList();
-        return new PlayerRatingDto(player.Rating, history.Count, history);
-    }
+    public async Task<PlayerRatingDto> GetRating(int id) => await ratingLog.GetPlayerHistoryAsync(await FindAsync(id));
 
     [HttpPost]
     public async Task<ActionResult<PlayerDto>> Create(CreatePlayerRequest request)

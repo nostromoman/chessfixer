@@ -13,13 +13,14 @@ public readonly record struct RatedPlayer(int Rating, bool HasReached2400 = fals
 /// <list type="bullet">
 /// <item>The expected score comes from the FIDE table (8.1.2), in hundredths. A rating difference of more than 400
 /// counts as 400, except for players rated 2650 or more (8.3.1).</item>
-/// <item>Change = K × (score − expected score), rounded to whole points, 0.5 away from zero.</item>
+/// <item>Change = K × (score − expected score). Over a tournament the changes are added up and rounded once to
+/// whole points, 0.5 away from zero.</item>
 /// <item>K = 40 for a junior (up to the year they turn 18) rated under 2300; K = 10 once the rating has reached 2400,
 /// also when it drops below again; otherwise K = 20.</item>
 /// <item>Only games played on the board count: forfeits and byes do not change the rating.</item>
 /// </list>
-/// Unlike FIDE, the rating changes right after each game (no monthly lists), and new players have no provisional
-/// period with K = 40 (FIDE: until 30 games).
+/// The ratings change when a tournament is closed (FIDE: per monthly list). Unlike FIDE, new players have no
+/// provisional period with K = 40 (FIDE: until 30 games).
 /// </summary>
 public static class EloCalculator
 {
@@ -99,13 +100,16 @@ public static class EloCalculator
         return (Change(white, black, whiteScore), Change(black, white, 1 - whiteScore));
     }
 
+    /// <summary>A rating change rounded to whole points, 0.5 away from zero.</summary>
+    public static int Round(decimal change) => (int)Math.Round(change, MidpointRounding.AwayFromZero);
+
     /// <summary>Every step of the calculation for one player, for explaining it.</summary>
     public static RatingCalculation Explain(RatedPlayer player, RatedPlayer opponent, decimal score)
     {
         var (k, reason) = KFactorWithReason(player);
         var expected = ExpectedScore(player.Rating, opponent.Rating);
         var exact = k * (score - expected);
-        var change = (int)Math.Round(exact, MidpointRounding.AwayFromZero);
+        var change = Round(exact);
         return new RatingCalculation(player.Rating, opponent.Rating, player.Rating - opponent.Rating,
             UsedDifference(player.Rating, opponent.Rating), expected, score, k, reason, exact, change);
     }

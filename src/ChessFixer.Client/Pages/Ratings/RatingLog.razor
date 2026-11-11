@@ -57,7 +57,14 @@
                     <MudLink Href="@(context.TournamentId is { } id ? $"tournament/{id}" : null)" Disabled="@(context.TournamentId is null)">
                         @context.TournamentTitle
                     </MudLink>
-                    <span class="mud-text-secondary">, @L["RatingLogRound", context.Round ?? 0]</span>
+                    @if (context.Round is { } round)
+                    {
+                        <span class="mud-text-secondary">, @L["RatingLogRound", round]</span>
+                    }
+                    @if (context.Games is { } games)
+                    {
+                        <span class="mud-text-secondary">, @L["RatingLogGames", games]</span>
+                    }
                 }
                 @if (context.Opponent is { } opponent)
                 {
@@ -131,7 +138,7 @@
 
     private static Color ReasonColor(RatingChangeReason reason) => reason switch
     {
-        RatingChangeReason.Game => Color.Primary,
+        RatingChangeReason.Game or RatingChangeReason.Tournament => Color.Primary,
         RatingChangeReason.Manual => Color.Info,
         RatingChangeReason.GameReverted or RatingChangeReason.RoundCancelled => Color.Warning,
         _ => Color.Default

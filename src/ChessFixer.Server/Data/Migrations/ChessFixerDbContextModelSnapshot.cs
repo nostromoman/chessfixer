@@ -150,11 +150,14 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<int?>("BlackId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("BlackK")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("BlackRatingBefore")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("BlackRatingChange")
-                        .HasColumnType("INTEGER");
+                    b.Property<decimal?>("BlackRatingChange")
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("Board")
                         .HasColumnType("INTEGER");
@@ -176,11 +179,14 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<int>("WhiteId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("WhiteK")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("WhiteRatingBefore")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("WhiteRatingChange")
-                        .HasColumnType("INTEGER");
+                    b.Property<decimal?>("WhiteRatingChange")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -289,6 +295,9 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<string>("ChangedBy")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("Games")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool?>("IsWhite")
                         .HasColumnType("INTEGER");

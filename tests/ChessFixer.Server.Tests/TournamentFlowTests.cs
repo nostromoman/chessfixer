@@ -331,25 +331,24 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task CancelRound_RemovesTheRoundAndUndoesRatings()
+    public async Task CancelRound_RemovesTheRound_ItsGamesDoNotCount()
     {
         var id = await CreateTournamentAsync();
         var players = await AddNewPlayersAsync(id, 4);
         await StartRoundAsync(id);
         await FinishActiveRoundAsync(id);
-        var ratingsAfterRound1 = await RatingsAsync(players);
+        var ratingsBefore = await RatingsAsync(players);
 
         var tournament = await StartRoundAsync(id);
         Assert.Equal(2, tournament.RoundsStarted);
         var round2 = (await GetRoundsAsync(id)).Last(r => r.IsStarted);
         Assert.NotNull(round2.StartedAt);
         await SetResultAsync(id, round2.Games.First(g => g.Black is not null).Id, GameResult.BlackWins);
-        Assert.NotEqual(ratingsAfterRound1, await RatingsAsync(players));
 
         tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/cancel", null);
         Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
         Assert.Equal(1, tournament.RoundsStarted);
-        Assert.Equal(ratingsAfterRound1, await RatingsAsync(players));
+        Assert.Equal(ratingsBefore, await RatingsAsync(players));  // ratings only change when the tournament is closed
 
         // Round 2 is paired again, and can be started again.
         var rounds = await GetRoundsAsync(id);
@@ -357,6 +356,16 @@ public class TournamentFlowTests : ApiTestBase
         Assert.False(rounds[1].IsStarted);
         tournament = await StartRoundAsync(id);
         Assert.Equal(2, tournament.RoundsStarted);
+
+        // The game of the cancelled round is gone: only the games of round 1 (and the new round 2) count.
+        await FinishActiveRoundAsync(id);
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/close", null);
+        foreach (var player in players)
+        {
+            var history = await GetAsync<PlayerRatingDto>($"api/players/{player}/rating");
+            Assert.All(Assert.Single(history.Tournaments).Games, g => Assert.InRange(g.Round, 1, 2));
+            Assert.True(Assert.Single(history.Tournaments).Games.Count <= 2);
+        }
     }
 
     [Fact]

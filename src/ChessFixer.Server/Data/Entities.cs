@@ -174,15 +174,21 @@ public class Game
 
     public GameResult Result { get; set; } = GameResult.NotPlayed;
 
-    // ----- Rating: filled in when a result that counts for the rating is entered in a rated tournament -----
+    // ----- Rating: filled in when a rated tournament is closed, for the games that count for the rating -----
 
-    /// <summary>Ratings of the players when the result was entered; null when the game did not change the ratings.</summary>
+    /// <summary>The ratings the game was calculated with: the ratings of the players before the tournament.
+    /// Null when the game did not change the ratings.</summary>
     public int? WhiteRatingBefore { get; set; }
     public int? BlackRatingBefore { get; set; }
 
-    /// <summary>Rating changes that were applied to the players; reverted when the result is corrected or cleared.</summary>
-    public int? WhiteRatingChange { get; set; }
-    public int? BlackRatingChange { get; set; }
+    /// <summary>The exact (unrounded) rating change of this game; the changes of all games of the tournament are
+    /// added up and rounded once. Games rated before ratings were processed at closing hold whole, applied changes.</summary>
+    public decimal? WhiteRatingChange { get; set; }
+    public decimal? BlackRatingChange { get; set; }
+
+    /// <summary>The K-factors used; null for games rated before they were stored.</summary>
+    public int? WhiteK { get; set; }
+    public int? BlackK { get; set; }
 
     public DateTime? RatedAt { get; set; }
 
@@ -267,6 +273,9 @@ public class RatingLogEntry
     public int? TournamentId { get; set; }
     public string? TournamentTitle { get; set; }
     public int? Round { get; set; }
+
+    /// <summary>For the change of a closed tournament: the number of games it is made of.</summary>
+    public int? Games { get; set; }
     public int? OpponentId { get; set; }
     public Player? Opponent { get; set; }
     public int? OpponentRating { get; set; }

@@ -115,6 +115,8 @@ public class TournamentReportTests : ApiTestBase
         Assert.Contains("Clubhuis De Toren", prompt.User);
         Assert.Contains("Jaarlijks toernooi", prompt.User);
         Assert.Contains("Speler 1", prompt.User);
+        // The ratings changed at closing; the report shows the ratings from before the tournament.
+        Assert.Contains("Speler 1 (rating 1990", prompt.User);
         Assert.Contains("EINDSTAND", prompt.User);
         Assert.Contains("- Teun liet hete thee over het bord vallen", prompt.User);
         Assert.Contains("- Jan kwam met zijn voet in het gips\n", prompt.User.ReplaceLineEndings("\n"));

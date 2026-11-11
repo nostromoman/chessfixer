@@ -25,40 +25,79 @@ public class RatingTests : ApiTestBase
             HttpStatusCode.BadRequest, ApiErrorCode.InvalidRating);
 
     [Fact]
-    public async Task RatedTournament_RatingChangesAfterEachGame()
+    public async Task RatedTournament_RatingChangesWhenClosed()
     {
         var (id, white, black, game) = await StartGameAsync(rated: true);
-
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
+
+        // During the tournament: no change yet, but the history shows what closing would give.
+        Assert.Equal(1400, await RatingOfAsync(white));
+        var running = Assert.Single((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).Tournaments);
+        Assert.Equal((false, 1400, 10, 1410), (running.IsProcessed, running.RatingBefore, running.Change, running.RatingAfter));
+
+        await CloseAsync(id);
 
         // Equal ratings (K = 20): the winner gains 10.
         Assert.Equal(1410, await RatingOfAsync(white));
         Assert.Equal(1390, await RatingOfAsync(black));
 
         var history = await GetAsync<PlayerRatingDto>($"api/players/{white}/rating");
-        Assert.Equal(1410, history.Rating);
-        var change = Assert.Single(history.History);
-        Assert.Equal((1400, 10, 1410), (change.RatingBefore, change.Change, change.RatingAfter));
-        Assert.Equal(black, change.Opponent.PlayerId);
-        Assert.Equal(1400, change.OpponentRating);
-        Assert.True(change.IsWhite);
+        Assert.Equal((1410, 1), (history.Rating, history.RatedGames));
+        var tournament = Assert.Single(history.Tournaments);
+        Assert.Equal((true, 1400, 10.00m, 10, 1410),
+            (tournament.IsProcessed, tournament.RatingBefore, tournament.ExactChange, tournament.Change, tournament.RatingAfter));
+        var played = Assert.Single(tournament.Games);
+        Assert.Equal((1, true, black, 1400, 1400, 1m, 0.50m, (int?)20, (decimal?)10.00m, true),
+            (played.Round, played.IsWhite, played.Opponent.PlayerId, played.Rating, played.OpponentRating, played.Score,
+             played.ExpectedScore, played.K, played.Change, played.CountsForRating));
+        Assert.Equal([1400, 1410], history.Timeline.Select(p => p.RatingAfter));
     }
 
     [Fact]
-    public async Task CorrectedResult_RevertsThePreviousChange_ClearedResultRemovesIt()
+    public async Task AllGamesUseTheRatingBeforeTheTournament_AndAreRoundedOnce()
+    {
+        // Round robin with four players: A (1500) beats the three others (1400), who draw among themselves.
+        var id = (await PostAsync<TournamentDto>("api/tournaments", new CreateTournamentRequest("Test",
+            TournamentSettingsDto.Default with { PairingSystem = PairingSystem.RoundRobin }))).Id;
+        var a = await AddPlayerAsync(id, "A", 1500);
+        var others = new[] { await AddPlayerAsync(id, "B", 1400), await AddPlayerAsync(id, "C", 1400), await AddPlayerAsync(id, "D", 1400) };
+
+        for (var round = 1; round <= 3; round++)
+        {
+            await StartRoundAsync(id);
+            foreach (var game in (await GetRoundsAsync(id)).Single(r => r.Number == round).Games)
+            {
+                var result = game.White.PlayerId == a ? GameResult.WhiteWins
+                    : game.Black!.PlayerId == a ? GameResult.BlackWins
+                    : GameResult.Draw;
+                await SetResultAsync(id, game.Id, result);
+            }
+        }
+        await CloseAsync(id);
+
+        // Every win counts as 1500 against 1400 (expected 0.64): 3 × 20 × 0.36 = 21.6 → 22.
+        // Rounding per game would give 3 × 7 = 21; using the rating after each game would give less.
+        Assert.Equal(1522, await RatingOfAsync(a));
+        var tournament = Assert.Single((await GetAsync<PlayerRatingDto>($"api/players/{a}/rating")).Tournaments);
+        Assert.Equal((21.6m, 22), (tournament.ExactChange, tournament.Change));
+        Assert.All(tournament.Games, g => Assert.Equal((1500, 7.2m), (g.Rating, g.Change!.Value)));
+
+        // The others lose 7.2 to A and draw the rest at equal ratings: −7.2 → −7.
+        foreach (var other in others) Assert.Equal(1393, await RatingOfAsync(other));
+    }
+
+    [Fact]
+    public async Task CorrectedResult_CountsWithItsFinalResult()
     {
         var (id, white, black, game) = await StartGameAsync(rated: true);
 
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
         await SetResultAsync(id, game.Id, GameResult.BlackWins);
+        Assert.Equal(1400, await RatingOfAsync(white));
+        await CloseAsync(id);
+
         Assert.Equal(1390, await RatingOfAsync(white));
         Assert.Equal(1410, await RatingOfAsync(black));
-        Assert.Single((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).History);
-
-        await SetResultAsync(id, game.Id, GameResult.NotPlayed);
-        Assert.Equal(1400, await RatingOfAsync(white));
-        Assert.Equal(1400, await RatingOfAsync(black));
-        Assert.Empty((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).History);
     }
 
     [Fact]
@@ -66,6 +105,7 @@ public class RatingTests : ApiTestBase
     {
         var (id, white, _, game) = await StartGameAsync(rated: true);
         await SetResultAsync(id, game.Id, GameResult.WhiteWinsByForfeit);
+        await CloseAsync(id);
         Assert.Equal(1400, await RatingOfAsync(white));
     }
 
@@ -74,8 +114,10 @@ public class RatingTests : ApiTestBase
     {
         var (id, white, black, game) = await StartGameAsync(rated: false);
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
+        await CloseAsync(id);
         Assert.Equal(1400, await RatingOfAsync(white));
         Assert.Equal(1400, await RatingOfAsync(black));
+        Assert.Empty((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).Tournaments);
     }
 
     [Fact]
@@ -134,6 +176,15 @@ public class RatingTests : ApiTestBase
 
         var game = (await GetRoundsAsync(tournament.Id)).Single(r => r.IsStarted).Games.Single();
         return (tournament.Id, game.White.PlayerId, game.Black!.PlayerId, game);
+    }
+
+    private Task<TournamentDto> CloseAsync(int id) => PostAsync<TournamentDto>($"api/tournaments/{id}/close", null);
+
+    private async Task<int> AddPlayerAsync(int tournamentId, string name, int rating)
+    {
+        var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest(name, null, rating));
+        await PostAsync<TournamentDto>($"api/tournaments/{tournamentId}/players", new AddTournamentPlayerRequest(player.Id));
+        return player.Id;
     }
 
     private async Task<int> RatingOfAsync(int playerId) =>

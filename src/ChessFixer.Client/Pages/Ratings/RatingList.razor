@@ -95,7 +95,7 @@
         try
         {
             var player = (await Api.GetPlayersAsync()).FirstOrDefault(p => p.Id == playerId);
-            if (player is not null) _editor?.OpenEdit(player);
+            if (player is not null) _editor?.OpenEdit(player, PlayerEditDrawer.RatingTab);
         }
         catch (Exception)
         {

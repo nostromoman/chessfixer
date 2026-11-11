@@ -587,3 +587,22 @@ tr.withdrawn td {
     gap: 8px;
     border-bottom: 1px solid var(--mud-palette-lines-default);
 }
+
+/* Player drawer, rating tab: the games of a tournament with their changes. */
+.rating-games-table .value {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.rating-games-table tfoot td {
+    font-weight: 500;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.rating-game-not-counted td {
+    color: var(--mud-palette-text-secondary);
+}
+
+.rating-tournament-total {
+    white-space: nowrap;
+}

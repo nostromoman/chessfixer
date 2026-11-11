@@ -325,8 +325,8 @@ public class TournamentService(
         });
 
     /// <summary>
-    /// Cancels the round in progress, as if it was never started: its games (and results) are removed, rating
-    /// changes are undone, and the round is paired again as the pending round.
+    /// Cancels the round in progress, as if it was never started: its games (and results) are removed, and the
+    /// round is paired again as the pending round.
     /// </summary>
     public Task<TournamentDto> CancelRoundAsync(int id) =>
         MutateAsync(id, async tournament =>
@@ -336,6 +336,7 @@ public class TournamentService(
             if (state != TournamentState.RoundActive) throw new ApiException(ApiErrorCode.NoRoundInProgress);
 
             var round = StartedRounds(tournament).Last();
+            // Only games rated before ratings were processed at closing can have a change to take back.
             foreach (var game in round.Games.Where(g => g.IsRated))
                 await RevertRatingsAsync(tournament, game, game.Result, RatingChangeReason.RoundCancelled);
 
@@ -378,9 +379,10 @@ public class TournamentService(
             if (game.Board is null) throw new ApiException(ApiErrorCode.ResultNotEditable);
 
             if (game.Result == result) return;
-            var previous = game.Result;
+            // Ratings only change when the tournament is closed. A game rated before that (older versions) has its
+            // change taken back when the result is corrected; the new result is rated at closing.
+            if (game.IsRated) await RevertRatingsAsync(tournament, game, game.Result, RatingChangeReason.GameReverted);
             game.Result = result;
-            await UpdateRatingsAsync(tournament, game, previous);
 
             // A reopened game whose board has been taken by the next game goes back into the queue.
             if (result == GameResult.NotPlayed
@@ -397,88 +399,61 @@ public class TournamentService(
                 await RemovePendingRoundAsync(tournament);
         });
 
-    /// <summary>
-    /// Ratings change right after each game. A corrected or cleared result first reverts the change of the
-    /// previous result (so a hand-set rating in between is kept), then applies the change of the new result.
-    /// </summary>
-    private async Task UpdateRatingsAsync(Tournament tournament, Game game, GameResult previousResult)
-    {
-        var white = game.White.Player;
-        var black = game.Black!.Player;
-
-        if (game.IsRated) await RevertRatingsAsync(tournament, game, previousResult, RatingChangeReason.GameReverted);
-
-        // A game with a guest player does not count for the rating.
-        if (!tournament.IsRated || white.IsGuest || black.IsGuest) return;
-        var now = time.GetUtcNow().UtcDateTime;
-        var changes = EloCalculator.Changes(
-            await RatedPlayerAsync(white, game.Id, now.Year),
-            await RatedPlayerAsync(black, game.Id, now.Year),
-            game.Result);
-        if (changes is not var (whiteChange, blackChange)) return;
-
-        game.WhiteRatingBefore = white.Rating;
-        game.BlackRatingBefore = black.Rating;
-        game.WhiteRatingChange = whiteChange;
-        game.BlackRatingChange = blackChange;
-        game.RatedAt = now;
-        white.Rating += whiteChange;
-        black.Rating += blackChange;
-        await LogGameAsync(tournament, game, game.Result, game.WhiteRatingBefore.Value, game.BlackRatingBefore.Value, RatingChangeReason.Game);
-    }
-
-    /// <summary>Takes back the rating changes of a rated game, and logs that.</summary>
+    /// <summary>Takes back the rating change of a game that was rated right after its result (older versions,
+    /// before ratings were processed at closing), and logs that.</summary>
     /// <param name="result">The result the game was rated with.</param>
     private async Task RevertRatingsAsync(Tournament tournament, Game game, GameResult result, RatingChangeReason reason)
     {
         var white = game.White.Player;
         var black = game.Black!.Player;
         int whiteBefore = white.Rating, blackBefore = black.Rating;
+        var round = tournament.Rounds.Single(r => r.Id == game.RoundId).Number;
 
-        white.Rating -= game.WhiteRatingChange!.Value;
-        black.Rating -= game.BlackRatingChange!.Value;
-        await LogGameAsync(tournament, game, result, whiteBefore, blackBefore, reason);
+        white.Rating -= (int)game.WhiteRatingChange!.Value;
+        black.Rating -= (int)game.BlackRatingChange!.Value;
+        await ratingLog.AddAsync(white, whiteBefore, reason, new RatedGameInfo(
+            tournament.Id, tournament.Title, round, black, game.BlackRatingBefore!.Value, result, IsWhite: true));
+        await ratingLog.AddAsync(black, blackBefore, reason, new RatedGameInfo(
+            tournament.Id, tournament.Title, round, white, game.WhiteRatingBefore!.Value, result, IsWhite: false));
 
-        game.WhiteRatingBefore = game.BlackRatingBefore = game.WhiteRatingChange = game.BlackRatingChange = null;
+        game.WhiteRatingBefore = game.BlackRatingBefore = null;
+        game.WhiteRatingChange = game.BlackRatingChange = null;
+        game.WhiteK = game.BlackK = null;
         game.RatedAt = null;
     }
 
-    /// <summary>Logs the rating change of both players of a game; the ratings of the players are the new ones.</summary>
-    private async Task LogGameAsync(
-        Tournament tournament, Game game, GameResult result, int whiteBefore, int blackBefore, RatingChangeReason reason)
+    /// <summary>
+    /// Processes the ratings of a closed, rated tournament: every game is calculated with the ratings of the players
+    /// before the tournament, the exact changes are added up per player and rounded once (as FIDE does per period).
+    /// </summary>
+    private async Task ApplyRatingsAsync(Tournament tournament)
     {
-        var white = game.White.Player;
-        var black = game.Black!.Player;
-        var round = tournament.Rounds.Single(r => r.Id == game.RoundId).Number;
-        // The opponent's rating the game was rated with.
-        var whiteRating = game.WhiteRatingBefore!.Value;
-        var blackRating = game.BlackRatingBefore!.Value;
+        var now = time.GetUtcNow().UtcDateTime;
+        var players = await ratingLog.RatedPlayersAsync(tournament.Players.Select(p => p.Player), now.Year);
+        var calculated = TournamentRatings.Calculate(tournament, players);
 
-        await ratingLog.AddAsync(white, whiteBefore, reason,
-            new RatedGameInfo(tournament.Id, tournament.Title, round, black, blackRating, result, IsWhite: true));
-        await ratingLog.AddAsync(black, blackBefore, reason,
-            new RatedGameInfo(tournament.Id, tournament.Title, round, white, whiteRating, result, IsWhite: false));
+        foreach (var (game, white, black) in calculated)
+        {
+            game.WhiteRatingBefore = white.Rating;
+            game.BlackRatingBefore = black.Rating;
+            game.WhiteRatingChange = white.ExactChange;
+            game.BlackRatingChange = black.ExactChange;
+            game.WhiteK = white.K;
+            game.BlackK = black.K;
+            game.RatedAt = now;
+        }
+
+        foreach (var total in TournamentRatings.Totals(calculated))
+        {
+            var player = tournament.Players.First(p => p.PlayerId == total.PlayerId).Player;
+            var before = player.Rating;
+            player.Rating = Math.Max(0, player.Rating + total.Change);
+            await ratingLog.AddAsync(player, before, RatingChangeReason.Tournament,
+                new RatedGameInfo(tournament.Id, tournament.Title, null, null, null, null, null, total.Games));
+        }
     }
 
-    /// <summary>What the K-factor of a player depends on, apart from the given game:
-    /// whether the rating ever reached 2400 (before or after an earlier game) and whether they are a junior.</summary>
-    private async Task<RatedPlayer> RatedPlayerAsync(Player player, int exceptGameId, int year)
-    {
-        var games = db.Games.Where(g => g.Id != exceptGameId && g.RatedAt != null);
-        var asWhite = games.Where(g => g.White.PlayerId == player.Id)
-            .Select(g => new { Before = g.WhiteRatingBefore!.Value, Change = g.WhiteRatingChange!.Value });
-        var asBlack = games.Where(g => g.Black!.PlayerId == player.Id)
-            .Select(g => new { Before = g.BlackRatingBefore!.Value, Change = g.BlackRatingChange!.Value });
-        var highest = (await asWhite.Concat(asBlack).ToListAsync())
-            .Select(r => Math.Max(r.Before, r.Before + r.Change)).ToList();
-
-        return new RatedPlayer(
-            player.Rating,
-            HasReached2400: player.Rating >= 2400 || highest.Any(r => r >= 2400),
-            IsJunior: EloCalculator.IsJunior(player.BirthDate, year));
-    }
-
-    /// <summary>Closes the tournament. The report is not written automatically: the leader asks for it
+    /// <summary>Closes the tournament and processes the ratings. The report is not written automatically: the leader asks for it
     /// (with the report wizard) on the Report tab.</summary>
     public Task<TournamentDto> CloseAsync(int id) =>
         MutateAsync(id, async tournament =>
@@ -487,6 +462,7 @@ public class TournamentService(
 
             await RemovePendingRoundAsync(tournament);
             tournament.ClosedAt = time.GetUtcNow().UtcDateTime;
+            if (tournament.IsRated) await ApplyRatingsAsync(tournament);
         });
 
     /// <summary>

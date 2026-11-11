@@ -16,6 +16,7 @@ public record RatingListEntryDto(
 /// <summary>One change in the rating log.</summary>
 /// <param name="Tournament">For changes of a game: the tournament (title as it was then) and round.</param>
 /// <param name="ChangedBy">Display name of the user who made the change; null when unknown.</param>
+/// <param name="Games">For the change of a closed tournament: the number of games it is made of.</param>
 public record RatingLogEntryDto(
     int Id,
     DateTime At,
@@ -30,7 +31,8 @@ public record RatingLogEntryDto(
     int? OpponentRating,
     GameResult? Result,
     bool? IsWhite,
-    string? ChangedBy)
+    string? ChangedBy,
+    int? Games = null)
 {
     public int Change => RatingAfter - RatingBefore;
 }
