@@ -13,10 +13,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChessFixer.Server.Controllers;
 
-/// <summary>Logging in and out with a cookie. Only tournament leaders and the system administrator log in.</summary>
+/// <summary>
+/// Logging in and out with a cookie. Only tournament leaders and the system administrator log in.
+/// Logins (also failed ones), logouts and password changes are written to the activity log.
+/// </summary>
 [ApiController]
 [Route("api/auth")]
-public class AuthController(ChessFixerDbContext db, IPasswordHasher<AppUser> hasher) : ControllerBase
+public class AuthController(ChessFixerDbContext db, IPasswordHasher<AppUser> hasher, ActivityLog activity) : ControllerBase
 {
     public const string LoginRateLimitPolicy = "login";
 
@@ -34,7 +37,10 @@ public class AuthController(ChessFixerDbContext db, IPasswordHasher<AppUser> has
         // Hash also when the user does not exist, so the response time does not reveal which login names exist.
         var result = hasher.VerifyHashedPassword(user ?? DummyUser, user?.PasswordHash ?? DummyHash, request.Password ?? "");
         if (user is null || result == PasswordVerificationResult.Failed)
+        {
+            await activity.LogAsync(HttpContext, ActivityKind.LoginFailed, user, userName);
             throw new ApiException(ApiErrorCode.InvalidCredentials);
+        }
 
         if (result == PasswordVerificationResult.SuccessRehashNeeded)
         {
@@ -43,6 +49,7 @@ public class AuthController(ChessFixerDbContext db, IPasswordHasher<AppUser> has
         }
 
         await SignInAsync(user);
+        await activity.LogAsync(HttpContext, ActivityKind.Login, user);
         return ToDto(user);
     }
 
@@ -51,6 +58,8 @@ public class AuthController(ChessFixerDbContext db, IPasswordHasher<AppUser> has
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
+        if (UserSession.GetUserId(User) is { } userId && await db.Users.FindAsync(userId) is { } user)
+            await activity.LogAsync(HttpContext, ActivityKind.Logout, user);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return NoContent();
     }
@@ -72,6 +81,7 @@ public class AuthController(ChessFixerDbContext db, IPasswordHasher<AppUser> has
         await db.SaveChangesAsync();
 
         await SignInAsync(user); // a new cookie with the new security stamp keeps this session logged in
+        await activity.LogAsync(HttpContext, ActivityKind.PasswordChanged, user);
         return NoContent();
     }
 

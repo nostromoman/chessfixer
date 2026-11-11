@@ -1,0 +1,12 @@
+@page "/admin/leaders"
+@attribute [Authorize(Roles = nameof(UserRole.Admin))]
+@inject IStringLocalizer<Strings> L
+
+@* Beheer > Toernooileiders: only for the system administrator (the server refuses everyone else as well). *@
+<PageTitle>@L["Leaders"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["Leaders"]</MudText>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <LeadersTab />
+</MudPaper>

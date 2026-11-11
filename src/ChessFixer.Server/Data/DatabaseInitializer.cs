@@ -1,3 +1,4 @@
+using ChessFixer.Server.Services.Auth;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -28,6 +29,14 @@ public static class DatabaseInitializer
         await BackUpBeforeMigratingAsync(db, logger);
         await db.Database.MigrateAsync();
         await SeedAdminAsync(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>(), logger);
+        await PruneActivityLogAsync(db, scope.ServiceProvider.GetRequiredService<TimeProvider>());
+    }
+
+    /// <summary>The activity log only keeps the last <see cref="ActivityLog.RetentionDays"/> days.</summary>
+    private static async Task PruneActivityLogAsync(ChessFixerDbContext db, TimeProvider time)
+    {
+        var cutoff = time.GetUtcNow().UtcDateTime.AddDays(-ActivityLog.RetentionDays);
+        await db.ActivityLog.Where(e => e.At < cutoff).ExecuteDeleteAsync();
     }
 
     /// <summary>

@@ -173,6 +173,15 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task DeleteLeaderAsync(int id) =>
         SendCoreAsync(HttpMethod.Delete, $"api/leaders/{id}");
 
+    // ----- Activity log (system administrator only) -----
+
+    public Task<ActivityLogPageDto> GetActivityAsync(int skip, int take, int? userId = null, bool problemsOnly = false) =>
+        SendAsync<ActivityLogPageDto>(HttpMethod.Get,
+            $"api/activity?skip={skip}&take={take}&problemsOnly={problemsOnly}" + (userId is { } id ? $"&userId={id}" : ""));
+
+    public Task<List<ActivityUserDto>> GetActivityUsersAsync() =>
+        SendAsync<List<ActivityUserDto>>(HttpMethod.Get, "api/activity/users");
+
     // ----- Plumbing -----
 
     private async Task<T> SendAsync<T>(HttpMethod method, string url, object? body = null)

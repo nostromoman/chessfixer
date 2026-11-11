@@ -24,6 +24,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
     public DbSet<Club> Clubs => Set<Club>();
     public DbSet<RatingLogEntry> RatingLog => Set<RatingLogEntry>();
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<ActivityLogEntry> ActivityLog => Set<ActivityLogEntry>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -34,6 +35,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         StoreAsText<AiProvider>();
         StoreAsText<UserRole>();
         StoreAsText<RatingChangeReason>();
+        StoreAsText<ActivityKind>();
 
         // All times are UTC. SQLite does not keep DateTimeKind, so mark the values as UTC again when reading.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcConverter>();
@@ -174,6 +176,19 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             user.Property(u => u.PasswordHash).HasMaxLength(200);
             user.Property(u => u.SecurityStamp).HasMaxLength(50);
             user.HasIndex(u => u.UserName).IsUnique();
+        });
+
+        modelBuilder.Entity<ActivityLogEntry>(entry =>
+        {
+            entry.HasIndex(e => e.At);
+            entry.HasIndex(e => new { e.UserId, e.At });
+            entry.Property(e => e.UserName).HasMaxLength(100);
+            entry.Property(e => e.DisplayName).HasMaxLength(100);
+            entry.Property(e => e.Action).HasMaxLength(100);
+            entry.Property(e => e.Method).HasMaxLength(10);
+            entry.Property(e => e.Path).HasMaxLength(300);
+            entry.Property(e => e.IpAddress).HasMaxLength(50);
+            entry.Property(e => e.UserAgent).HasMaxLength(300);
         });
     }
 

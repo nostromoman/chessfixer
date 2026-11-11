@@ -54,6 +54,18 @@
                 <MudNavLink Href="rating-log" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.History">
                     @L["RatingLog"]
                 </MudNavLink>
+
+                @* Only for the system administrator; tournament leaders do not see these menu items. *@
+                <AuthorizeView Roles="@nameof(UserRole.Admin)">
+                    <MudNavGroup Title="@L["Administration"]" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="true">
+                        <MudNavLink Href="admin/leaders" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.ManageAccounts">
+                            @L["Leaders"]
+                        </MudNavLink>
+                        <MudNavLink Href="admin/activity" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Insights">
+                            @L["ActivityLog"]
+                        </MudNavLink>
+                    </MudNavGroup>
+                </AuthorizeView>
             </MudNavMenu>
 
             @* Application settings: a gear at the bottom left of the menu. *@

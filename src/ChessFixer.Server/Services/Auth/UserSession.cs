@@ -10,6 +10,7 @@ namespace ChessFixer.Server.Services.Auth;
 public static class UserSession
 {
     private const string SecurityStampClaim = "chessfixer:stamp";
+    private static readonly TimeSpan LastSeenResolution = TimeSpan.FromMinutes(1);
 
     public static ClaimsPrincipal CreatePrincipal(AppUser user) =>
         new(new ClaimsIdentity(
@@ -26,6 +27,7 @@ public static class UserSession
     /// <summary>
     /// Rejects the cookie when the account was deleted or its security stamp changed (new password, role change),
     /// so such changes take effect right away instead of when the cookie expires.
+    /// Also keeps <see cref="AppUser.LastSeenAt"/> up to date (at most one write per user per minute).
     /// </summary>
     public static async Task ValidateAsync(CookieValidatePrincipalContext context)
     {
@@ -33,13 +35,18 @@ public static class UserSession
         var stamp = context.Principal?.FindFirstValue(SecurityStampClaim);
 
         var db = context.HttpContext.RequestServices.GetRequiredService<ChessFixerDbContext>();
-        var valid = userId is not null && stamp is not null
-            && await db.Users.AnyAsync(u => u.Id == userId && u.SecurityStamp == stamp);
+        var user = userId is null || stamp is null ? null
+            : await db.Users.Where(u => u.Id == userId && u.SecurityStamp == stamp).Select(u => new { u.LastSeenAt }).SingleOrDefaultAsync();
 
-        if (!valid)
+        if (user is null)
         {
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
         }
+
+        var now = context.HttpContext.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
+        if (user.LastSeenAt is not { } lastSeen || now - lastSeen >= LastSeenResolution)
+            await db.Users.Where(u => u.Id == userId).ExecuteUpdateAsync(set => set.SetProperty(u => u.LastSeenAt, now));
     }
 }

@@ -95,6 +95,7 @@ builder.Services.AddScoped<TournamentReportWriter>();
 builder.Services.AddScoped<WritingStyleService>();
 builder.Services.AddScoped<ClubService>();
 builder.Services.AddScoped<RatingLogService>();
+builder.Services.AddSingleton<ActivityLog>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<ReportWorker>();
 builder.Services.AddDbContext<ChessFixerDbContext>(options =>
@@ -113,6 +114,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+// Before authorization, so changes that are refused (403) are logged as well.
+app.UseMiddleware<ActivityLogMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 

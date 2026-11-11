@@ -1,0 +1,226 @@
+@page "/admin/activity"
+@attribute [Authorize(Roles = nameof(UserRole.Admin))]
+@using System.Globalization
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* Beheer > Activiteit (system administrator only): per user a summary, below it the activity log, newest first. *@
+<PageTitle>@L["ActivityLog"]</PageTitle>
+
+<div class="d-flex align-center gap-2 mb-2">
+    <MudText Typo="Typo.h4">@L["ActivityLog"]</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshAsync">@L["ActivityRefresh"]</MudButton>
+</div>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L["ActivityIntro"]</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <div class="d-flex flex-wrap align-center gap-2 mb-2">
+        <MudText Typo="Typo.h6">@L["ActivityUsers"]</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["ActivityUsersHint"]</MudText>
+    </div>
+    @if (_users is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <MudTable T="ActivityUserDto" Items="_users" Dense="true" Hover="true" Elevation="0"
+                  OnRowClick="args => OnUserChangedAsync(args.Item?.Id == _userId ? null : args.Item?.Id)"
+                  RowClassFunc="@((user, _) => user.Id == _userId ? "mud-selected-item cursor-pointer" : "cursor-pointer")">
+            <HeaderContent>
+                <MudTh>@L["Name"]</MudTh>
+                <MudTh>@L["UserName"]</MudTh>
+                <MudTh>@L["ActivityLastLogin"]</MudTh>
+                <MudTh>@L["ActivityLastSeen"]</MudTh>
+                <MudTh Style="text-align: right">@L["ActivityLogins"]</MudTh>
+                <MudTh Style="text-align: right">@L["ActivityFailedLogins"]</MudTh>
+                <MudTh Style="text-align: right">@L["ActivityActions"]</MudTh>
+                <MudTh Style="text-align: right">@L["ActivityFailedActions"]</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@L["Name"]">
+                    <b>@context.DisplayName</b>
+                    @if (context.Role == UserRole.Admin)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="my-0 ml-2">@L["ActivityAdmin"]</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@L["UserName"]">@context.UserName</MudTd>
+                <MudTd DataLabel="@L["ActivityLastLogin"]" Style="white-space: nowrap">@When(context.LastLoginAt)</MudTd>
+                <MudTd DataLabel="@L["ActivityLastSeen"]" Style="white-space: nowrap">@When(context.LastSeenAt)</MudTd>
+                <MudTd DataLabel="@L["ActivityLogins"]" Style="text-align: right">@context.Logins</MudTd>
+                <MudTd DataLabel="@L["ActivityFailedLogins"]" Style="text-align: right" Class="@(context.FailedLogins > 0 ? "mud-error-text" : null)">
+                    @context.FailedLogins
+                </MudTd>
+                <MudTd DataLabel="@L["ActivityActions"]" Style="text-align: right">@context.Actions</MudTd>
+                <MudTd DataLabel="@L["ActivityFailedActions"]" Style="text-align: right" Class="@(context.FailedActions > 0 ? "mud-error-text" : null)">
+                    @context.FailedActions
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <div class="d-flex flex-wrap align-center gap-4 mb-3">
+        <MudSelect T="int?" Value="_userId" ValueChanged="OnUserChangedAsync" Label="@L["ActivityUser"]" Variant="Variant.Outlined"
+                   Margin="Margin.Dense" Style="min-width: 16em; max-width: 20em" AnchorOrigin="Origin.BottomCenter">
+            <MudSelectItem T="int?" Value="null">@L["AllUsers"]</MudSelectItem>
+            @foreach (var user in _users ?? [])
+            {
+                <MudSelectItem T="int?" Value="user.Id">@user.DisplayName</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSwitch T="bool" Value="_problemsOnly" ValueChanged="OnProblemsOnlyChangedAsync" Color="Color.Error"
+                   Label="@L["ActivityProblemsOnly"]" />
+    </div>
+
+    <MudTable @ref="_table" T="ActivityLogEntryDto" ServerData="LoadPageAsync" Dense="true" Hover="true" Striped="true"
+              Elevation="0" RowsPerPage="50">
+        <HeaderContent>
+            <MudTh>@L["ActivityWhen"]</MudTh>
+            <MudTh>@L["ActivityUser"]</MudTh>
+            <MudTh>@L["ActivityWhat"]</MudTh>
+            <MudTh>@L["ActivityDetails"]</MudTh>
+            <MudTh>@L["ActivityResult"]</MudTh>
+            <MudTh>@L["ActivityIpAddress"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@L["ActivityWhen"]" Style="white-space: nowrap">
+                @context.At.ToLocalTime().ToString("G", CultureInfo.CurrentCulture)
+            </MudTd>
+            <MudTd DataLabel="@L["ActivityUser"]">
+                @if (context.DisplayName is { } name)
+                {
+                    <span>@name</span> <span class="mud-text-secondary">(@context.UserName)</span>
+                }
+                else
+                {
+                    <span>@context.UserName</span>
+                    @if (context.UserId is null)
+                    {
+                        <span class="mud-text-secondary"> @L["ActivityUnknownUser"]</span>
+                    }
+                }
+            </MudTd>
+            <MudTd DataLabel="@L["ActivityWhat"]">
+                @if (context.Kind == ActivityKind.Action)
+                {
+                    @ActionText(context)
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@KindColor(context.Kind)" Class="ma-0">
+                        @L[$"ActivityKind_{context.Kind}"]
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="@L["ActivityDetails"]">
+                @if (context.TournamentId is { } tournamentId)
+                {
+                    <MudLink Href="@($"tournament/{tournamentId}")">@context.TournamentTitle</MudLink>
+                }
+                else if (context.Path is { } path)
+                {
+                    <span class="mud-text-secondary">@path</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="@L["ActivityResult"]" Style="white-space: nowrap">
+                @if (context.StatusCode is { } status)
+                {
+                    <span class="@(status >= 400 ? "mud-error-text" : "mud-success-text")">@StatusText(status)</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="@L["ActivityIpAddress"]">
+                <span title="@context.UserAgent">@context.IpAddress</span>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2">@L["ActivityEmpty"]</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudProgressLinear Indeterminate="true" />
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="[25, 50, 100, 200]" RowsPerPageString="@L["RowsPerPage"]" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<ActivityLogEntryDto>? _table;
+    private List<ActivityUserDto>? _users;
+    private int? _userId;
+    private bool _problemsOnly;
+
+    protected override Task OnInitializedAsync() => LoadUsersAsync();
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            _users = await Api.GetActivityUsersAsync();
+        }
+        catch (Exception)
+        {
+            _users = [];
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadUsersAsync();
+        if (_table is not null) await _table.ReloadServerData();
+    }
+
+    private async Task<TableData<ActivityLogEntryDto>> LoadPageAsync(TableState state, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var page = await Api.GetActivityAsync(state.Page * state.PageSize, state.PageSize, _userId, _problemsOnly);
+            return new TableData<ActivityLogEntryDto> { TotalItems = page.Total, Items = page.Entries };
+        }
+        catch (Exception)
+        {
+            return new TableData<ActivityLogEntryDto> { TotalItems = 0, Items = [] };
+        }
+    }
+
+    private async Task OnUserChangedAsync(int? userId)
+    {
+        _userId = userId;
+        if (_table is not null) await _table.ReloadServerData();
+    }
+
+    private async Task OnProblemsOnlyChangedAsync(bool problemsOnly)
+    {
+        _problemsOnly = problemsOnly;
+        if (_table is not null) await _table.ReloadServerData();
+    }
+
+    private string When(DateTime? at) =>
+        at is { } value ? value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) : L["ActivityNever"];
+
+    /// <summary>A readable name for the action; the method and path when there is none (a new action).</summary>
+    private string ActionText(ActivityLogEntryDto entry)
+    {
+        var text = entry.Action is { } action ? L[$"ActivityAction_{action.Replace('.', '_')}"] : null;
+        return text is { ResourceNotFound: false } ? text.Value : $"{entry.Method} {entry.Path}";
+    }
+
+    private string StatusText(int status) => status switch
+    {
+        < 400 => L["ActivityOk"],
+        401 or 403 => L["ActivityRefused", status],
+        _ => L["ActivityFailed", status]
+    };
+
+    private static Color KindColor(ActivityKind kind) => kind switch
+    {
+        ActivityKind.Login => Color.Success,
+        ActivityKind.LoginFailed => Color.Error,
+        ActivityKind.PasswordChanged => Color.Info,
+        _ => Color.Default
+    };
+}

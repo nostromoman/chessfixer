@@ -494,4 +494,62 @@
   <data name="RatingTournamentTotal" xml:space="preserve"><value>Totaal: {0}, afgerond</value></data>
   <data name="RatingReason_Tournament" xml:space="preserve"><value>Toernooi afgesloten</value></data>
   <data name="RatingLogGames" xml:space="preserve"><value>{0} partijen</value></data>
+
+  <data name="Administration" xml:space="preserve"><value>Beheer</value></data>
+  <data name="ActivityLog" xml:space="preserve"><value>Activiteit</value></data>
+  <data name="ActivityIntro" xml:space="preserve"><value>Wie er heeft ingelogd en wat er is gedaan: inloggen (ook mislukte pogingen), uitloggen en alle wijzigingen, ook als die geweigerd werden of mislukten. Alleen zichtbaar voor de systeembeheerder. Activiteit ouder dan een jaar wordt verwijderd.</value></data>
+  <data name="ActivityUsers" xml:space="preserve"><value>Gebruikers</value></data>
+  <data name="ActivityUsersHint" xml:space="preserve"><value>Klik op een gebruiker om alleen de activiteit van die gebruiker te zien.</value></data>
+  <data name="ActivityLastLogin" xml:space="preserve"><value>Laatst ingelogd</value></data>
+  <data name="ActivityLastSeen" xml:space="preserve"><value>Laatst actief</value></data>
+  <data name="ActivityLogins" xml:space="preserve"><value>Inlogs</value></data>
+  <data name="ActivityFailedLogins" xml:space="preserve"><value>Mislukte inlogs</value></data>
+  <data name="ActivityActions" xml:space="preserve"><value>Wijzigingen</value></data>
+  <data name="ActivityFailedActions" xml:space="preserve"><value>Geweigerd of mislukt</value></data>
+  <data name="ActivityNever" xml:space="preserve"><value>nooit</value></data>
+  <data name="ActivityWhen" xml:space="preserve"><value>Wanneer</value></data>
+  <data name="ActivityUser" xml:space="preserve"><value>Gebruiker</value></data>
+  <data name="ActivityWhat" xml:space="preserve"><value>Wat</value></data>
+  <data name="ActivityDetails" xml:space="preserve"><value>Details</value></data>
+  <data name="ActivityResult" xml:space="preserve"><value>Resultaat</value></data>
+  <data name="ActivityIpAddress" xml:space="preserve"><value>IP-adres</value></data>
+  <data name="AllUsers" xml:space="preserve"><value>Alle gebruikers</value></data>
+  <data name="ActivityProblemsOnly" xml:space="preserve"><value>Alleen problemen</value></data>
+  <data name="ActivityEmpty" xml:space="preserve"><value>Geen activiteit gevonden.</value></data>
+  <data name="ActivityRefresh" xml:space="preserve"><value>Vernieuwen</value></data>
+  <data name="ActivityOk" xml:space="preserve"><value>Gelukt</value></data>
+  <data name="ActivityRefused" xml:space="preserve"><value>Geweigerd ({0})</value></data>
+  <data name="ActivityFailed" xml:space="preserve"><value>Mislukt ({0})</value></data>
+  <data name="ActivityUnknownUser" xml:space="preserve"><value>(onbekende gebruikersnaam)</value></data>
+  <data name="ActivityAdmin" xml:space="preserve"><value>Systeembeheerder</value></data>
+  <data name="ActivityKind_Login" xml:space="preserve"><value>Ingelogd</value></data>
+  <data name="ActivityKind_LoginFailed" xml:space="preserve"><value>Inloggen mislukt</value></data>
+  <data name="ActivityKind_Logout" xml:space="preserve"><value>Uitgelogd</value></data>
+  <data name="ActivityKind_PasswordChanged" xml:space="preserve"><value>Wachtwoord gewijzigd</value></data>
+  <data name="ActivityKind_Action" xml:space="preserve"><value>Wijziging</value></data>
+  <data name="ActivityAction_Clubs_Create" xml:space="preserve"><value>Club aanmaken</value></data>
+  <data name="ActivityAction_Clubs_Update" xml:space="preserve"><value>Club wijzigen</value></data>
+  <data name="ActivityAction_Clubs_Delete" xml:space="preserve"><value>Club verwijderen</value></data>
+  <data name="ActivityAction_Leaders_Create" xml:space="preserve"><value>Toernooileider aanmaken</value></data>
+  <data name="ActivityAction_Leaders_Update" xml:space="preserve"><value>Toernooileider wijzigen</value></data>
+  <data name="ActivityAction_Leaders_Delete" xml:space="preserve"><value>Toernooileider verwijderen</value></data>
+  <data name="ActivityAction_Players_Create" xml:space="preserve"><value>Speler aanmaken</value></data>
+  <data name="ActivityAction_Players_Update" xml:space="preserve"><value>Speler wijzigen</value></data>
+  <data name="ActivityAction_Players_Delete" xml:space="preserve"><value>Speler verwijderen</value></data>
+  <data name="ActivityAction_Players_SetPhoto" xml:space="preserve"><value>Spelersfoto instellen</value></data>
+  <data name="ActivityAction_Players_DeletePhoto" xml:space="preserve"><value>Spelersfoto verwijderen</value></data>
+  <data name="ActivityAction_Settings_UpdateAi" xml:space="preserve"><value>AI-instellingen opslaan</value></data>
+  <data name="ActivityAction_Settings_TestAi" xml:space="preserve"><value>AI-verbinding testen</value></data>
+  <data name="ActivityAction_Settings_CreateWritingStyle" xml:space="preserve"><value>Schrijfstijl aanmaken</value></data>
+  <data name="ActivityAction_Settings_UpdateWritingStyle" xml:space="preserve"><value>Schrijfstijl wijzigen</value></data>
+  <data name="ActivityAction_Settings_DeleteWritingStyle" xml:space="preserve"><value>Schrijfstijl verwijderen</value></data>
+  <data name="ActivityAction_Tournaments_Create" xml:space="preserve"><value>Toernooi aanmaken</value></data>
+  <data name="ActivityAction_Tournaments_Update" xml:space="preserve"><value>Toernooi-instellingen wijzigen</value></data>
+  <data name="ActivityAction_Tournaments_StartNextRound" xml:space="preserve"><value>Ronde starten</value></data>
+  <data name="ActivityAction_Tournaments_CancelRound" xml:space="preserve"><value>Ronde annuleren</value></data>
+  <data name="ActivityAction_Tournaments_Close" xml:space="preserve"><value>Toernooi afsluiten</value></data>
+  <data name="ActivityAction_Tournaments_GenerateReport" xml:space="preserve"><value>Verslag laten schrijven</value></data>
+  <data name="ActivityAction_Tournaments_AddPlayer" xml:space="preserve"><value>Speler aan toernooi toevoegen</value></data>
+  <data name="ActivityAction_Tournaments_RemovePlayer" xml:space="preserve"><value>Speler uit toernooi halen</value></data>
+  <data name="ActivityAction_Tournaments_SetResult" xml:space="preserve"><value>Uitslag invoeren</value></data>
 </root>

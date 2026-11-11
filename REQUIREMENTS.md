@@ -7,7 +7,7 @@ connected screen) shows the tournament page so all players can see their pairing
 the running games and the standings.
 
 ## 2. Users
-- **System administrator** (*systeembeheerder*): may do everything, including creating, changing and deleting tournament leader accounts.
+- **System administrator** (*systeembeheerder*): may do everything, including creating, changing (also the password) and deleting tournament leader accounts, and watching the activity log.
 - **Tournament leader**: creates and configures tournaments, manages players, starts rounds, closes the tournament, changes the application settings. Cannot create or change other tournament leaders.
 - **Tournament players**: never log in. They look at the tournament page on the leader's (logged-in) screen; results are entered in the Matches tab on that screen.
 
@@ -17,6 +17,11 @@ the running games and the standings.
 - The app bar shows the logged-in user with a menu to change the password and to log out. Changing a password (own, or by the administrator for a leader) logs that user out on all other devices; deleting a leader logs them out right away.
 - At most 10 login attempts per minute per client address.
 - A new database only contains the system administrator (`admin` / `HelloWorld1!`; change the password after the first login). There are no other seeded accounts, players or tournaments.
+
+### 2.2 Activity log
+- Every login (also failed attempts, with the user name that was typed), logout and password change is logged, and every change a logged-in user makes (create, change, delete, start a round, enter a result, ...), also when it is refused or fails. Just looking is not logged, but each account keeps when it was last active (to the minute).
+- Each entry has the time, the user, what was done, the tournament it was about, the result, and the IP address and browser.
+- Entries are kept when an account is deleted; entries older than one year are deleted when the server starts.
 
 ## 3. Core features (must have)
 - Create and configure tournaments.
@@ -114,7 +119,7 @@ Tournaments have **no date**, only a state.
 ## 7. Pages
 UI language: **Dutch only** for now (other languages later, so keep texts in resource files).
 
-A main menu on the left links to **Toernooien** (`/tournament`) and **Spelers** (`/players`). A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
+A main menu on the left links to **Toernooien** (`/tournament`), **Spelers** (`/players`), **Clubs**, **Ratinglijst** and **Ratinglog**. For the system administrator only, a group **Beheer** follows with **Toernooileiders** (`/admin/leaders`) and **Activiteit** (`/admin/activity`); tournament leaders do not see it, and the server refuses them too. A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
 
 ### Tournament overview — `/tournament`
 Table of all tournaments with their title and state. Columns: title, type (round robin or Swiss), number of active players, boards, time control (minutes + increment) and state. A + button at the top right opens a wizard in a modal to create a new tournament: 1. title; 2. tournament type (round robin or Swiss, each with a short explanation; default round robin); 3. boards (default 8), game time and increment; 4. points for a win, draw and loss, and whether the tournament counts for the rating (default yes); 5. location and description (both optional, used for the report). All of this can be changed later in the settings (type, points and rating until round 1 starts). Clicking next to the modal does not close it; only Cancel or Escape does. After creating, the tournament detail page opens. Clicking a tournament opens its detail page.
@@ -138,7 +143,13 @@ The central player list shared by all tournaments, shown as a table with a searc
 User name, password and an *Inloggen* button, centered on the screen, without the menu.
 
 ### Settings — `/settings`
-Application settings, in tabs. Tab **Toernooileiders** (only visible to the system administrator): table of the tournament leaders (name, user name) with a + button to create one and per row a pencil to change and a trash icon to delete (after confirmation). The dialog asks for name, user name and password; when changing, an empty password keeps the current one. Tab **AI-verslag**: the AI provider that writes the reports. Choice: *Geen* (no reports), *Ollama* or *Claude (Anthropic)*; each provider has its own fields and more can be added later. Ollama fields: URL (e.g. `http://localhost:11434`) and model (Ollama needs no login). Claude fields: API key (never sent back to the browser; leaving it empty keeps the stored one) and model (default `claude-opus-5-5`). For Claude models that support it, a request that Claude declines for policy reasons is automatically retried by Anthropic on another model (server-side fallback). A *Verbinding testen* button checks the settings without saving them and lists the available models, which can be clicked to choose one.
+Application settings, in tabs. Tab **AI-verslag**: the AI provider that writes the reports. Choice: *Geen* (no reports), *Ollama* or *Claude (Anthropic)*; each provider has its own fields and more can be added later. Ollama fields: URL (e.g. `http://localhost:11434`) and model (Ollama needs no login). Claude fields: API key (never sent back to the browser; leaving it empty keeps the stored one) and model (default `claude-opus-5-5`). For Claude models that support it, a request that Claude declines for policy reasons is automatically retried by Anthropic on another model (server-side fallback). A *Verbinding testen* button checks the settings without saving them and lists the available models, which can be clicked to choose one.
+
+### Beheer — Toernooileiders — `/admin/leaders` (system administrator only)
+Table of the tournament leaders (name, user name) with a + button to create one and per row a pencil to change and a trash icon to delete (after confirmation). The dialog asks for name, user name and password; when changing, an empty password keeps the current one.
+
+### Beheer — Activiteit — `/admin/activity` (system administrator only)
+At the top a table of all accounts: name, user name, last login, last active, number of logins, failed logins, changes and refused or failed changes. Clicking a user filters the log below. The log (newest first, a page at a time) shows when, who, what (login, failed login, logout, password change, or the change in words), details (a link to the tournament), the result (*Gelukt*, *Geweigerd* or *Mislukt* with the status code) and the IP address (the browser as tooltip). Filters: user, and *Alleen problemen* (failed logins and refused or failed changes). A *Vernieuwen* button reloads both.
 
 ## 8. Platform & technology
 - .NET 10. Blazor **WebAssembly** frontend using **MudBlazor**.

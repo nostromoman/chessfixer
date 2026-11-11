@@ -242,6 +242,9 @@ public class AppUser
     /// </summary>
     public string SecurityStamp { get; set; } = NewSecurityStamp();
 
+    /// <summary>The last request of the user, to the minute (updated at most once a minute).</summary>
+    public DateTime? LastSeenAt { get; set; }
+
     public static string NewSecurityStamp() => Guid.NewGuid().ToString("N");
 }
 
@@ -284,4 +287,30 @@ public class RatingLogEntry
 
     /// <summary>Display name of the user who made the change.</summary>
     public string? ChangedBy { get; set; }
+}
+
+/// <summary>
+/// One entry of the activity log: a login, logout, password change or a change made through the API. Written when it
+/// happens and never changed. The user name is copied, so the entry stays readable when the account is deleted.
+/// </summary>
+public class ActivityLogEntry
+{
+    public long Id { get; set; }
+    public DateTime At { get; set; }
+
+    /// <summary>Not a foreign key: the log is kept when the account is deleted. Null for an unknown user name.</summary>
+    public int? UserId { get; set; }
+    public required string UserName { get; set; }
+    public string? DisplayName { get; set; }
+
+    public ActivityKind Kind { get; set; }
+
+    /// <summary>For an action: "Controller.Action", the HTTP method, path and status code of the answer.</summary>
+    public string? Action { get; set; }
+    public string? Method { get; set; }
+    public string? Path { get; set; }
+    public int? StatusCode { get; set; }
+
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
 }
