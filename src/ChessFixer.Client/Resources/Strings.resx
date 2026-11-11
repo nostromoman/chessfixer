@@ -552,4 +552,81 @@
   <data name="ActivityAction_Tournaments_AddPlayer" xml:space="preserve"><value>Speler aan toernooi toevoegen</value></data>
   <data name="ActivityAction_Tournaments_RemovePlayer" xml:space="preserve"><value>Speler uit toernooi halen</value></data>
   <data name="ActivityAction_Tournaments_SetResult" xml:space="preserve"><value>Uitslag invoeren</value></data>
+
+  <!-- Home (dashboard) and help -->
+  <data name="Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Help" xml:space="preserve"><value>Help</value></data>
+  <data name="GreetingMorning" xml:space="preserve"><value>Goedemorgen, {0}</value></data>
+  <data name="GreetingAfternoon" xml:space="preserve"><value>Goedemiddag, {0}</value></data>
+  <data name="GreetingEvening" xml:space="preserve"><value>Goedenavond, {0}</value></data>
+  <data name="GreetingNight" xml:space="preserve"><value>Goedenacht, {0}</value></data>
+  <data name="DashboardSubtitle" xml:space="preserve"><value>Dit is wat er speelt in ChessFixer.</value></data>
+  <data name="DashboardLoadFailed" xml:space="preserve"><value>Het dashboard kon niet geladen worden.</value></data>
+  <data name="StatTournaments" xml:space="preserve"><value>Toernooien</value></data>
+  <data name="StatTournamentsSub" xml:space="preserve"><value>{0} afgesloten</value></data>
+  <data name="StatPlayers" xml:space="preserve"><value>Spelers</value></data>
+  <data name="StatPlayersSub" xml:space="preserve"><value>+ {0} gastspelers</value></data>
+  <data name="StatClubs" xml:space="preserve"><value>Clubs</value></data>
+  <data name="StatGames" xml:space="preserve"><value>Partijen gespeeld</value></data>
+  <data name="StatGamesSub" xml:space="preserve"><value>{0} telden voor de rating</value></data>
+  <data name="StatAverageRating" xml:space="preserve"><value>Gemiddelde rating</value></data>
+  <data name="StatAverageRatingSub" xml:space="preserve"><value>van de eigen spelers</value></data>
+  <data name="DashboardLive" xml:space="preserve"><value>Lopende toernooien</value></data>
+  <data name="DashboardNoOpen" xml:space="preserve"><value>Er loopt op dit moment geen toernooi.</value></data>
+  <data name="DashboardRoundProgress" xml:space="preserve"><value>Ronde {0}: {1} van {2} partijen klaar</value></data>
+  <data name="DashboardNotStarted" xml:space="preserve"><value>Nog niet gestart</value></data>
+  <data name="DashboardPlayersCount" xml:space="preserve"><value>{0} spelers</value></data>
+  <data name="DashboardResults" xml:space="preserve"><value>Uitslagen</value></data>
+  <data name="DashboardNoGames" xml:space="preserve"><value>Nog geen partijen gespeeld.</value></data>
+  <data name="ResultWhiteWins" xml:space="preserve"><value>Wit wint</value></data>
+  <data name="ResultDraw" xml:space="preserve"><value>Remise</value></data>
+  <data name="ResultBlackWins" xml:space="preserve"><value>Zwart wint</value></data>
+  <data name="ResultForfeit" xml:space="preserve"><value>Reglementair</value></data>
+  <data name="DashboardGamesTotal" xml:space="preserve"><value>partijen</value></data>
+  <data name="DashboardGamesPerMonth" xml:space="preserve"><value>Partijen per maand</value></data>
+  <data name="DashboardTopPlayers" xml:space="preserve"><value>Top {0}</value></data>
+  <data name="DashboardRisers" xml:space="preserve"><value>Stijgers (30 dagen)</value></data>
+  <data name="DashboardNoRisers" xml:space="preserve"><value>Geen stijgers in de laatste 30 dagen.</value></data>
+  <data name="DashboardNoPlayers" xml:space="preserve"><value>Nog geen spelers met een rating.</value></data>
+  <data name="DashboardRecentlyClosed" xml:space="preserve"><value>Laatst afgesloten</value></data>
+  <data name="DashboardNoClosed" xml:space="preserve"><value>Nog geen toernooien afgesloten.</value></data>
+  <data name="DashboardWinner" xml:space="preserve"><value>Winnaar: {0}</value></data>
+  <data name="DashboardClosedInfo" xml:space="preserve"><value>{0} · {1} spelers · {2} rondes</value></data>
+  <data name="DashboardAll" xml:space="preserve"><value>Alles bekijken</value></data>
+  <data name="HelpOpenPage" xml:space="preserve"><value>Naar de pagina</value></data>
+  <data name="HelpIntro" xml:space="preserve"><value>Een korte handleiding. ChessFixer helpt de toernooileider bij het organiseren van clubavonden: spelers indelen, uitslagen bijhouden en de stand en rating berekenen. Alle schermen werken live bij, ook op meerdere apparaten tegelijk.</value></data>
+  <data name="Help_Start_Title" xml:space="preserve"><value>Een toernooi aanmaken</value></data>
+  <data name="Help_Start_Body" xml:space="preserve"><value>Ga naar Toernooien en klik op de + knop.
+De wizard vraagt een naam, het toernooitype, het aantal borden, het tempo en de punten per uitslag.
+Round robin: iedereen speelt tegen iedereen. Zwitsers: spelers met een gelijke score spelen tegen elkaar; handig voor grote groepen.
+Instellingen zijn later aan te passen. Indelingssysteem, punten en rating liggen vast zodra ronde 1 gestart is.</value></data>
+  <data name="Help_Players_Title" xml:space="preserve"><value>Spelers en clubs</value></data>
+  <data name="Help_Players_Body" xml:space="preserve"><value>Spelers staan in één centrale lijst (Spelers) en worden in elk toernooi hergebruikt.
+Een nieuwe speler zonder rating begint op 1400.
+Gastspelers zijn geen lid van de eigen club en kunnen aan een club gekoppeld worden (Clubs). Partijen met een gastspeler tellen niet mee voor de rating.
+Een foto kan geüpload of met de webcam gemaakt worden.
+Een verwijderde speler verdwijnt uit de lijst, maar blijft zichtbaar in de toernooien die hij of zij speelde.</value></data>
+  <data name="Help_Rounds_Title" xml:space="preserve"><value>Rondes spelen</value></data>
+  <data name="Help_Rounds_Body" xml:space="preserve"><value>Voeg de aanwezige spelers toe op het tabblad Spelers van het toernooi.
+De volgende ronde is al ingedeeld en staat klaar op het tabblad Partijen. Start de ronde als iedereen er is.
+Zijn er meer partijen dan borden, dan wachten partijen in een rij tot er een bord vrijkomt.
+Klik op een partij om de uitslag in te voeren. Is de laatste uitslag binnen, dan kan de volgende ronde gestart worden.
+Spelers kunnen tussen de rondes in- en uitstappen. Een ronde die verkeerd gestart is, kan geannuleerd worden.</value></data>
+  <data name="Help_Standings_Title" xml:space="preserve"><value>De stand</value></data>
+  <data name="Help_Standings_Body" xml:space="preserve"><value>De stand wordt na iedere uitslag direct bijgewerkt.
+Bij gelijke punten beslissen de weerstandspunten: eerst Buchholz, dan Sonneborn-Berger.</value></data>
+  <data name="Help_Rating_Title" xml:space="preserve"><value>Rating</value></data>
+  <data name="Help_Rating_Body" xml:space="preserve"><value>De rating is een Elo-rating volgens de FIDE-tabel.
+De rating wordt verwerkt als een toernooi wordt afgesloten. Alle partijen worden berekend met de rating van vóór het toernooi en het totaal wordt één keer afgerond.
+Alleen toernooien die meetellen voor de rating veranderen de rating. Reglementaire uitslagen, byes en partijen met gastspelers tellen niet mee.
+De pagina Rating toont de ranglijst; het Ratinglogboek iedere wijziging. Via "Meer info" staan de regels en een rekenhulp.</value></data>
+  <data name="Help_Close_Title" xml:space="preserve"><value>Afsluiten en verslag</value></data>
+  <data name="Help_Close_Body" xml:space="preserve"><value>Sluit een toernooi af als de laatste ronde gespeeld is; dan wordt ook de rating verwerkt.
+Na het afsluiten kan een AI een verslag schrijven. Geef in de wizard bijzondere gebeurtenissen op en kies een schrijfstijl.
+De AI (Ollama of Claude), het prompt en de schrijfstijlen stel je in via het tandwiel linksonder.</value></data>
+  <data name="Help_Admin_Title" xml:space="preserve"><value>Beheer</value></data>
+  <data name="Help_Admin_Body" xml:space="preserve"><value>Alleen de beheerder ziet het menu Beheer.
+Toernooileiders: accounts aanmaken, wijzigen en verwijderen.
+Activiteitenlog: wie heeft wanneer ingelogd en wat veranderd.
+Iedereen kan zijn of haar eigen wachtwoord wijzigen via het menu rechtsboven.</value></data>
 </root>

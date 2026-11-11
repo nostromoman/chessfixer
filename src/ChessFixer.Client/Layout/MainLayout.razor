@@ -15,7 +15,7 @@
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                        OnClick="() => _menuOpen = !_menuOpen" aria-label="@L["ToggleMenu"]" />
         <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Class="ml-2 mr-2" />
-        <MudLink Href="tournament" Color="Color.Inherit" Typo="Typo.h6" Underline="Underline.None">@L["AppTitle"]</MudLink>
+        <MudLink Href="" Color="Color.Inherit" Typo="Typo.h6" Underline="Underline.None">@L["AppTitle"]</MudLink>
         <MudSpacer />
 
         @* The logged-in user, with a menu to change the password and to log out. *@
@@ -39,6 +39,9 @@
     <MudDrawer @bind-Open="_menuOpen" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Responsive" Elevation="1">
         <div class="d-flex flex-column" style="height: 100%">
             <MudNavMenu Class="mt-2 flex-grow-1">
+                <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                    @L["Home"]
+                </MudNavLink>
                 <MudNavLink Href="tournament" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EmojiEvents">
                     @L["Tournaments"]
                 </MudNavLink>
@@ -68,11 +71,15 @@
                 </AuthorizeView>
             </MudNavMenu>
 
-            @* Application settings: a gear at the bottom left of the menu. *@
-            <div class="pa-2">
+            @* Application settings (a gear) and help at the bottom left of the menu. *@
+            <div class="pa-2 d-flex gap-1">
                 <MudTooltip Text="@L["AppSettings"]" Placement="Placement.Right">
                     <MudIconButton Icon="@Icons.Material.Filled.Settings" Href="settings" aria-label="@L["AppSettings"]"
-                                   Color="@(IsOnSettings ? Color.Primary : Color.Default)" />
+                                   Color="@(IsOn("settings") ? Color.Primary : Color.Default)" />
+                </MudTooltip>
+                <MudTooltip Text="@L["Help"]" Placement="Placement.Right">
+                    <MudIconButton Icon="@Icons.Material.Filled.HelpOutline" Href="help" aria-label="@L["Help"]"
+                                   Color="@(IsOn("help") ? Color.Primary : Color.Default)" />
                 </MudTooltip>
             </div>
         </div>
@@ -88,7 +95,7 @@
 @code {
     private bool _menuOpen = true;
 
-    private bool IsOnSettings => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("settings", StringComparison.OrdinalIgnoreCase);
+    private bool IsOn(string page) => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith(page, StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
 

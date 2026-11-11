@@ -1,0 +1,431 @@
+@page "/"
+@using System.Globalization
+@implements IDisposable
+@inject TournamentApi Api
+@inject TournamentHubClient Hub
+@inject NavigationManager Navigation
+@inject IDialogService Dialogs
+@inject IStringLocalizer<Strings> L
+
+@* The home page: a dashboard of the whole system. Updates live when anything in a tournament changes. *@
+<PageTitle>@L["AppTitle"]</PageTitle>
+
+<div class="dash-hero mb-6">
+    <div class="dash-hero-pieces" aria-hidden="true">♔ ♕ ♖ ♗ ♘ ♙</div>
+    <div class="dash-hero-content">
+        <MudText Typo="Typo.h4" Class="dash-hero-title">@Greeting</MudText>
+        <MudText Typo="Typo.subtitle1" Class="dash-hero-subtitle">
+            @DateTime.Now.ToString("dddd d MMMM yyyy", CultureInfo.CurrentCulture) · @L["DashboardSubtitle"]
+        </MudText>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <MudButton Variant="Variant.Filled" Class="dash-hero-primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewTournament">
+                @L["NewTournament"]
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Class="dash-hero-outline" StartIcon="@Icons.Material.Filled.HelpOutline" Href="help">
+                @L["Help"]
+            </MudButton>
+        </div>
+    </div>
+</div>
+
+@if (_failed)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@L["DashboardLoadFailed"]</MudAlert>
+}
+else if (_data is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    @* ---------- Key figures ---------- *@
+    <div class="dash-stats mb-6">
+        @StatTile(0, Icons.Material.Filled.EmojiEvents, "dash-c1", L["StatTournaments"], _data.Tournaments, L["StatTournamentsSub", _data.ClosedTournaments], "tournament")
+        @StatTile(1, Icons.Material.Filled.People, "dash-c2", L["StatPlayers"], _data.Players, L["StatPlayersSub", _data.GuestPlayers], "players")
+        @StatTile(2, Icons.Material.Filled.Groups, "dash-c3", L["StatClubs"], _data.Clubs, null, "clubs")
+        @StatTile(3, Icons.Material.Filled.GridOn, "dash-c4", L["StatGames"], _data.GamesPlayed, L["StatGamesSub", _data.RatedGames], "rating-log")
+        @StatTile(4, Icons.Material.Filled.Leaderboard, "dash-c5", L["StatAverageRating"], _data.AverageRating ?? 0, L["StatAverageRatingSub"], "rating")
+    </div>
+
+    <MudGrid Spacing="3">
+        @* ---------- Open tournaments ---------- *@
+        <MudItem xs="12" md="7">
+            <MudPaper Class="dash-card pa-4" Elevation="2" Style="--dash-delay: 250ms">
+                <div class="d-flex align-center mb-3">
+                    <span class="dash-live-dot mr-2"></span>
+                    <MudText Typo="Typo.h6">@L["DashboardLive"]</MudText>
+                    <MudSpacer />
+                    <MudButton Size="Size.Small" Href="tournament" EndIcon="@Icons.Material.Filled.ChevronRight">@L["DashboardAll"]</MudButton>
+                </div>
+                @if (_data.OpenTournaments.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["DashboardNoOpen"]</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var t in _data.OpenTournaments)
+                        {
+                            <a class="dash-tournament" href="tournament/@t.Id">
+                                <div class="d-flex align-center gap-2 mb-1">
+                                    @if (t.State == TournamentState.RoundActive)
+                                    {
+                                        <span class="dash-live-dot dash-live-dot-small"></span>
+                                    }
+                                    <MudText Typo="Typo.subtitle1" Class="flex-grow-1 dash-ellipsis"><b>@t.Title</b></MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Display.StateColor(t.State)" Class="ma-0">@L[$"State_{t.State}"]</MudChip>
+                                </div>
+                                <div class="d-flex align-center gap-3">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="min-width: 5.5em">
+                                        @L["DashboardPlayersCount", t.Players]
+                                    </MudText>
+                                    @if (t.Round == 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["DashboardNotStarted"]</MudText>
+                                    }
+                                    else
+                                    {
+                                        <div class="flex-grow-1">
+                                            <MudProgressLinear Color="@(t.State == TournamentState.RoundActive ? Color.Success : Color.Warning)"
+                                                               Value="@Percent(t.GamesFinished, t.GamesInRound)" Rounded="true" Size="Size.Medium" />
+                                        </div>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="white-space: nowrap">
+                                            @L["DashboardRoundProgress", t.Round, t.GamesFinished, t.GamesInRound]
+                                        </MudText>
+                                    }
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* ---------- Results donut ---------- *@
+        <MudItem xs="12" sm="6" md="5">
+            <MudPaper Class="dash-card pa-4" Elevation="2" Style="--dash-delay: 320ms; height: 100%">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["DashboardResults"]</MudText>
+                @if (_data.Results.Total == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["DashboardNoGames"]</MudText>
+                }
+                else
+                {
+                    <div class="d-flex align-center flex-wrap gap-4">
+                        <svg viewBox="0 0 42 42" class="dash-donut" role="img"
+                             aria-label="@string.Join(", ", ResultSlices.Select(s => $"{s.Label}: {s.Count}"))">
+                            <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--mud-palette-lines-default)" stroke-width="6" />
+                            @foreach (var slice in ResultSlices.Where(s => s.Count > 0))
+                            {
+                                <circle class="dash-donut-slice" cx="21" cy="21" r="15.915" fill="none" stroke="@slice.Color" stroke-width="6"
+                                        stroke-dasharray="@($"{Fmt(slice.Percent)} {Fmt(100 - slice.Percent)}")"
+                                        stroke-dashoffset="@Fmt(25 - slice.Offset)" />
+                            }
+                            <text x="21" y="21" class="dash-donut-total">@Animated(_data.Results.Total)</text>
+                            <text x="21" y="26.5" class="dash-donut-label">@L["DashboardGamesTotal"]</text>
+                        </svg>
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var slice in ResultSlices)
+                            {
+                                <div class="d-flex align-center gap-2">
+                                    <span class="dash-swatch" style="background: @slice.Color"></span>
+                                    <MudText Typo="Typo.body2" Style="min-width: 7em">@slice.Label</MudText>
+                                    <MudText Typo="Typo.body2"><b>@slice.Count</b></MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">(@Math.Round(slice.Percent)%)</MudText>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* ---------- Games per month ---------- *@
+        <MudItem xs="12" sm="6" md="7">
+            <MudPaper Class="dash-card pa-4" Elevation="2" Style="--dash-delay: 390ms; height: 100%">
+                <MudText Typo="Typo.h6" Class="mb-3">@L["DashboardGamesPerMonth"]</MudText>
+                <svg viewBox="0 0 @ChartWidth @ChartHeight" class="dash-bars" role="img"
+                     aria-label="@string.Join(", ", _data.GamesPerMonth.Select(m => $"{MonthLabel(m.Month)}: {m.Games}"))">
+                    <defs>
+                        <linearGradient id="dash-bar-gradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="var(--mud-palette-secondary)" />
+                            <stop offset="100%" stop-color="var(--mud-palette-primary)" />
+                        </linearGradient>
+                    </defs>
+                    <line x1="0" x2="@ChartWidth" y1="@BarBase" y2="@BarBase" stroke="var(--mud-palette-lines-default)" stroke-width="1" />
+                    @for (var i = 0; i < _data.GamesPerMonth.Count; i++)
+                    {
+                        var month = _data.GamesPerMonth[i];
+                        var height = BarHeight(month.Games);
+                        var x = i * BarSlot + (BarSlot - BarWidth) / 2;
+                        <g>
+                            <title>@($"{MonthLabel(month.Month)} {month.Month.Year}: {month.Games}")</title>
+                            @if (month.Games > 0)
+                            {
+                                <rect class="dash-bar" x="@Fmt(x)" y="@Fmt(BarBase - height)" width="@Fmt(BarWidth)" height="@Fmt(height)"
+                                      rx="3" fill="url(#dash-bar-gradient)" style="animation-delay: @(i * 40)ms" />
+                            }
+                            @* Not inside the @if: Razor reads a <text> tag in a code block as its own text tag. *@
+                            <text class="dash-bar-value" x="@Fmt(x + BarWidth / 2)" y="@Fmt(BarBase - height - 4)"
+                                  display="@(month.Games > 0 ? "inline" : "none")">@month.Games</text>
+                            <text class="dash-bar-label" x="@Fmt(x + BarWidth / 2)" y="@Fmt(BarBase + 13)">@MonthLabel(month.Month)</text>
+                        </g>
+                    }
+                </svg>
+            </MudPaper>
+        </MudItem>
+
+        @* ---------- Top players ---------- *@
+        <MudItem xs="12" sm="6" md="5">
+            <MudPaper Class="dash-card pa-4" Elevation="2" Style="--dash-delay: 460ms; height: 100%">
+                <div class="d-flex align-center mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.MilitaryTech" Color="Color.Warning" Class="mr-2" />
+                    <MudText Typo="Typo.h6">@L["DashboardTopPlayers", _data.TopPlayers.Count]</MudText>
+                    <MudSpacer />
+                    <MudButton Size="Size.Small" Href="rating" EndIcon="@Icons.Material.Filled.ChevronRight">@L["DashboardAll"]</MudButton>
+                </div>
+                @if (_data.TopPlayers.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["DashboardNoPlayers"]</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @for (var i = 0; i < _data.TopPlayers.Count; i++)
+                        {
+                            var p = _data.TopPlayers[i];
+                            <div class="d-flex align-center gap-3">
+                                <span class="dash-rank dash-rank-@(i + 1)">@(i + 1)</span>
+                                <PlayerAvatar FirstName="@p.FirstName" LastName="@p.LastName" PhotoUrl="@p.PhotoUrl" />
+                                <MudText Typo="Typo.body1" Class="flex-grow-1 dash-ellipsis">@p.Name</MudText>
+                                <RatingSparkline Values="p.Trend" />
+                                <MudText Typo="Typo.body1" Style="min-width: 3em; text-align: right"><b>@p.Rating</b></MudText>
+                            </div>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* ---------- Risers ---------- *@
+        <MudItem xs="12" sm="6">
+            <MudPaper Class="dash-card pa-4" Elevation="2" Style="--dash-delay: 530ms; height: 100%">
+                <div class="d-flex align-center mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Color="Color.Success" Class="mr-2" />
+                    <MudText Typo="Typo.h6">@L["DashboardRisers"]</MudText>
+                </div>
+                @if (_data.Risers.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["DashboardNoRisers"]</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var p in _data.Risers)
+                        {
+                            <div class="d-flex align-center gap-3">
+                                <PlayerAvatar FirstName="@p.FirstName" LastName="@p.LastName" PhotoUrl="@p.PhotoUrl" />
+                                <MudText Typo="Typo.body1" Class="flex-grow-1 dash-ellipsis">@p.Name</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@p.Rating</MudText>
+                                <span class="dash-gain">
+                                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +@p.Change30Days
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* ---------- Recently closed ---------- *@
+        <MudItem xs="12" sm="6">
+            <MudPaper Class="dash-card pa-4" Elevation="2" Style="--dash-delay: 600ms; height: 100%">
+                <div class="d-flex align-center mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Class="mr-2" />
+                    <MudText Typo="Typo.h6">@L["DashboardRecentlyClosed"]</MudText>
+                </div>
+                @if (_data.RecentlyClosed.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["DashboardNoClosed"]</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var t in _data.RecentlyClosed)
+                        {
+                            <a class="dash-tournament" href="tournament/@t.Id">
+                                <MudText Typo="Typo.subtitle1" Class="dash-ellipsis"><b>@t.Title</b></MudText>
+                                @if (t.Winner is not null)
+                                {
+                                    <MudText Typo="Typo.body2">🏆 @L["DashboardWinner", t.Winner]</MudText>
+                                }
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @L["DashboardClosedInfo", t.ClosedAt.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture), t.Players, t.Rounds]
+                                </MudText>
+                            </a>
+                        }
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private const double ChartWidth = 360, ChartHeight = 150, BarBase = 132, BarTop = 16;
+    private const double BarSlot = ChartWidth / 12, BarWidth = BarSlot * 0.62;
+    private const int CountUpMilliseconds = 900;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private DashboardDto? _data;
+    private bool _failed;
+    private string? _userName;
+
+    /// <summary>0 → 1 while the numbers count up after the first load.</summary>
+    private double _progress;
+    private readonly CancellationTokenSource _disposed = new();
+
+    private record Slice(string Label, int Count, string Color, double Percent, double Offset);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null) _userName = (await AuthState).User.Identity?.Name;
+
+        Hub.TournamentListChanged += OnChanged;
+        Hub.Connected += OnChanged;
+        Hub.EnsureStarted();
+
+        await LoadAsync();
+        _ = CountUpAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _data = await Api.GetDashboardAsync();
+            _failed = false;
+        }
+        catch (Exception) when (_data is null)
+        {
+            _failed = true;
+        }
+        catch (Exception)
+        {
+            // Keep showing the last figures; the next change tries again.
+        }
+    }
+
+    private async Task OnChanged()
+    {
+        await LoadAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Lets the key figures count up from zero, with an ease-out.</summary>
+    private async Task CountUpAsync()
+    {
+        var started = DateTime.UtcNow;
+        try
+        {
+            while (_progress < 1)
+            {
+                await Task.Delay(30, _disposed.Token);
+                var t = Math.Min(1, (DateTime.UtcNow - started).TotalMilliseconds / CountUpMilliseconds);
+                _progress = 1 - Math.Pow(1 - t, 3);
+                if (t >= 1) _progress = 1;
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Left the page.
+        }
+    }
+
+    private int Animated(int value) => (int)Math.Round(value * _progress);
+
+    private string Greeting
+    {
+        get
+        {
+            var name = _userName ?? "";
+            var key = DateTime.Now.Hour switch
+            {
+                < 6 => "GreetingNight",
+                < 12 => "GreetingMorning",
+                < 18 => "GreetingAfternoon",
+                _ => "GreetingEvening"
+            };
+            return L[key, name].Value.TrimEnd(',', ' ');
+        }
+    }
+
+    private RenderFragment StatTile(int index, string icon, string colorClass, string label, int value, string? sub, string href) =>
+        @<a class="dash-stat @colorClass" href="@href" style="--dash-delay: @(index * 70)ms">
+                <div class="dash-stat-icon"><MudIcon Icon="@icon" /></div>
+                <div>
+                    <div class="dash-stat-value">@Animated(value)</div>
+                    <div class="dash-stat-label">@label</div>
+                    @if (sub is not null)
+                    {
+                        <div class="dash-stat-sub">@sub</div>
+                    }
+                </div>
+            </a>;
+
+    private List<Slice> ResultSlices
+    {
+        get
+        {
+            var r = _data!.Results;
+            var items = new (string Label, int Count, string Color)[]
+            {
+                (L["ResultWhiteWins"], r.WhiteWins, "#cfd8dc"),
+                (L["ResultDraw"], r.Draws, "var(--mud-palette-primary)"),
+                (L["ResultBlackWins"], r.BlackWins, "#37474f"),
+                (L["ResultForfeit"], r.Forfeits, "var(--mud-palette-warning)")
+            };
+            var total = Math.Max(1, r.Total);
+            var offset = 0.0;
+            var slices = new List<Slice>();
+            foreach (var (label, count, color) in items)
+            {
+                var percent = 100.0 * count / total;
+                slices.Add(new Slice(label, count, color, percent, offset));
+                offset += percent;
+            }
+            return slices;
+        }
+    }
+
+    private double BarHeight(int games)
+    {
+        var max = Math.Max(1, _data!.GamesPerMonth.Max(m => m.Games));
+        return games == 0 ? 0 : Math.Max(3, (BarBase - BarTop) * games / max);
+    }
+
+    private static string MonthLabel(DateOnly month) =>
+        month.ToString("MMM", CultureInfo.CurrentCulture).TrimEnd('.');
+
+    private static double Percent(int part, int total) => total == 0 ? 0 : 100.0 * part / total;
+
+    private static string Fmt(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private async Task OpenNewTournament()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, BackdropClick = false };
+        var dialog = await Dialogs.ShowAsync<TournamentCreateDialog>(L["NewTournament"], options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: TournamentDto tournament })
+            Navigation.NavigateTo($"tournament/{tournament.Id}");
+    }
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        Hub.TournamentListChanged -= OnChanged;
+        Hub.Connected -= OnChanged;
+    }
+}

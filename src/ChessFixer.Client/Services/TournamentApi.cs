@@ -14,6 +14,11 @@ public sealed class ApiClientException(ApiErrorCode? code, string message) : Exc
 /// <summary>Typed wrapper around the ChessFixer Web API.</summary>
 public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider auth)
 {
+    // ----- Home page -----
+
+    public Task<DashboardDto> GetDashboardAsync() =>
+        SendAsync<DashboardDto>(HttpMethod.Get, "api/dashboard");
+
     // ----- Tournaments -----
 
     public Task<List<TournamentSummaryDto>> GetTournamentsAsync() =>
