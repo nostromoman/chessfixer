@@ -22,7 +22,9 @@
         <AuthorizeView Context="auth">
             <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@L["Account"]">
                 <ActivatorContent>
-                    <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" Class="text-none">
+                    @* Since MudBlazor 9 a custom activator must open the menu itself, via the MenuContext. *@
+                    <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" Class="text-none"
+                               OnClick="e => context.ToggleAsync(e)">
                         @auth.User.Identity?.Name
                     </MudButton>
                 </ActivatorContent>
