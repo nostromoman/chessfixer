@@ -460,7 +460,7 @@ public class TournamentService(
             new RatedGameInfo(tournament.Id, tournament.Title, round, white, whiteRating, result, IsWhite: false));
     }
 
-    /// <summary>What the K-factor of a player depends on, apart from the given game: the number of rated games,
+    /// <summary>What the K-factor of a player depends on, apart from the given game:
     /// whether the rating ever reached 2400 (before or after an earlier game) and whether they are a junior.</summary>
     private async Task<RatedPlayer> RatedPlayerAsync(Player player, int exceptGameId, int year)
     {
@@ -474,7 +474,6 @@ public class TournamentService(
 
         return new RatedPlayer(
             player.Rating,
-            highest.Count,
             HasReached2400: player.Rating >= 2400 || highest.Any(r => r >= 2400),
             IsJunior: EloCalculator.IsJunior(player.BirthDate, year));
     }

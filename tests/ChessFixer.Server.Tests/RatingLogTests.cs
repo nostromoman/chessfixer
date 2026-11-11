@@ -44,10 +44,10 @@ public class RatingLogTests : ApiTestBase
         Assert.Equal(
         [
             (RatingChangeReason.NewPlayer, 1400, 1400),
-            (RatingChangeReason.Game, 1400, 1420),
-            (RatingChangeReason.GameReverted, 1420, 1400),
-            (RatingChangeReason.Game, 1400, 1380),
-            (RatingChangeReason.RoundCancelled, 1380, 1400)
+            (RatingChangeReason.Game, 1400, 1410),
+            (RatingChangeReason.GameReverted, 1410, 1400),
+            (RatingChangeReason.Game, 1400, 1390),
+            (RatingChangeReason.RoundCancelled, 1390, 1400)
         ], log.Select(e => (e.Reason, e.RatingBefore, e.RatingAfter)));
 
         var first = log[1];
@@ -81,9 +81,9 @@ public class RatingLogTests : ApiTestBase
         var list = await GetAsync<List<RatingListEntryDto>>("api/ratings");
         Assert.Equal(2, list.Count);  // no guest
         var winner = list[0];
-        Assert.Equal((game.White.PlayerId, 1420, 1, 20), (winner.PlayerId, winner.Rating, winner.RatedGames, winner.Change30Days));
-        Assert.Equal([1400, 1400, 1420], winner.Trend);
-        Assert.Equal(-20, list[1].Change30Days);
+        Assert.Equal((game.White.PlayerId, 1410, 1, 10), (winner.PlayerId, winner.Rating, winner.RatedGames, winner.Change30Days));
+        Assert.Equal([1400, 1400, 1410], winner.Trend);
+        Assert.Equal(-10, list[1].Change30Days);
     }
 
     /// <summary>New players with the default rating (1400) in the tournament.</summary>

@@ -4,10 +4,9 @@ namespace ChessFixer.Core.Rating;
 
 /// <summary>A player as the rating calculation sees them, just before a game.</summary>
 /// <param name="Rating">Rating before the game.</param>
-/// <param name="RatedGames">Number of rated games played before this one (for the K-factor).</param>
 /// <param name="HasReached2400">Whether the rating ever was 2400 or more: K stays 10 from then on.</param>
 /// <param name="IsJunior">Up to and including the year of the 18th birthday. False when the birth date is unknown.</param>
-public readonly record struct RatedPlayer(int Rating, int RatedGames, bool HasReached2400 = false, bool IsJunior = false);
+public readonly record struct RatedPlayer(int Rating, bool HasReached2400 = false, bool IsJunior = false);
 
 /// <summary>
 /// Elo rating changes, following the FIDE Rating Regulations (B.02, as of 1 October 2025):
@@ -15,26 +14,34 @@ public readonly record struct RatedPlayer(int Rating, int RatedGames, bool HasRe
 /// <item>The expected score comes from the FIDE table (8.1.2), in hundredths. A rating difference of more than 400
 /// counts as 400, except for players rated 2650 or more (8.3.1).</item>
 /// <item>Change = K × (score − expected score), rounded to whole points, 0.5 away from zero.</item>
-/// <item>K = 40 for a player with fewer than 30 rated games, and for a junior (up to the year they turn 18) rated
-/// under 2300; K = 10 once the rating has reached 2400, also when it drops below again; otherwise K = 20.</item>
+/// <item>K = 40 for a junior (up to the year they turn 18) rated under 2300; K = 10 once the rating has reached 2400,
+/// also when it drops below again; otherwise K = 20.</item>
 /// <item>Only games played on the board count: forfeits and byes do not change the rating.</item>
 /// </list>
-/// Unlike FIDE (monthly lists), the rating changes right after each game.
+/// Unlike FIDE, the rating changes right after each game (no monthly lists), and new players have no provisional
+/// period with K = 40 (FIDE: until 30 games).
 /// </summary>
 public static class EloCalculator
 {
     /// <summary>Rating of a player without a rating; also the default for a new player (the lowest FIDE rating).</summary>
     public const int DefaultRating = 1400;
 
-    public const int NewPlayerGames = 30;
     public const int JuniorAge = 18;
-    private const int MaxDifference = 400;
-    private const int NoDifferenceCapFrom = 2650;
+    public const int MaxDifference = 400;
+    public const int NoDifferenceCapFrom = 2650;
+
+    public const int DefaultK = 20;
+    public const int JuniorK = 40;
+    public const int JuniorMaxRating = 2300;
+    public const int MasterK = 10;
+    public const int MasterRating = 2400;
 
     /// <summary>
     /// FIDE table 8.1.2: the highest rating difference for each expected score of the higher rated player,
     /// from 0.50 (index 0) to 0.99 (index 49). A larger difference gives 1.00.
     /// </summary>
+    public static IReadOnlyList<int> ExpectedScoreTable => MaxDifferenceForScore;
+
     private static readonly int[] MaxDifferenceForScore =
     [
         3, 10, 17, 25, 32, 39, 46, 53, 61, 68,
@@ -53,17 +60,25 @@ public static class EloCalculator
     public static bool IsJunior(DateOnly? birthDate, int year) =>
         birthDate is { } date && year - date.Year <= JuniorAge;
 
-    public static int KFactor(RatedPlayer player) =>
-        player.RatedGames < NewPlayerGames ? 40
-        : player.IsJunior && player.Rating < 2300 ? 40
-        : player.HasReached2400 || player.Rating >= 2400 ? 10
-        : 20;
+    public static int KFactor(RatedPlayer player) => KFactorWithReason(player).K;
+
+    /// <summary>The K-factor and which rule gave it.</summary>
+    public static (int K, KFactorReason Reason) KFactorWithReason(RatedPlayer player) =>
+        player.IsJunior && player.Rating < JuniorMaxRating ? (JuniorK, KFactorReason.Junior)
+        : player.Rating >= MasterRating ? (MasterK, KFactorReason.Master)
+        : player.HasReached2400 ? (MasterK, KFactorReason.WasMaster)
+        : (DefaultK, KFactorReason.Default);
+
+    /// <summary>The rating difference used for the expected score: capped at 400 below rating 2650.</summary>
+    public static int UsedDifference(int rating, int opponentRating) =>
+        rating < NoDifferenceCapFrom
+            ? Math.Clamp(rating - opponentRating, -MaxDifference, MaxDifference)
+            : rating - opponentRating;
 
     /// <summary>Expected score (0..1, in hundredths) of a player against an opponent, from the FIDE table.</summary>
     public static decimal ExpectedScore(int rating, int opponentRating)
     {
-        var difference = rating - opponentRating;
-        if (rating < NoDifferenceCapFrom) difference = Math.Clamp(difference, -MaxDifference, MaxDifference);
+        var difference = UsedDifference(rating, opponentRating);
 
         var index = Array.FindIndex(MaxDifferenceForScore, max => Math.Abs(difference) <= max);
         var higher = index < 0 ? 100 : 50 + index;
@@ -84,7 +99,24 @@ public static class EloCalculator
         return (Change(white, black, whiteScore), Change(black, white, 1 - whiteScore));
     }
 
+    /// <summary>Every step of the calculation for one player, for explaining it.</summary>
+    public static RatingCalculation Explain(RatedPlayer player, RatedPlayer opponent, decimal score)
+    {
+        var (k, reason) = KFactorWithReason(player);
+        var expected = ExpectedScore(player.Rating, opponent.Rating);
+        var exact = k * (score - expected);
+        var change = (int)Math.Round(exact, MidpointRounding.AwayFromZero);
+        return new RatingCalculation(player.Rating, opponent.Rating, player.Rating - opponent.Rating,
+            UsedDifference(player.Rating, opponent.Rating), expected, score, k, reason, exact, change);
+    }
+
     private static int Change(RatedPlayer player, RatedPlayer opponent, decimal score) =>
-        (int)Math.Round(KFactor(player) * (score - ExpectedScore(player.Rating, opponent.Rating)),
-            MidpointRounding.AwayFromZero);
+        Explain(player, opponent, score).Change;
 }
+
+/// <param name="Difference">Own rating minus the opponent's.</param>
+/// <param name="UsedDifference">The difference after the cap of 400.</param>
+/// <param name="ExactChange">K × (score − expected), before rounding.</param>
+public record RatingCalculation(
+    int Rating, int OpponentRating, int Difference, int UsedDifference, decimal ExpectedScore, decimal Score,
+    int K, KFactorReason KReason, decimal ExactChange, int Change);

@@ -65,7 +65,7 @@ public record PlayerGameDto(
     double? Points);
 
 /// <summary>The player's current rating and every rated game, oldest first.</summary>
-/// <param name="RatedGames">Number of rated games; with fewer than 30 the rating still changes faster (K = 40).</param>
+/// <param name="RatedGames">Number of rated games.</param>
 public record PlayerRatingDto(int Rating, int RatedGames, IReadOnlyList<RatingChangeDto> History);
 
 /// <summary>The rating change of one game.</summary>

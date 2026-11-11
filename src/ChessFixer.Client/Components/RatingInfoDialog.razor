@@ -1,0 +1,204 @@
+@using System.Globalization
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* "Meer info" on the rating page: how the rating is calculated, the values used, and a calculator that works out
+   one game step by step. All values come from the server, so they are the ones actually used. *@
+<MudDialog>
+    <DialogContent>
+        @if (_rules is null)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else
+        {
+            var r = _rules;
+            <div class="rating-info">
+                <MudText Typo="Typo.h6">@L["RatingInfoHowTitle"]</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">@L["RatingInfoHowIntro"]</MudText>
+                <div class="rating-formula">@L["RatingInfoFormula"]</div>
+                <ul class="rating-info-list">
+                    <li>@L["RatingInfoScore"]</li>
+                    <li>@L["RatingInfoExpected", r.MaxDifference, r.NoDifferenceCapFrom]</li>
+                    <li>@L["RatingInfoRounding"]</li>
+                    <li>@L["RatingInfoImmediate"]</li>
+                    <li>@L["RatingInfoNotRated"]</li>
+                </ul>
+
+                <MudText Typo="Typo.h6" Class="mt-4">@L["RatingInfoValuesTitle"]</MudText>
+                <MudSimpleTable Dense="true" Elevation="0" Class="mb-2">
+                    <tbody>
+                        <tr><td>@L["RatingInfoStartRating"]</td><td class="value">@r.DefaultRating</td></tr>
+                        <tr><td>@L["RatingInfoKDefault"]</td><td class="value">K = @r.DefaultK</td></tr>
+                        <tr><td>@L["RatingInfoKJunior", r.JuniorAge, r.JuniorMaxRating]</td><td class="value">K = @r.JuniorK</td></tr>
+                        <tr><td>@L["RatingInfoKMaster", r.MasterRating]</td><td class="value">K = @r.MasterK</td></tr>
+                        <tr><td>@L["RatingInfoMaxDifference", r.NoDifferenceCapFrom]</td><td class="value">@r.MaxDifference</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+
+                <MudText Typo="Typo.h6" Class="mt-4">@L["RatingInfoCalculatorTitle"]</MudText>
+                <MudText Typo="Typo.body2" Class="mb-3">@L["RatingInfoCalculatorIntro"]</MudText>
+                <div class="d-flex flex-wrap gap-3 align-start">
+                    <div class="rating-calc-player">
+                        <MudNumericField T="int" Value="_whiteRating" ValueChanged="v => SetAsync(() => _whiteRating = v)"
+                                         Label="@L["RatingInfoWhiteRating"]" Variant="Variant.Outlined" Min="0" Max="4000"
+                                         HideSpinButtons="true" Immediate="false" />
+                        <MudCheckBox T="bool" Value="_whiteJunior" ValueChanged="v => SetAsync(() => _whiteJunior = v)" Dense="true"
+                                     Label="@L["RatingInfoIsJunior"]" />
+                        <MudCheckBox T="bool" Value="_whiteWasMaster" ValueChanged="v => SetAsync(() => _whiteWasMaster = v)" Dense="true"
+                                     Label="@L["RatingInfoWasMaster", r.MasterRating]" />
+                    </div>
+                    <div class="rating-calc-player">
+                        <MudNumericField T="int" Value="_blackRating" ValueChanged="v => SetAsync(() => _blackRating = v)"
+                                         Label="@L["RatingInfoBlackRating"]" Variant="Variant.Outlined" Min="0" Max="4000"
+                                         HideSpinButtons="true" Immediate="false" />
+                        <MudCheckBox T="bool" Value="_blackJunior" ValueChanged="v => SetAsync(() => _blackJunior = v)" Dense="true"
+                                     Label="@L["RatingInfoIsJunior"]" />
+                        <MudCheckBox T="bool" Value="_blackWasMaster" ValueChanged="v => SetAsync(() => _blackWasMaster = v)" Dense="true"
+                                     Label="@L["RatingInfoWasMaster", r.MasterRating]" />
+                    </div>
+                    <div class="rating-calc-player">
+                        <MudSelect T="GameResult" Value="_result" ValueChanged="v => SetAsync(() => _result = v)"
+                                   Label="@L["Result"]" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var result in new[] { GameResult.WhiteWins, GameResult.Draw, GameResult.BlackWins })
+                            {
+                                <MudSelectItem Value="result">@L[$"Result_{result}"]</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                </div>
+
+                @if (_calculation is { } calc)
+                {
+                    <MudSimpleTable Dense="true" Elevation="0" Class="mt-3 rating-calc-table">
+                        <thead>
+                            <tr>
+                                <th>@L["RatingInfoStep"]</th>
+                                <th class="value">@L["White"]</th>
+                                <th class="value">@L["Black"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>@L["RatingInfoStepDifference"]</td>
+                                <td class="value">@Difference(calc.White)</td>
+                                <td class="value">@Difference(calc.Black)</td>
+                            </tr>
+                            <tr>
+                                <td>@L["RatingInfoStepExpected"]</td>
+                                <td class="value">@Num(calc.White.ExpectedScore)</td>
+                                <td class="value">@Num(calc.Black.ExpectedScore)</td>
+                            </tr>
+                            <tr>
+                                <td>@L["RatingInfoStepScore"]</td>
+                                <td class="value">@Num(calc.White.Score)</td>
+                                <td class="value">@Num(calc.Black.Score)</td>
+                            </tr>
+                            <tr>
+                                <td>@L["RatingInfoStepK"]</td>
+                                <td class="value">@calc.White.K <span class="mud-text-secondary">(@L[$"KReason_{calc.White.KReason}"])</span></td>
+                                <td class="value">@calc.Black.K <span class="mud-text-secondary">(@L[$"KReason_{calc.Black.KReason}"])</span></td>
+                            </tr>
+                            <tr>
+                                <td>@L["RatingInfoStepExact"]</td>
+                                <td class="value">@Exact(calc.White)</td>
+                                <td class="value">@Exact(calc.Black)</td>
+                            </tr>
+                            <tr>
+                                <td>@L["RatingInfoStepChange"]</td>
+                                <td class="value @ChangeClass(calc.White.Change)"><b>@Signed(calc.White.Change)</b></td>
+                                <td class="value @ChangeClass(calc.Black.Change)"><b>@Signed(calc.Black.Change)</b></td>
+                            </tr>
+                            <tr>
+                                <td>@L["RatingInfoStepNewRating"]</td>
+                                <td class="value"><b>@calc.White.NewRating</b></td>
+                                <td class="value"><b>@calc.Black.NewRating</b></td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                }
+
+                <MudExpansionPanels Elevation="0" Class="mt-4" Outlined="true">
+                    <MudExpansionPanel Text="@L["RatingInfoTableTitle"]">
+                        <MudText Typo="Typo.body2" Class="mb-2">@L["RatingInfoTableIntro"]</MudText>
+                        <div class="expected-score-table">
+                            @foreach (var range in r.ExpectedScoreTable)
+                            {
+                                <div class="expected-score-row">
+                                    <span>@(range.MaxDifference is { } max ? $"{range.MinDifference} – {max}" : $"> {range.MinDifference - 1}")</span>
+                                    <span class="value">@Num(range.ExpectedScore) / @Num(1 - range.ExpectedScore)</span>
+                                </div>
+                            }
+                        </div>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Dialog.Close()">@L["Close"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    private RatingRulesDto? _rules;
+    private RatingCalculationDto? _calculation;
+    private int _whiteRating = 1500;
+    private int _blackRating = 1400;
+    private GameResult _result = GameResult.BlackWins;
+    private bool _whiteJunior, _blackJunior, _whiteWasMaster, _blackWasMaster;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _rules = await Api.GetRatingRulesAsync();
+            await CalculateAsync();
+        }
+        catch (Exception)
+        {
+            Dialog.Close();
+        }
+    }
+
+    private async Task SetAsync(Action change)
+    {
+        change();
+        await CalculateAsync();
+    }
+
+    private async Task CalculateAsync()
+    {
+        try
+        {
+            _calculation = await Api.CalculateRatingAsync(Math.Clamp(_whiteRating, 0, 4000), Math.Clamp(_blackRating, 0, 4000),
+                _result, _whiteJunior, _blackJunior, _whiteWasMaster, _blackWasMaster);
+        }
+        catch (Exception)
+        {
+            _calculation = null;
+        }
+    }
+
+    private static readonly CultureInfo Culture = CultureInfo.CurrentCulture;
+
+    private static string Num(decimal value) => value.ToString("0.00", Culture);
+
+    private static string Signed(int change) => change > 0 ? $"+{change}" : change.ToString(Culture);
+
+    private static string? ChangeClass(int change) => change > 0 ? "outcome-win" : change < 0 ? "outcome-loss" : null;
+
+    private static string SignedNum(int value) => value > 0 ? $"+{value}" : value.ToString(Culture);
+
+    /// <summary>The difference, and the capped difference when the cap applied.</summary>
+    private string Difference(RatingCalculationStepDto step) =>
+        step.Difference == step.UsedDifference
+            ? SignedNum(step.Difference)
+            : $"{SignedNum(step.Difference)} → {SignedNum(step.UsedDifference)}";
+
+    /// <summary>K × (score − expected) = exact change.</summary>
+    private static string Exact(RatingCalculationStepDto step) =>
+        $"{step.K} × ({Num(step.Score)} − {Num(step.ExpectedScore)}) = {step.ExactChange.ToString("0.0#", Culture)}";
+}

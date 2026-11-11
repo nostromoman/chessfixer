@@ -5,14 +5,15 @@ namespace ChessFixer.Core.Tests.Rating;
 
 public class EloCalculatorTests
 {
-    private static RatedPlayer New(int rating) => new(rating, 0);
-    private static RatedPlayer Experienced(int rating) => new(rating, 50);
+    private static RatedPlayer New(int rating) => new(rating);
+    private static RatedPlayer Junior(int rating) => new(rating, IsJunior: true);
 
     [Fact]
     public void EqualRatings_WinGivesHalfOfK()
     {
-        Assert.Equal((20, -20), EloCalculator.Changes(New(1400), New(1400), GameResult.WhiteWins));
-        Assert.Equal((-10, 10), EloCalculator.Changes(Experienced(1500), Experienced(1500), GameResult.BlackWins));
+        Assert.Equal((10, -10), EloCalculator.Changes(New(1400), New(1400), GameResult.WhiteWins));
+        Assert.Equal((-10, 10), EloCalculator.Changes(New(1500), New(1500), GameResult.BlackWins));
+        Assert.Equal((20, -20), EloCalculator.Changes(Junior(1400), Junior(1400), GameResult.WhiteWins));
     }
 
     [Fact]
@@ -22,7 +23,7 @@ public class EloCalculatorTests
     [Fact]
     public void Draw_AgainstStrongerPlayer_GainsPoints()
     {
-        var (white, black) = EloCalculator.Changes(new(1400, 40), new(1600, 40), GameResult.Draw)!.Value;
+        var (white, black) = EloCalculator.Changes(New(1400), New(1600), GameResult.Draw)!.Value;
         Assert.Equal(5, white);   // 20 × (0.5 − 0.24) = 5.2
         Assert.Equal(-5, black);
     }
@@ -43,8 +44,8 @@ public class EloCalculatorTests
     [Fact]
     public void FideTable_DiffersFromTheFormula()
     {
-        // 10 points stronger, K = 40: the formula gives 0.5144 (+19.42 → 19), the table 0.51 (+19.6 → 20).
-        Assert.Equal((20, -20), EloCalculator.Changes(New(1410), New(1400), GameResult.WhiteWins));
+        // 10 points stronger, K = 40 (juniors): the formula gives 0.5144 (+19.42 → 19), the table 0.51 (+19.6 → 20).
+        Assert.Equal((20, -20), EloCalculator.Changes(Junior(1410), Junior(1400), GameResult.WhiteWins));
     }
 
     [Fact]
@@ -58,15 +59,14 @@ public class EloCalculatorTests
     }
 
     [Theory]
-    [InlineData(1400, 0, false, false, 40)]
-    [InlineData(2500, 29, false, false, 40)]
-    [InlineData(1800, 30, false, false, 20)]
-    [InlineData(2400, 30, false, false, 10)]
-    [InlineData(2350, 30, true, false, 10)]   // reached 2400 once: stays 10
-    [InlineData(1800, 30, false, true, 40)]   // junior under 2300
-    [InlineData(2300, 30, false, true, 20)]   // junior from 2300: normal K
-    public void KFactor_FollowsFide(int rating, int games, bool reached2400, bool junior, int expected) =>
-        Assert.Equal(expected, EloCalculator.KFactor(new(rating, games, reached2400, junior)));
+    [InlineData(1400, false, false, 20)]      // also a new player: no provisional K = 40
+    [InlineData(1800, false, false, 20)]
+    [InlineData(2400, false, false, 10)]
+    [InlineData(2350, true, false, 10)]       // reached 2400 once: stays 10
+    [InlineData(1800, false, true, 40)]       // junior under 2300
+    [InlineData(2300, false, true, 20)]       // junior from 2300: normal K
+    public void KFactor_FollowsFide(int rating, bool reached2400, bool junior, int expected) =>
+        Assert.Equal(expected, EloCalculator.KFactor(new(rating, reached2400, junior)));
 
     [Theory]
     [InlineData(null, false)]
@@ -79,7 +79,7 @@ public class EloCalculatorTests
     public void HalfPoint_IsRoundedAwayFromZero()
     {
         // K = 10, 35 points stronger: table 0.55 (33-39 points): 10 × (1 − 0.55) = 4.5 → 5.
-        Assert.Equal((5, -5), EloCalculator.Changes(new(2435, 50), new(2400, 50), GameResult.WhiteWins));
+        Assert.Equal((5, -5), EloCalculator.Changes(New(2435), New(2400), GameResult.WhiteWins));
     }
 
     [Theory]

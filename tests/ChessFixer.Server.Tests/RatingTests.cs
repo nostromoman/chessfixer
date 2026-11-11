@@ -31,14 +31,14 @@ public class RatingTests : ApiTestBase
 
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
 
-        // Equal ratings, new players (K = 40): the winner gains 20.
-        Assert.Equal(1420, await RatingOfAsync(white));
-        Assert.Equal(1380, await RatingOfAsync(black));
+        // Equal ratings (K = 20): the winner gains 10.
+        Assert.Equal(1410, await RatingOfAsync(white));
+        Assert.Equal(1390, await RatingOfAsync(black));
 
         var history = await GetAsync<PlayerRatingDto>($"api/players/{white}/rating");
-        Assert.Equal(1420, history.Rating);
+        Assert.Equal(1410, history.Rating);
         var change = Assert.Single(history.History);
-        Assert.Equal((1400, 20, 1420), (change.RatingBefore, change.Change, change.RatingAfter));
+        Assert.Equal((1400, 10, 1410), (change.RatingBefore, change.Change, change.RatingAfter));
         Assert.Equal(black, change.Opponent.PlayerId);
         Assert.Equal(1400, change.OpponentRating);
         Assert.True(change.IsWhite);
@@ -51,8 +51,8 @@ public class RatingTests : ApiTestBase
 
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
         await SetResultAsync(id, game.Id, GameResult.BlackWins);
-        Assert.Equal(1380, await RatingOfAsync(white));
-        Assert.Equal(1420, await RatingOfAsync(black));
+        Assert.Equal(1390, await RatingOfAsync(white));
+        Assert.Equal(1410, await RatingOfAsync(black));
         Assert.Single((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).History);
 
         await SetResultAsync(id, game.Id, GameResult.NotPlayed);
@@ -89,6 +89,33 @@ public class RatingTests : ApiTestBase
         var response = await Client.PutAsJsonAsync($"api/tournaments/{id}",
             new UpdateTournamentRequest(tournament.Title, tournament.Settings with { IsRated = false }));
         await AssertErrorAsync(response, HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+    }
+
+    [Fact]
+    public async Task Rules_AreTheValuesUsed()
+    {
+        var rules = await GetAsync<RatingRulesDto>("api/ratings/rules");
+        Assert.Equal((1400, 20, 40, 10, 400), (rules.DefaultRating, rules.DefaultK, rules.JuniorK, rules.MasterK, rules.MaxDifference));
+        Assert.Equal(new ExpectedScoreRangeDto(0, 3, 0.50m), rules.ExpectedScoreTable[0]);
+        Assert.Equal(new ExpectedScoreRangeDto(4, 10, 0.51m), rules.ExpectedScoreTable[1]);
+        Assert.Equal(new ExpectedScoreRangeDto(736, null, 1.00m), rules.ExpectedScoreTable[^1]);
+    }
+
+    [Fact]
+    public async Task Calculate_ShowsEveryStep()
+    {
+        // 1500 loses to 1400: difference +100 → 0.64 expected, K 20 × (0 − 0.64) = −12.8 → −13.
+        var calc = await GetAsync<RatingCalculationDto>(
+            "api/ratings/calculate?whiteRating=1500&blackRating=1400&result=BlackWins&blackJunior=true");
+        Assert.Equal((100, 0.64m, 0m, 20, KFactorReason.Default, -12.8m, -13, 1487),
+            (calc.White.UsedDifference, calc.White.ExpectedScore, calc.White.Score, calc.White.K, calc.White.KReason,
+             calc.White.ExactChange, calc.White.Change, calc.White.NewRating));
+        // The junior has K = 40: 40 × (1 − 0.36) = 25.6 → 26.
+        Assert.Equal((40, KFactorReason.Junior, 26), (calc.Black.K, calc.Black.KReason, calc.Black.Change));
+
+        // The difference is capped at 400.
+        var capped = await GetAsync<RatingCalculationDto>("api/ratings/calculate?whiteRating=2000&blackRating=1400&result=Draw");
+        Assert.Equal((600, 400), (capped.White.Difference, capped.White.UsedDifference));
     }
 
     /// <summary>A tournament with two new players whose first game is under way.</summary>

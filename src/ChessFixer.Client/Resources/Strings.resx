@@ -146,7 +146,6 @@
   <data name="RatingHelp" xml:space="preserve"><value>Wordt na iedere partij in een toernooi dat meetelt automatisch bijgewerkt.</value></data>
   <data name="RatingCurrent" xml:space="preserve"><value>Huidige rating</value></data>
   <data name="RatingGames" xml:space="preserve"><value>Partijen met rating</value></data>
-  <data name="RatingProvisional" xml:space="preserve"><value>Voorlopig: de rating verandert sneller tot er 30 partijen gespeeld zijn.</value></data>
   <data name="RatingNoGames" xml:space="preserve"><value>Er zijn nog geen partijen gespeeld die meetellen voor de rating.</value></data>
   <data name="RatingHistory" xml:space="preserve"><value>Ratingverloop</value></data>
   <data name="RatingChartLabel" xml:space="preserve"><value>Grafiek van het ratingverloop, van {0} naar {1}</value></data>
@@ -432,7 +431,6 @@
   <data name="RatingListEmpty" xml:space="preserve"><value>Er zijn nog geen spelers van de eigen club.</value></data>
   <data name="RatingChange30Days" xml:space="preserve"><value>30 dagen</value></data>
   <data name="RatingTrend" xml:space="preserve"><value>Trend</value></data>
-  <data name="RatingProvisionalShort" xml:space="preserve"><value>Voorlopige rating: nog geen 30 partijen gespeeld</value></data>
   <data name="RatingLog" xml:space="preserve"><value>Ratinglogboek</value></data>
   <data name="RatingLogIntro" xml:space="preserve"><value>Iedere ratingwijziging, de nieuwste bovenaan.</value></data>
   <data name="RatingLogEmpty" xml:space="preserve"><value>Er zijn nog geen ratingwijzigingen.</value></data>
@@ -451,4 +449,40 @@
   <data name="RatingReason_Game" xml:space="preserve"><value>Partij</value></data>
   <data name="RatingReason_GameReverted" xml:space="preserve"><value>Uitslag gecorrigeerd</value></data>
   <data name="RatingReason_RoundCancelled" xml:space="preserve"><value>Ronde geannuleerd</value></data>
+  <data name="RatingInfo" xml:space="preserve"><value>Meer info</value></data>
+  <data name="RatingInfoTitle" xml:space="preserve"><value>Hoe wordt de rating berekend?</value></data>
+  <data name="RatingInfoHowTitle" xml:space="preserve"><value>De berekening</value></data>
+  <data name="RatingInfoHowIntro" xml:space="preserve"><value>De rating volgt de Elo-berekening van de FIDE. Na iedere partij krijgt iedere speler:</value></data>
+  <data name="RatingInfoFormula" xml:space="preserve"><value>nieuwe rating = oude rating + K × (score − verwachte score)</value></data>
+  <data name="RatingInfoScore" xml:space="preserve"><value>Score: 1 voor winst, ½ voor remise, 0 voor verlies.</value></data>
+  <data name="RatingInfoExpected" xml:space="preserve"><value>Verwachte score: hoeveel punten je gemiddeld haalt tegen deze tegenstander. Die komt uit de FIDE-tabel (hieronder), op basis van het ratingverschil. Een verschil van meer dan {0} telt als {0} (niet voor spelers vanaf {1}).</value></data>
+  <data name="RatingInfoRounding" xml:space="preserve"><value>De uitkomst wordt afgerond op hele punten (½ van nul af).</value></data>
+  <data name="RatingInfoImmediate" xml:space="preserve"><value>De rating verandert direct na iedere uitslag. Wordt een uitslag gecorrigeerd of een ronde geannuleerd, dan wordt de wijziging teruggedraaid. Alles staat in het ratinglogboek.</value></data>
+  <data name="RatingInfoNotRated" xml:space="preserve"><value>Telt niet mee: partijen met een gastspeler, reglementaire uitslagen, vrije rondes en toernooien die niet meetellen voor de rating.</value></data>
+  <data name="RatingInfoValuesTitle" xml:space="preserve"><value>Gebruikte waardes</value></data>
+  <data name="RatingInfoStartRating" xml:space="preserve"><value>Startrating van een nieuwe speler</value></data>
+  <data name="RatingInfoKDefault" xml:space="preserve"><value>K-factor (normaal)</value></data>
+  <data name="RatingInfoKJunior" xml:space="preserve"><value>K-factor jeugd (t/m het jaar waarin de speler {0} wordt, rating onder {1}; alleen als de geboortedatum bekend is)</value></data>
+  <data name="RatingInfoKMaster" xml:space="preserve"><value>K-factor vanaf rating {0} (blijft zo, ook als de rating daarna daalt)</value></data>
+  <data name="RatingInfoMaxDifference" xml:space="preserve"><value>Maximaal ratingverschil (niet voor spelers vanaf {0})</value></data>
+  <data name="RatingInfoCalculatorTitle" xml:space="preserve"><value>Rekenvoorbeeld</value></data>
+  <data name="RatingInfoCalculatorIntro" xml:space="preserve"><value>Vul twee ratings en een uitslag in en zie stap voor stap wat er met de ratings gebeurt.</value></data>
+  <data name="RatingInfoWhiteRating" xml:space="preserve"><value>Rating wit</value></data>
+  <data name="RatingInfoBlackRating" xml:space="preserve"><value>Rating zwart</value></data>
+  <data name="RatingInfoIsJunior" xml:space="preserve"><value>Jeugdspeler</value></data>
+  <data name="RatingInfoWasMaster" xml:space="preserve"><value>Ooit {0} of hoger</value></data>
+  <data name="RatingInfoStep" xml:space="preserve"><value>Stap</value></data>
+  <data name="RatingInfoStepDifference" xml:space="preserve"><value>Ratingverschil</value></data>
+  <data name="RatingInfoStepExpected" xml:space="preserve"><value>Verwachte score</value></data>
+  <data name="RatingInfoStepScore" xml:space="preserve"><value>Score</value></data>
+  <data name="RatingInfoStepK" xml:space="preserve"><value>K-factor</value></data>
+  <data name="RatingInfoStepExact" xml:space="preserve"><value>K × (score − verwacht)</value></data>
+  <data name="RatingInfoStepChange" xml:space="preserve"><value>Wijziging (afgerond)</value></data>
+  <data name="RatingInfoStepNewRating" xml:space="preserve"><value>Nieuwe rating</value></data>
+  <data name="RatingInfoTableTitle" xml:space="preserve"><value>FIDE-tabel verwachte score</value></data>
+  <data name="RatingInfoTableIntro" xml:space="preserve"><value>Ratingverschil, met de verwachte score van de hoger en de lager gerateerde speler.</value></data>
+  <data name="KReason_Default" xml:space="preserve"><value>normaal</value></data>
+  <data name="KReason_Junior" xml:space="preserve"><value>jeugd</value></data>
+  <data name="KReason_Master" xml:space="preserve"><value>rating 2400+</value></data>
+  <data name="KReason_WasMaster" xml:space="preserve"><value>ooit 2400+</value></data>
 </root>

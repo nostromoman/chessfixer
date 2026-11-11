@@ -37,3 +37,33 @@ public record RatingLogEntryDto(
 
 /// <summary>A page of the rating log, newest first.</summary>
 public record RatingLogPageDto(int Total, IReadOnlyList<RatingLogEntryDto> Entries);
+
+/// <summary>The rules and values the rating calculation uses (rating page, "meer info").</summary>
+/// <param name="ExpectedScoreTable">FIDE table: the expected score of the higher rated player per range of rating
+/// difference, from 0.50 up.</param>
+public record RatingRulesDto(
+    int DefaultRating,
+    int DefaultK,
+    int JuniorK,
+    int JuniorMaxRating,
+    int JuniorAge,
+    int MasterK,
+    int MasterRating,
+    int MaxDifference,
+    int NoDifferenceCapFrom,
+    IReadOnlyList<ExpectedScoreRangeDto> ExpectedScoreTable);
+
+/// <param name="ExpectedScore">Of the higher rated player; the lower rated player gets 1 minus this.</param>
+public record ExpectedScoreRangeDto(int MinDifference, int? MaxDifference, decimal ExpectedScore);
+
+/// <summary>The rating change of one game, worked out step by step for both players.</summary>
+public record RatingCalculationDto(RatingCalculationStepDto White, RatingCalculationStepDto Black);
+
+/// <param name="UsedDifference">The rating difference after the cap of 400.</param>
+/// <param name="ExactChange">K × (score − expected score), before rounding.</param>
+public record RatingCalculationStepDto(
+    int Rating, int OpponentRating, int Difference, int UsedDifference, decimal ExpectedScore, decimal Score,
+    int K, KFactorReason KReason, decimal ExactChange, int Change)
+{
+    public int NewRating => Rating + Change;
+}

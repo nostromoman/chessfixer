@@ -24,10 +24,6 @@ else
             <div class="player-stats-label">@L["RatingGames"]</div>
         </div>
     </div>
-    @if (_rating.RatedGames < NewPlayerGames)
-    {
-        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-4">@L["RatingProvisional"]</MudText>
-    }
 
     @if (_rating.History.Count == 0)
     {
@@ -69,7 +65,6 @@ else
 }
 
 @code {
-    private const int NewPlayerGames = 30;
 
     // Chart geometry in SVG user units; the SVG scales to the width of the drawer.
     private const double Width = 640, Height = 220;

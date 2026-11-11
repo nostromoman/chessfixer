@@ -142,6 +142,15 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<List<RatingListEntryDto>> GetRatingListAsync() =>
         SendAsync<List<RatingListEntryDto>>(HttpMethod.Get, "api/ratings");
 
+    public Task<RatingRulesDto> GetRatingRulesAsync() =>
+        SendAsync<RatingRulesDto>(HttpMethod.Get, "api/ratings/rules");
+
+    public Task<RatingCalculationDto> CalculateRatingAsync(int whiteRating, int blackRating, GameResult result,
+        bool whiteJunior, bool blackJunior, bool whiteWasMaster, bool blackWasMaster) =>
+        SendAsync<RatingCalculationDto>(HttpMethod.Get,
+            $"api/ratings/calculate?whiteRating={whiteRating}&blackRating={blackRating}&result={result}" +
+            $"&whiteJunior={whiteJunior}&blackJunior={blackJunior}&whiteWasMaster={whiteWasMaster}&blackWasMaster={blackWasMaster}");
+
     public Task<RatingLogPageDto> GetRatingLogAsync(int skip, int take, int? playerId = null) =>
         SendAsync<RatingLogPageDto>(HttpMethod.Get,
             $"api/ratings/log?skip={skip}&take={take}" + (playerId is { } id ? $"&playerId={id}" : ""));

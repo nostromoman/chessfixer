@@ -544,3 +544,46 @@ tr.withdrawn td {
     display: block;
     overflow: visible;
 }
+
+/* Rating page, "meer info": the calculation explained. */
+.rating-formula {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    background: var(--mud-palette-background-gray);
+}
+
+.rating-info-list {
+    padding-left: 1.25em;
+    margin: 0;
+}
+
+.rating-info-list li {
+    margin-bottom: 4px;
+}
+
+.rating-info .value {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.rating-calc-player {
+    flex: 1 1 12em;
+    min-width: 0;
+}
+
+.expected-score-table {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+    column-gap: 24px;
+    row-gap: 2px;
+    font-size: 0.875rem;
+}
+
+.expected-score-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
