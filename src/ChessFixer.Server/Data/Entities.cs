@@ -18,7 +18,13 @@ public class Player
 
     public DateOnly? BirthDate { get; set; }
     public string? City { get; set; }
-    public string? Club { get; set; }
+
+    /// <summary>A guest player is not a member of the own club. Games with a guest player are not rated.</summary>
+    public bool IsGuest { get; set; }
+
+    /// <summary>The club of a guest player; null when unknown.</summary>
+    public int? ClubId { get; set; }
+    public Club? Club { get; set; }
 
     /// <summary>Profile photo, in its own table so loading players never loads the image data. Null without a photo.</summary>
     public PlayerPhoto? Photo { get; set; }
@@ -231,4 +237,42 @@ public class AppUser
     public string SecurityStamp { get; set; } = NewSecurityStamp();
 
     public static string NewSecurityStamp() => Guid.NewGuid().ToString("N");
+}
+
+/// <summary>A chess club. Guest players can belong to one; at most one club is the own club.</summary>
+public class Club
+{
+    public int Id { get; set; }
+    public required string Name { get; set; }
+    public string? City { get; set; }
+    public string? Description { get; set; }
+    public bool IsOwnClub { get; set; }
+}
+
+/// <summary>
+/// One rating change, written when it happens and never changed afterwards (the rating log). Game details are
+/// copied, so the entry stays readable when the round is cancelled or the tournament renamed.
+/// </summary>
+public class RatingLogEntry
+{
+    public int Id { get; set; }
+    public DateTime At { get; set; }
+    public int PlayerId { get; set; }
+    public Player Player { get; set; } = null!;
+    public int RatingBefore { get; set; }
+    public int RatingAfter { get; set; }
+    public RatingChangeReason Reason { get; set; }
+
+    /// <summary>Null when the tournament is gone; the title is kept.</summary>
+    public int? TournamentId { get; set; }
+    public string? TournamentTitle { get; set; }
+    public int? Round { get; set; }
+    public int? OpponentId { get; set; }
+    public Player? Opponent { get; set; }
+    public int? OpponentRating { get; set; }
+    public GameResult? Result { get; set; }
+    public bool? IsWhite { get; set; }
+
+    /// <summary>Display name of the user who made the change.</summary>
+    public string? ChangedBy { get; set; }
 }

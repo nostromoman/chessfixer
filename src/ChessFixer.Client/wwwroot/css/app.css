@@ -529,3 +529,18 @@ tr.withdrawn td {
     font-family: ui-monospace, Consolas, monospace;
     font-size: 0.85rem;
 }
+
+/* Clubs: keep long descriptions readable in the table. */
+.club-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-line;
+}
+
+/* Rating list: the trend line of the latest ratings. */
+.rating-sparkline {
+    display: block;
+    overflow: visible;
+}

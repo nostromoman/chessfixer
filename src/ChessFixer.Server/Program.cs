@@ -6,6 +6,8 @@ using ChessFixer.Server.Hubs;
 using ChessFixer.Server.Services;
 using ChessFixer.Server.Services.Ai;
 using ChessFixer.Server.Services.Auth;
+using ChessFixer.Server.Services.Clubs;
+using ChessFixer.Server.Services.Ratings;
 using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Hubs;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -77,6 +79,9 @@ builder.Services.AddHttpClient(OllamaTextGenerator.HttpClientName, client => cli
 builder.Services.AddSingleton<ReportQueue>();
 builder.Services.AddScoped<TournamentReportWriter>();
 builder.Services.AddScoped<WritingStyleService>();
+builder.Services.AddScoped<ClubService>();
+builder.Services.AddScoped<RatingLogService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<ReportWorker>();
 builder.Services.AddDbContext<ChessFixerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("ChessFixer")));

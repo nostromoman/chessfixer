@@ -1,0 +1,121 @@
+@page "/rating"
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* The rating list of the own players (no guests), with the trend of their rating. *@
+<PageTitle>@L["RatingList"]</PageTitle>
+
+<div class="d-flex align-center gap-2 mb-4">
+    <MudText Typo="Typo.h4">@L["RatingList"]</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Href="rating-log">@L["RatingLog"]</MudButton>
+</div>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["RatingListIntro"]</MudText>
+
+    @if (_entries is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_entries.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["RatingListEmpty"]</MudText>
+    }
+    else
+    {
+        <MudTable T="RatingListEntryDto" Items="_entries" Dense="true" Hover="true" Striped="true" Elevation="0">
+            <HeaderContent>
+                <MudTh Style="width: 3em; text-align: right">#</MudTh>
+                <MudTh Style="width: 3em"></MudTh>
+                <MudTh><MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.Name">@L["Name"]</MudTableSortLabel></MudTh>
+                <MudTh Style="text-align: right">
+                    <MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.Rating" InitialDirection="SortDirection.Descending">@L["Rating"]</MudTableSortLabel>
+                </MudTh>
+                <MudTh Style="text-align: right">
+                    <MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.Change30Days">@L["RatingChange30Days"]</MudTableSortLabel>
+                </MudTh>
+                <MudTh>@L["RatingTrend"]</MudTh>
+                <MudTh Style="text-align: right">
+                    <MudTableSortLabel T="RatingListEntryDto" SortBy="e => e.RatedGames">@L["RatingGames"]</MudTableSortLabel>
+                </MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd Style="text-align: right" Class="mud-text-secondary">@(_ranks.GetValueOrDefault(context.PlayerId))</MudTd>
+                <MudTd><PlayerAvatar FirstName="@context.FirstName" LastName="@context.LastName" PhotoUrl="@context.PhotoUrl" /></MudTd>
+                <MudTd DataLabel="@L["Name"]">
+                    <MudLink OnClick="() => OpenPlayer(context.PlayerId)">@context.Name</MudLink>
+                    @if (context.RatedGames < NewPlayerGames)
+                    {
+                        <MudTooltip Text="@L["RatingProvisionalShort"]">
+                            <MudIcon Icon="@Icons.Material.Outlined.HourglassEmpty" Size="Size.Small" Class="ml-1 mud-text-secondary" Style="vertical-align: middle" />
+                        </MudTooltip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@L["Rating"]" Style="text-align: right"><b>@context.Rating</b></MudTd>
+                <MudTd DataLabel="@L["RatingChange30Days"]" Style="text-align: right; white-space: nowrap">
+                    <span class="@ChangeClass(context.Change30Days)">
+                        <MudIcon Icon="@TrendIcon(context.Change30Days)" Size="Size.Small" Style="vertical-align: middle" />
+                        @Signed(context.Change30Days)
+                    </span>
+                </MudTd>
+                <MudTd DataLabel="@L["RatingTrend"]"><RatingSparkline Values="context.Trend" /></MudTd>
+                <MudTd DataLabel="@L["RatingGames"]" Style="text-align: right">@context.RatedGames</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+<PlayerEditDrawer @ref="_editor" OnSaved="_ => LoadAsync()" />
+
+@code {
+    private const int NewPlayerGames = 30;
+
+    private List<RatingListEntryDto>? _entries;
+    private Dictionary<int, int> _ranks = [];
+    private PlayerEditDrawer? _editor;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _entries = await Api.GetRatingListAsync();
+            // The rank stays the rank by rating, also when the table is sorted otherwise.
+            _ranks = _entries.Select((e, i) => (e.PlayerId, Rank: i + 1)).ToDictionary(x => x.PlayerId, x => x.Rank);
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+    }
+
+    private async Task OpenPlayer(int playerId)
+    {
+        try
+        {
+            var player = (await Api.GetPlayersAsync()).FirstOrDefault(p => p.Id == playerId);
+            if (player is not null) _editor?.OpenEdit(player);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+    }
+
+    private static string Signed(int change) => change > 0 ? $"+{change}" : change.ToString();
+
+    private static string? ChangeClass(int change) =>
+        change > 0 ? "outcome-win" : change < 0 ? "outcome-loss" : "mud-text-secondary";
+
+    private static string TrendIcon(int change) =>
+        change > 0 ? Icons.Material.Filled.TrendingUp
+        : change < 0 ? Icons.Material.Filled.TrendingDown
+        : Icons.Material.Filled.TrendingFlat;
+}

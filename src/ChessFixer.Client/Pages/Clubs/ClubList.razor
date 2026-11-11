@@ -1,0 +1,131 @@
+@page "/clubs"
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject IStringLocalizer<Strings> L
+
+@* The chess clubs. Guest players can belong to a club; one club is the own club. *@
+<PageTitle>@L["Clubs"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["Clubs"]</MudText>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <div class="d-flex align-center gap-4 mb-3">
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["ClubsIntro"]</MudText>
+        <MudSpacer />
+        <MudTooltip Text="@L["NewClub"]">
+            <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                    aria-label="@L["NewClub"]" OnClick="() => EditAsync(null)" Disabled="_busy" />
+        </MudTooltip>
+    </div>
+
+    @if (_clubs is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_clubs.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["NoClubs"]</MudText>
+    }
+    else
+    {
+        <MudTable T="ClubDto" Items="_clubs" Dense="true" Hover="true" Striped="true" Elevation="0">
+            <HeaderContent>
+                <MudTh Style="width: 3em"></MudTh>
+                <MudTh>@L["Name"]</MudTh>
+                <MudTh>@L["City"]</MudTh>
+                <MudTh>@L["Description"]</MudTh>
+                <MudTh Style="text-align: right">@L["GuestPlayers"]</MudTh>
+                <MudTh Style="width: 6em"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudTooltip Text="@(context.IsOwnClub ? L["OwnClub"] : L["MarkAsOwnClub"])">
+                        <MudIconButton Icon="@(context.IsOwnClub ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)"
+                                       Color="@(context.IsOwnClub ? Color.Warning : Color.Default)" Size="Size.Small"
+                                       aria-label="@L["MarkAsOwnClub"]" Disabled="_busy" OnClick="() => ToggleOwnAsync(context)" />
+                    </MudTooltip>
+                </MudTd>
+                <MudTd DataLabel="@L["Name"]">
+                    <MudLink OnClick="() => EditAsync(context)"><b>@context.Name</b></MudLink>
+                    @if (context.IsOwnClub)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2 my-0">@L["OwnClub"]</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@L["City"]">@context.City</MudTd>
+                <MudTd DataLabel="@L["Description"]"><span class="club-description">@context.Description</span></MudTd>
+                <MudTd DataLabel="@L["GuestPlayers"]" Style="text-align: right">@(context.IsOwnClub ? "" : context.GuestPlayers.ToString())</MudTd>
+                <MudTd Style="text-align: right; white-space: nowrap">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="@L["EditClub"]"
+                                   Disabled="_busy" OnClick="() => EditAsync(context)" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                   aria-label="@L["DeleteClub"]" Disabled="_busy" OnClick="() => DeleteAsync(context)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private List<ClubDto>? _clubs;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync() => RunAsync(LoadAsync);
+
+    private async Task LoadAsync() => _clubs = await Api.GetClubsAsync();
+
+    /// <param name="club">Null to create a new club.</param>
+    private async Task EditAsync(ClubDto? club)
+    {
+        var dialog = await Dialogs.ShowAsync<ClubEditDialog>(
+            club is null ? L["NewClub"] : L["EditClub"],
+            new DialogParameters<ClubEditDialog> { { d => d.Club, club } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false });
+        if (await dialog.Result is not { Canceled: false }) return;
+        await RunAsync(LoadAsync);
+    }
+
+    /// <summary>Marks the club as the own club (the previous own club is unmarked), or unmarks it.</summary>
+    private Task ToggleOwnAsync(ClubDto club) =>
+        RunAsync(async () =>
+        {
+            await Api.UpdateClubAsync(club.Id, new SaveClubRequest(club.Name, club.City, club.Description, !club.IsOwnClub));
+            await LoadAsync();
+        });
+
+    private async Task DeleteAsync(ClubDto club)
+    {
+        var text = club.GuestPlayers > 0 ? L["DeleteClubTextWithGuests", club.Name, club.GuestPlayers] : L["DeleteClubText", club.Name];
+        var confirmed = await Dialogs.ShowMessageBoxAsync(L["DeleteClubTitle"], text, yesText: L["DeleteClub"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        await RunAsync(async () =>
+        {
+            await Api.DeleteClubAsync(club.Id);
+            Snackbar.Add(L["ClubDeleted", club.Name], Severity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

@@ -1,0 +1,10 @@
+@inject IStringLocalizer<Strings> L
+
+@* Small marker for a guest player (games with a guest do not count for the rating). *@
+<MudTooltip Text="@(ClubName is null ? L["GuestPlayerTooltip"].Value : L["GuestPlayerOfClub", ClubName].Value)">
+    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary" Class="my-0 ml-1">@L["Guest"]</MudChip>
+</MudTooltip>
+
+@code {
+    [Parameter] public string? ClubName { get; set; }
+}

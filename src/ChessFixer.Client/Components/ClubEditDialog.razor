@@ -1,0 +1,77 @@
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Creates or changes a chess club: name, city, description, and whether it is the own club. *@
+<MudDialog>
+    <DialogContent>
+        <div class="d-flex flex-column gap-3">
+            <MudTextField @bind-Value="_name" Label="@L["Name"]" Variant="Variant.Outlined" Immediate="true"
+                          AutoFocus="true" Disabled="_busy" MaxLength="100" />
+            <MudTextField @bind-Value="_city" Label="@L["City"]" Variant="Variant.Outlined" Immediate="true"
+                          Disabled="_busy" MaxLength="100" />
+            <MudTextField @bind-Value="_description" Label="@L["Description"]" Variant="Variant.Outlined" Immediate="true"
+                          Disabled="_busy" MaxLength="2000" Lines="3" Sizing="InputSizing.Auto" MaxLines="10" />
+            <div>
+                <MudSwitch T="bool" @bind-Value="_isOwnClub" Color="Color.Primary" Label="@L["OwnClub"]" Disabled="_busy" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["OwnClubHelp"]</MudText>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()" Disabled="_busy">@L["Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@(!CanSave)" OnClick="SaveAsync">@L["Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>The club to change; null to create a new one.</summary>
+    [Parameter] public ClubDto? Club { get; set; }
+
+    private string _name = "";
+    private string? _city;
+    private string? _description;
+    private bool _isOwnClub;
+    private bool _busy;
+
+    private bool CanSave => !_busy && !string.IsNullOrWhiteSpace(_name);
+
+    protected override void OnInitialized()
+    {
+        _name = Club?.Name ?? "";
+        _city = Club?.City;
+        _description = Club?.Description;
+        _isOwnClub = Club?.IsOwnClub ?? false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave) return;
+
+        _busy = true;
+        try
+        {
+            var request = new SaveClubRequest(_name, _city, _description, _isOwnClub);
+            var saved = Club is null
+                ? await Api.CreateClubAsync(request)
+                : await Api.UpdateClubAsync(Club.Id, request);
+            Snackbar.Add(L["ClubSaved", saved.Name], Severity.Success);
+            Dialog.Close(DialogResult.Ok(saved));
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

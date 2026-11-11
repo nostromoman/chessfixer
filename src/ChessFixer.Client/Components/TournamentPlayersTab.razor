@@ -26,6 +26,10 @@
                         <PlayerAvatar FirstName="@player.FirstName" LastName="@player.LastName" PhotoUrl="@player.PhotoUrl" />
                         @player.Name
                         <MudText Typo="Typo.caption" Inline="true" Class="mud-text-secondary">(@player.Rating)</MudText>
+                        @if (player.IsGuest)
+                        {
+                            <GuestChip ClubName="@player.ClubName" />
+                        }
                     </div>
                 }
             </ItemTemplate>
@@ -73,6 +77,10 @@ else
                         <MudLink OnClick="() => OnOpenPlayer.InvokeAsync(playerId)" Disabled="@(info is null)">
                             <PlayerName Name="@player.Name" IsDeleted="player.IsDeleted" />
                         </MudLink>
+                        @if (info is { IsGuest: true })
+                        {
+                            <GuestChip ClubName="@info.ClubName" />
+                        }
                     </td>
                     <td style="text-align: right">@player.Rating</td>
                     <td>
@@ -201,7 +209,7 @@ else
         var name = text?.Trim();
         if (!string.IsNullOrEmpty(name)
             && !AvailablePlayers.Any(p => string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase)))
-            items.Add(new PlayerDto(NewPlayerId, name, "", name, 0, null, null, null, null));
+            items.Add(new PlayerDto(NewPlayerId, name, "", name, 0, null, null, null));
         return Task.FromResult<IEnumerable<PlayerDto>>(items);
     }
 

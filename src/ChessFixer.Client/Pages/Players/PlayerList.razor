@@ -41,7 +41,7 @@
                 </MudTh>
                 <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.LastName">@L["LastName"]</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.City ?? string.Empty">@L["City"]</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => p.Club ?? string.Empty">@L["Club"]</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel T="PlayerDto" SortBy="p => ClubOf(p) ?? string.Empty">@L["Club"]</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align: right">
                     <MudTableSortLabel T="PlayerDto" SortBy="p => p.Rating">@L["Rating"]</MudTableSortLabel>
                 </MudTh>
@@ -56,9 +56,13 @@
                 </MudTd>
                 <MudTd DataLabel="@L["LastName"]">
                     <MudLink OnClick="() => OpenEdit(context)">@context.LastName</MudLink>
+                    @if (context.IsGuest)
+                    {
+                        <GuestChip ClubName="@context.ClubName" />
+                    }
                 </MudTd>
                 <MudTd DataLabel="@L["City"]">@context.City</MudTd>
-                <MudTd DataLabel="@L["Club"]">@context.Club</MudTd>
+                <MudTd DataLabel="@L["Club"]">@ClubOf(context)</MudTd>
                 <MudTd DataLabel="@L["Rating"]" Style="text-align: right">@context.Rating</MudTd>
                 <MudTd Style="text-align: right">
                     <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
@@ -73,6 +77,7 @@
 
 @code {
     private List<PlayerDto>? _players;
+    private string? _ownClub;
     private string _filter = "";
     private PlayerEditDrawer? _editor;
     private bool _busy;
@@ -80,13 +85,21 @@
     private IEnumerable<PlayerDto> FilteredPlayers =>
         string.IsNullOrWhiteSpace(_filter)
             ? _players!
-            : _players!.Where(p => Matches(p.Name) || Matches(p.City) || Matches(p.Club));
+            : _players!.Where(p => Matches(p.Name) || Matches(p.City) || Matches(ClubOf(p)));
+
+    /// <summary>The club of a guest player; own players belong to the own club.</summary>
+    private string? ClubOf(PlayerDto player) => player.IsGuest ? player.ClubName : _ownClub;
 
     private bool Matches(string? text) => text?.Contains(_filter, StringComparison.CurrentCultureIgnoreCase) == true;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
-    private async Task LoadAsync() => _players = await Api.GetPlayersAsync();
+    private async Task LoadAsync()
+    {
+        var clubs = Api.GetClubsAsync();
+        _players = await Api.GetPlayersAsync();
+        _ownClub = (await clubs).FirstOrDefault(c => c.IsOwnClub)?.Name;
+    }
 
     private async Task ReloadAsync()
     {

@@ -12,6 +12,7 @@ public enum ApiErrorCode
     GameNotFound,
     UserNotFound,
     WritingStyleNotFound,
+    ClubNotFound,
 
     // 400
     TitleRequired,
@@ -25,6 +26,7 @@ public enum ApiErrorCode
     PasswordTooShort,
     CurrentPasswordIncorrect,
     WritingStyleNameRequired,
+    ClubNameRequired,
 
     // 401
     InvalidCredentials,

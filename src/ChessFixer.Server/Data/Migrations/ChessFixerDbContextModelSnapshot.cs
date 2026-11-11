@@ -107,6 +107,40 @@ namespace ChessFixer.Server.Data.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.Club", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsOwnClub")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsOwnClub")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Clubs_OwnClub")
+                        .HasFilter("\"IsOwnClub\" = 1");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Clubs");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Game", b =>
                 {
                     b.Property<int>("Id")
@@ -180,9 +214,8 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Club")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                    b.Property<int?>("ClubId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -190,6 +223,9 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsGuest")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("LastName")
@@ -211,6 +247,8 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ClubId");
 
                     b.HasIndex("Name");
 
@@ -237,6 +275,69 @@ namespace ChessFixer.Server.Data.Migrations
                     b.HasKey("PlayerId");
 
                     b.ToTable("PlayerPhotos");
+                });
+
+            modelBuilder.Entity("ChessFixer.Server.Data.RatingLogEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChangedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("IsWhite")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("OpponentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("OpponentRating")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RatingAfter")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RatingBefore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Round")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TournamentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TournamentTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("At");
+
+                    b.HasIndex("OpponentId");
+
+                    b.HasIndex("TournamentId");
+
+                    b.HasIndex("PlayerId", "At");
+
+                    b.ToTable("RatingLog");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.Round", b =>
@@ -485,6 +586,16 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Navigation("White");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.Club", "Club")
+                        .WithMany()
+                        .HasForeignKey("ClubId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Club");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.PlayerPhoto", b =>
                 {
                     b.HasOne("ChessFixer.Server.Data.Player", null)
@@ -492,6 +603,29 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasForeignKey("ChessFixer.Server.Data.PlayerPhoto", "PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ChessFixer.Server.Data.RatingLogEntry", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.Player", "Opponent")
+                        .WithMany()
+                        .HasForeignKey("OpponentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChessFixer.Server.Data.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChessFixer.Server.Data.Tournament", null)
+                        .WithMany()
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Opponent");
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.Round", b =>

@@ -2,6 +2,7 @@ using ChessFixer.Core.Rating;
 using ChessFixer.Server.Data;
 using ChessFixer.Server.Errors;
 using ChessFixer.Server.Services;
+using ChessFixer.Server.Services.Ratings;
 using ChessFixer.Shared.Dtos;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,7 @@ namespace ChessFixer.Server.Controllers;
 /// <summary>The central player list, shared across tournaments.</summary>
 [ApiController]
 [Route("api/players")]
-public class PlayersController(ChessFixerDbContext db, TournamentService tournaments) : ControllerBase
+public class PlayersController(ChessFixerDbContext db, TournamentService tournaments, RatingLogService ratingLog) : ControllerBase
 {
     public const int MaxPhotoBytes = 1024 * 1024;
     private const int MaxRating = 4000;
@@ -23,8 +24,9 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
         await db.Players
             .Where(p => includeDeleted || !p.IsDeleted)
             .OrderBy(p => p.Name)
-            .Select(p => new PlayerDto(p.Id, p.FirstName, p.LastName, p.Name, p.Rating, p.BirthDate, p.City, p.Club,
-                p.Photo == null ? (int?)null : p.PhotoVersion, p.IsDeleted))
+            .Select(p => new PlayerDto(p.Id, p.FirstName, p.LastName, p.Name, p.Rating, p.BirthDate, p.City,
+                p.Photo == null ? (int?)null : p.PhotoVersion, p.IsDeleted,
+                p.IsGuest, p.ClubId, p.Club == null ? null : p.Club.Name))
             .ToListAsync();
 
     /// <summary>Tournament results and games of the player.</summary>
@@ -76,9 +78,10 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
     public async Task<ActionResult<PlayerDto>> Create(CreatePlayerRequest request)
     {
         var player = new Player { FirstName = "" };
-        Apply(player, request.FirstName, request.LastName, request.Rating ?? EloCalculator.DefaultRating,
-            request.BirthDate, request.City, request.Club);
+        await ApplyAsync(player, request.FirstName, request.LastName, request.Rating ?? EloCalculator.DefaultRating,
+            request.BirthDate, request.City, request.IsGuest, request.ClubId);
         db.Players.Add(player);
+        await ratingLog.AddAsync(player, player.Rating, RatingChangeReason.NewPlayer);
         await db.SaveChangesAsync();
         return ToDto(player);
     }
@@ -87,8 +90,10 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
     public async Task<PlayerDto> Update(int id, UpdatePlayerRequest request)
     {
         var player = await FindWithPhotoAsync(id); // the response tells whether the player has a photo
-        Apply(player, request.FirstName, request.LastName, request.Rating ?? player.Rating,
-            request.BirthDate, request.City, request.Club);
+        var before = player.Rating;
+        await ApplyAsync(player, request.FirstName, request.LastName, request.Rating ?? player.Rating,
+            request.BirthDate, request.City, request.IsGuest, request.ClubId);
+        await ratingLog.AddAsync(player, before, RatingChangeReason.Manual);
         await db.SaveChangesAsync();
         return ToDto(player);
     }
@@ -154,11 +159,11 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
         await db.Players.FindAsync(id) ?? throw new ApiException(ApiErrorCode.PlayerNotFound);
 
     private async Task<Player> FindWithPhotoAsync(int id) =>
-        await db.Players.Include(p => p.Photo).SingleOrDefaultAsync(p => p.Id == id)
+        await db.Players.Include(p => p.Photo).Include(p => p.Club).SingleOrDefaultAsync(p => p.Id == id)
         ?? throw new ApiException(ApiErrorCode.PlayerNotFound);
 
-    private static void Apply(Player player, string firstName, string? lastName, int rating,
-        DateOnly? birthDate, string? city, string? club)
+    private async Task ApplyAsync(Player player, string firstName, string? lastName, int rating,
+        DateOnly? birthDate, string? city, bool isGuest, int? clubId)
     {
         if (string.IsNullOrWhiteSpace(firstName)) throw new ApiException(ApiErrorCode.FirstNameRequired);
         if (rating is < 0 or > MaxRating) throw new ApiException(ApiErrorCode.InvalidRating);
@@ -168,12 +173,17 @@ public class PlayersController(ChessFixerDbContext db, TournamentService tournam
         player.Rating = rating;
         player.BirthDate = birthDate;
         player.City = Normalize(city);
-        player.Club = Normalize(club);
+        player.IsGuest = isGuest;
+        // Only a guest player has a club: own players belong to the own club.
+        player.Club = isGuest && clubId is { } id
+            ? await db.Clubs.FindAsync(id) ?? throw new ApiException(ApiErrorCode.ClubNotFound)
+            : null;
+        player.ClubId = player.Club?.Id;
     }
 
     private static string? Normalize(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 
     private static PlayerDto ToDto(Player p) =>
-        new(p.Id, p.FirstName, p.LastName, p.Name, p.Rating, p.BirthDate, p.City, p.Club,
-            p.Photo is null ? null : p.PhotoVersion, p.IsDeleted);
+        new(p.Id, p.FirstName, p.LastName, p.Name, p.Rating, p.BirthDate, p.City,
+            p.Photo is null ? null : p.PhotoVersion, p.IsDeleted, p.IsGuest, p.ClubId, p.Club?.Name);
 }

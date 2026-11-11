@@ -138,7 +138,7 @@ public static class TournamentReportPrompt
         {
             if (player.Rating is { } rating) details.Add($"rating {rating}");
             if (Age(player.BirthDate, data.FirstRoundStartedAt) is { } age) details.Add($"{age} jaar");
-            if (!string.IsNullOrWhiteSpace(player.Club)) details.Add($"club {player.Club}");
+            if (player.IsGuest) details.Add(player.Club is { } club ? $"gastspeler van {club.Name}" : "gastspeler");
             if (!string.IsNullOrWhiteSpace(player.City)) details.Add($"uit {player.City}");
         }
         if (!standing.IsActive) details.Add("tijdens het toernooi gestopt");

@@ -12,12 +12,13 @@ public sealed class ApiException(ApiErrorCode code) : Exception(code.ToString())
     public int StatusCode => Code switch
     {
         ApiErrorCode.TournamentNotFound or ApiErrorCode.PlayerNotFound or ApiErrorCode.GameNotFound
-            or ApiErrorCode.UserNotFound or ApiErrorCode.WritingStyleNotFound
+            or ApiErrorCode.UserNotFound or ApiErrorCode.WritingStyleNotFound or ApiErrorCode.ClubNotFound
             => StatusCodes.Status404NotFound,
         ApiErrorCode.TitleRequired or ApiErrorCode.FirstNameRequired or ApiErrorCode.InvalidSettings or ApiErrorCode.InvalidResult
             or ApiErrorCode.InvalidPhoto or ApiErrorCode.InvalidRating
             or ApiErrorCode.UserNameRequired or ApiErrorCode.DisplayNameRequired or ApiErrorCode.PasswordTooShort
             or ApiErrorCode.CurrentPasswordIncorrect or ApiErrorCode.WritingStyleNameRequired
+            or ApiErrorCode.ClubNameRequired
             => StatusCodes.Status400BadRequest,
         ApiErrorCode.InvalidCredentials => StatusCodes.Status401Unauthorized,
         ApiErrorCode.TooManyLoginAttempts => StatusCodes.Status429TooManyRequests,

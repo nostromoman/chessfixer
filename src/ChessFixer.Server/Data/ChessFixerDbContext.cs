@@ -1,3 +1,4 @@
+using ChessFixer.Server.Services.Clubs;
 using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,8 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
     public DbSet<Game> Games => Set<Game>();
     public DbSet<AppSettings> AppSettings => Set<AppSettings>();
     public DbSet<WritingStyle> WritingStyles => Set<WritingStyle>();
+    public DbSet<Club> Clubs => Set<Club>();
+    public DbSet<RatingLogEntry> RatingLog => Set<RatingLogEntry>();
     public DbSet<AppUser> Users => Set<AppUser>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -30,6 +33,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         StoreAsText<ReportStatus>();
         StoreAsText<AiProvider>();
         StoreAsText<UserRole>();
+        StoreAsText<RatingChangeReason>();
 
         // All times are UTC. SQLite does not keep DateTimeKind, so mark the values as UTC again when reading.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcConverter>();
@@ -45,13 +49,35 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             player.Property(p => p.FirstName).HasMaxLength(50);
             player.Property(p => p.LastName).HasMaxLength(50);
             player.Property(p => p.City).HasMaxLength(100);
-            player.Property(p => p.Club).HasMaxLength(100);
+            player.HasOne(p => p.Club).WithMany().HasForeignKey(p => p.ClubId).OnDelete(DeleteBehavior.SetNull);
             player.Property(p => p.Name)
                 .HasMaxLength(101)
                 .HasComputedColumnSql("trim(\"FirstName\" || ' ' || \"LastName\")", stored: true);
             player.HasIndex(p => p.Name);
             player.HasOne(p => p.Photo).WithOne().HasForeignKey<PlayerPhoto>(photo => photo.PlayerId);
             player.ToTable(t => t.HasCheckConstraint("CK_Players_Rating", "\"Rating\" >= 0"));
+        });
+
+        modelBuilder.Entity<Club>(club =>
+        {
+            club.Property(c => c.Name).HasMaxLength(ClubRules.MaxNameLength);
+            club.Property(c => c.City).HasMaxLength(ClubRules.MaxCityLength);
+            club.Property(c => c.Description).HasMaxLength(ClubRules.MaxDescriptionLength);
+            club.HasIndex(c => c.Name);
+            // At most one own club.
+            club.HasIndex(c => c.IsOwnClub).IsUnique().HasFilter("\"IsOwnClub\" = 1").HasDatabaseName("IX_Clubs_OwnClub");
+        });
+
+        modelBuilder.Entity<RatingLogEntry>(entry =>
+        {
+            entry.HasIndex(e => e.At);
+            entry.HasIndex(e => new { e.PlayerId, e.At });
+            entry.Property(e => e.TournamentTitle).HasMaxLength(200);
+            entry.Property(e => e.ChangedBy).HasMaxLength(100);
+            // Players are only soft-deleted; the log is never deleted with them.
+            entry.HasOne(e => e.Player).WithMany().HasForeignKey(e => e.PlayerId).OnDelete(DeleteBehavior.Restrict);
+            entry.HasOne(e => e.Opponent).WithMany().HasForeignKey(e => e.OpponentId).OnDelete(DeleteBehavior.Restrict);
+            entry.HasOne<Tournament>().WithMany().HasForeignKey(e => e.TournamentId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<PlayerPhoto>(photo =>

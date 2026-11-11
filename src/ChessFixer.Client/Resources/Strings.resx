@@ -142,7 +142,7 @@
   <data name="PlayerTabGeneral" xml:space="preserve"><value>Algemeen</value></data>
   <data name="PlayerTabStatistics" xml:space="preserve"><value>Statistieken</value></data>
   <data name="PlayerTabRating" xml:space="preserve"><value>Rating</value></data>
-  <data name="RatingHelpNew" xml:space="preserve"><value>Spelers zonder rating beginnen op 1200.</value></data>
+  <data name="RatingHelpNew" xml:space="preserve"><value>Spelers zonder rating beginnen op 1400.</value></data>
   <data name="RatingHelp" xml:space="preserve"><value>Wordt na iedere partij in een toernooi dat meetelt automatisch bijgewerkt.</value></data>
   <data name="RatingCurrent" xml:space="preserve"><value>Huidige rating</value></data>
   <data name="RatingGames" xml:space="preserve"><value>Partijen met rating</value></data>
@@ -402,4 +402,53 @@
   <data name="ReportDefaultStyleNone" xml:space="preserve"><value>Geen (de eerste in de lijst)</value></data>
   <data name="ReportDefaultStyleNoStyles" xml:space="preserve"><value>Er zijn geen schrijfstijlen; de AI krijgt dan geen schrijfstijl mee. Voeg hieronder schrijfstijlen toe om een standaard te kiezen.</value></data>
   <data name="StandardStyle" xml:space="preserve"><value>standaard</value></data>
+  <data name="Clubs" xml:space="preserve"><value>Clubs</value></data>
+  <data name="ClubsIntro" xml:space="preserve"><value>Schaakclubs waar gastspelers lid van kunnen zijn. Markeer met de ster de eigen club.</value></data>
+  <data name="NewClub" xml:space="preserve"><value>Nieuwe club</value></data>
+  <data name="EditClub" xml:space="preserve"><value>Club bewerken</value></data>
+  <data name="DeleteClub" xml:space="preserve"><value>Club verwijderen</value></data>
+  <data name="DeleteClubTitle" xml:space="preserve"><value>Club verwijderen?</value></data>
+  <data name="DeleteClubText" xml:space="preserve"><value>Weet je zeker dat je {0} wilt verwijderen?</value></data>
+  <data name="DeleteClubTextWithGuests" xml:space="preserve"><value>Weet je zeker dat je {0} wilt verwijderen? {1} gastspeler(s) van deze club blijven bestaan, maar zonder club.</value></data>
+  <data name="ClubDeleted" xml:space="preserve"><value>{0} is verwijderd.</value></data>
+  <data name="ClubSaved" xml:space="preserve"><value>{0} is opgeslagen.</value></data>
+  <data name="NoClubs" xml:space="preserve"><value>Er zijn nog geen clubs.</value></data>
+  <data name="OwnClub" xml:space="preserve"><value>Eigen club</value></data>
+  <data name="OwnClubHelp" xml:space="preserve"><value>De club die deze app gebruikt. Er is maar één eigen club: een andere club markeren haalt de markering hier weg.</value></data>
+  <data name="MarkAsOwnClub" xml:space="preserve"><value>Markeren als eigen club</value></data>
+  <data name="GuestPlayers" xml:space="preserve"><value>Gastspelers</value></data>
+  <data name="Guest" xml:space="preserve"><value>gast</value></data>
+  <data name="GuestPlayer" xml:space="preserve"><value>Gastspeler</value></data>
+  <data name="GuestPlayerHelp" xml:space="preserve"><value>Een gastspeler is geen lid van de eigen club. Partijen met een gastspeler tellen niet mee voor de rating.</value></data>
+  <data name="GuestPlayerTooltip" xml:space="preserve"><value>Gastspeler: partijen tellen niet mee voor de rating</value></data>
+  <data name="GuestPlayerOfClub" xml:space="preserve"><value>Gastspeler van {0}: partijen tellen niet mee voor de rating</value></data>
+  <data name="GuestClubHelp" xml:space="preserve"><value>Optioneel: de club van de gastspeler.</value></data>
+  <data name="GuestClubNoClubs" xml:space="preserve"><value>Er zijn nog geen clubs; voeg ze toe op de pagina Clubs.</value></data>
+  <data name="NoClub" xml:space="preserve"><value>Geen club</value></data>
+  <data name="Error_ClubNotFound" xml:space="preserve"><value>Deze club bestaat niet meer.</value></data>
+  <data name="Error_ClubNameRequired" xml:space="preserve"><value>Geef de club een naam (maximaal 100 tekens).</value></data>
+  <data name="RatingList" xml:space="preserve"><value>Rating</value></data>
+  <data name="RatingListIntro" xml:space="preserve"><value>De rating van alle spelers van de eigen club (zonder gastspelers), met het verloop van hun laatste ratingwijzigingen.</value></data>
+  <data name="RatingListEmpty" xml:space="preserve"><value>Er zijn nog geen spelers van de eigen club.</value></data>
+  <data name="RatingChange30Days" xml:space="preserve"><value>30 dagen</value></data>
+  <data name="RatingTrend" xml:space="preserve"><value>Trend</value></data>
+  <data name="RatingProvisionalShort" xml:space="preserve"><value>Voorlopige rating: nog geen 30 partijen gespeeld</value></data>
+  <data name="RatingLog" xml:space="preserve"><value>Ratinglogboek</value></data>
+  <data name="RatingLogIntro" xml:space="preserve"><value>Iedere ratingwijziging, de nieuwste bovenaan.</value></data>
+  <data name="RatingLogEmpty" xml:space="preserve"><value>Er zijn nog geen ratingwijzigingen.</value></data>
+  <data name="RatingLogWhen" xml:space="preserve"><value>Wanneer</value></data>
+  <data name="RatingLogBefore" xml:space="preserve"><value>Oude rating</value></data>
+  <data name="RatingLogReason" xml:space="preserve"><value>Reden</value></data>
+  <data name="RatingLogDetails" xml:space="preserve"><value>Details</value></data>
+  <data name="RatingLogAgainst" xml:space="preserve"><value>tegen</value></data>
+  <data name="RatingLogChangedBy" xml:space="preserve"><value>Door</value></data>
+  <data name="RatingLogRound" xml:space="preserve"><value>ronde {0}</value></data>
+  <data name="Player" xml:space="preserve"><value>Speler</value></data>
+  <data name="AllPlayers" xml:space="preserve"><value>Alle spelers</value></data>
+  <data name="RowsPerPage" xml:space="preserve"><value>Rijen per pagina:</value></data>
+  <data name="RatingReason_NewPlayer" xml:space="preserve"><value>Nieuwe speler</value></data>
+  <data name="RatingReason_Manual" xml:space="preserve"><value>Handmatig aangepast</value></data>
+  <data name="RatingReason_Game" xml:space="preserve"><value>Partij</value></data>
+  <data name="RatingReason_GameReverted" xml:space="preserve"><value>Uitslag gecorrigeerd</value></data>
+  <data name="RatingReason_RoundCancelled" xml:space="preserve"><value>Ronde geannuleerd</value></data>
 </root>

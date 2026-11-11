@@ -123,6 +123,29 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<PlayerDto> DeletePlayerPhotoAsync(int id) =>
         SendAsync<PlayerDto>(HttpMethod.Delete, $"api/players/{id}/photo");
 
+    // ----- Clubs -----
+
+    public Task<List<ClubDto>> GetClubsAsync() =>
+        SendAsync<List<ClubDto>>(HttpMethod.Get, "api/clubs");
+
+    public Task<ClubDto> CreateClubAsync(SaveClubRequest request) =>
+        SendAsync<ClubDto>(HttpMethod.Post, "api/clubs", request);
+
+    public Task<ClubDto> UpdateClubAsync(int id, SaveClubRequest request) =>
+        SendAsync<ClubDto>(HttpMethod.Put, $"api/clubs/{id}", request);
+
+    public Task DeleteClubAsync(int id) =>
+        SendCoreAsync(HttpMethod.Delete, $"api/clubs/{id}");
+
+    // ----- Ratings -----
+
+    public Task<List<RatingListEntryDto>> GetRatingListAsync() =>
+        SendAsync<List<RatingListEntryDto>>(HttpMethod.Get, "api/ratings");
+
+    public Task<RatingLogPageDto> GetRatingLogAsync(int skip, int take, int? playerId = null) =>
+        SendAsync<RatingLogPageDto>(HttpMethod.Get,
+            $"api/ratings/log?skip={skip}&take={take}" + (playerId is { } id ? $"&playerId={id}" : ""));
+
     // ----- Accounts -----
 
     public Task ChangePasswordAsync(string currentPassword, string newPassword) =>

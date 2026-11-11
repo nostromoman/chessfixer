@@ -46,13 +46,16 @@
     private const string PhotoContentType = "image/jpeg";
 
     /// <summary>Starting rating of a new player (same as the server default).</summary>
-    private const int DefaultRating = 1200;
+    private const int DefaultRating = 1400;
 
     /// <summary>Called after a player has been created or updated.</summary>
     [Parameter] public EventCallback<PlayerDto> OnSaved { get; set; }
 
     private bool _open;
     private EditModel? _editing;
+    private List<ClubDto> _clubs = [];
+
+    private static string ClubLabel(ClubDto club) => club.City is null ? club.Name : $"{club.Name} ({club.City})";
     private MudFileUpload<IBrowserFile>? _photoUpload;
     private bool _busy;
 
@@ -94,8 +97,22 @@
                            Disabled="_busy" />
             <MudTextField @bind-Value="_editing.City" Label="@L["City"]" Variant="Variant.Outlined"
                           MaxLength="100" OnKeyUp="OnKeyUp" Disabled="_busy" />
-            <MudTextField @bind-Value="_editing.Club" Label="@L["Club"]" Variant="Variant.Outlined"
-                          MaxLength="100" OnKeyUp="OnKeyUp" Disabled="_busy" />
+            <div>
+                <MudSwitch T="bool" @bind-Value="_editing.IsGuest" Color="Color.Primary" Label="@L["GuestPlayer"]" Disabled="_busy" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["GuestPlayerHelp"]</MudText>
+            </div>
+            @if (_editing.IsGuest)
+            {
+                <MudSelect T="int?" @bind-Value="_editing.ClubId" Label="@L["Club"]" Variant="Variant.Outlined" Disabled="_busy"
+                           HelperText="@(_clubs.Count == 0 ? L["GuestClubNoClubs"] : L["GuestClubHelp"])"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem T="int?" Value="null">@L["NoClub"]</MudSelectItem>
+                    @foreach (var club in _clubs.Where(c => !c.IsOwnClub || c.Id == _editing.ClubId))
+                    {
+                        <MudSelectItem T="int?" Value="club.Id">@ClubLabel(club)</MudSelectItem>
+                    }
+                </MudSelect>
+            }
             <MudNumericField T="int" @bind-Value="_editing.Rating" Label="@L["Rating"]" Variant="Variant.Outlined"
                              HelperText="@(_editing.IsNew ? L["RatingHelpNew"] : L["RatingHelp"])" Max="4000"
                              Min="0" HideSpinButtons="true" OnKeyUp="OnKeyUp" Disabled="_busy" />
@@ -115,6 +132,21 @@
         _editing = new EditModel(null, null);
         _open = true;
         StateHasChanged();
+        _ = LoadClubsAsync();
+    }
+
+    /// <summary>The clubs for the club dropdown of a guest player; reloaded on every open (clubs may have changed).</summary>
+    private async Task LoadClubsAsync()
+    {
+        try
+        {
+            _clubs = await Api.GetClubsAsync();
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            // Without clubs the dropdown only offers "geen club".
+        }
     }
 
     public void OpenEdit(PlayerDto player)
@@ -126,11 +158,13 @@
             LastName = player.LastName,
             BirthDate = player.BirthDate?.ToDateTime(TimeOnly.MinValue),
             City = player.City,
-            Club = player.Club,
+            IsGuest = player.IsGuest,
+            ClubId = player.ClubId,
             Rating = player.Rating
         };
         _open = true;
         StateHasChanged();
+        _ = LoadClubsAsync();
     }
 
     private void Close() => _open = false;
@@ -184,12 +218,14 @@
             if (editing.Id is { } id)
             {
                 player = await Api.UpdatePlayerAsync(id, new UpdatePlayerRequest(
-                    editing.FirstName, editing.LastName, editing.Rating, birthDate, editing.City, editing.Club));
+                    editing.FirstName, editing.LastName, editing.Rating, birthDate, editing.City,
+                    editing.IsGuest, editing.IsGuest ? editing.ClubId : null));
             }
             else
             {
                 player = await Api.CreatePlayerAsync(new CreatePlayerRequest(
-                    editing.FirstName, editing.LastName, editing.Rating, birthDate, editing.City, editing.Club));
+                    editing.FirstName, editing.LastName, editing.Rating, birthDate, editing.City,
+                    editing.IsGuest, editing.IsGuest ? editing.ClubId : null));
             }
 
             if (editing.NewPhoto is { } photo)
@@ -232,7 +268,8 @@
         public string LastName { get; set; } = "";
         public DateTime? BirthDate { get; set; }
         public string? City { get; set; }
-        public string? Club { get; set; }
+        public bool IsGuest { get; set; }
+        public int? ClubId { get; set; }
         public int Rating { get; set; } = DefaultRating;
 
         /// <summary>A newly chosen photo that is uploaded on save.</summary>

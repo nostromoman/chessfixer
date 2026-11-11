@@ -8,14 +8,14 @@ namespace ChessFixer.Server.Tests;
 public class RatingTests : ApiTestBase
 {
     [Fact]
-    public async Task NewPlayer_WithoutRating_Gets1200()
+    public async Task NewPlayer_WithoutRating_Gets1400()
     {
         var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Magnus", null, null));
-        Assert.Equal(1200, player.Rating);
+        Assert.Equal(1400, player.Rating);
 
         // Updating without a rating keeps the current one.
         var updated = await PutAsync<PlayerDto>($"api/players/{player.Id}", new UpdatePlayerRequest("Magnus", "Carlsen", null));
-        Assert.Equal(1200, updated.Rating);
+        Assert.Equal(1400, updated.Rating);
     }
 
     [Fact]
@@ -32,15 +32,15 @@ public class RatingTests : ApiTestBase
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
 
         // Equal ratings, new players (K = 40): the winner gains 20.
-        Assert.Equal(1220, await RatingOfAsync(white));
-        Assert.Equal(1180, await RatingOfAsync(black));
+        Assert.Equal(1420, await RatingOfAsync(white));
+        Assert.Equal(1380, await RatingOfAsync(black));
 
         var history = await GetAsync<PlayerRatingDto>($"api/players/{white}/rating");
-        Assert.Equal(1220, history.Rating);
+        Assert.Equal(1420, history.Rating);
         var change = Assert.Single(history.History);
-        Assert.Equal((1200, 20, 1220), (change.RatingBefore, change.Change, change.RatingAfter));
+        Assert.Equal((1400, 20, 1420), (change.RatingBefore, change.Change, change.RatingAfter));
         Assert.Equal(black, change.Opponent.PlayerId);
-        Assert.Equal(1200, change.OpponentRating);
+        Assert.Equal(1400, change.OpponentRating);
         Assert.True(change.IsWhite);
     }
 
@@ -51,13 +51,13 @@ public class RatingTests : ApiTestBase
 
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
         await SetResultAsync(id, game.Id, GameResult.BlackWins);
-        Assert.Equal(1180, await RatingOfAsync(white));
-        Assert.Equal(1220, await RatingOfAsync(black));
+        Assert.Equal(1380, await RatingOfAsync(white));
+        Assert.Equal(1420, await RatingOfAsync(black));
         Assert.Single((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).History);
 
         await SetResultAsync(id, game.Id, GameResult.NotPlayed);
-        Assert.Equal(1200, await RatingOfAsync(white));
-        Assert.Equal(1200, await RatingOfAsync(black));
+        Assert.Equal(1400, await RatingOfAsync(white));
+        Assert.Equal(1400, await RatingOfAsync(black));
         Assert.Empty((await GetAsync<PlayerRatingDto>($"api/players/{white}/rating")).History);
     }
 
@@ -66,7 +66,7 @@ public class RatingTests : ApiTestBase
     {
         var (id, white, _, game) = await StartGameAsync(rated: true);
         await SetResultAsync(id, game.Id, GameResult.WhiteWinsByForfeit);
-        Assert.Equal(1200, await RatingOfAsync(white));
+        Assert.Equal(1400, await RatingOfAsync(white));
     }
 
     [Fact]
@@ -74,8 +74,8 @@ public class RatingTests : ApiTestBase
     {
         var (id, white, black, game) = await StartGameAsync(rated: false);
         await SetResultAsync(id, game.Id, GameResult.WhiteWins);
-        Assert.Equal(1200, await RatingOfAsync(white));
-        Assert.Equal(1200, await RatingOfAsync(black));
+        Assert.Equal(1400, await RatingOfAsync(white));
+        Assert.Equal(1400, await RatingOfAsync(black));
     }
 
     [Fact]

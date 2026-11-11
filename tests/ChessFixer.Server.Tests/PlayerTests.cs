@@ -28,10 +28,11 @@ public class PlayerTests : ApiTestBase
     public async Task OptionalDetails_AreStored()
     {
         var created = await PostAsync<PlayerDto>("api/players",
-            new CreatePlayerRequest("Judit", "Polgar", 2735, new DateOnly(1976, 7, 23), " Boedapest ", "  "));
+            new CreatePlayerRequest("Judit", "Polgar", 2735, new DateOnly(1976, 7, 23), " Boedapest "));
         Assert.Equal(new DateOnly(1976, 7, 23), created.BirthDate);
         Assert.Equal("Boedapest", created.City);
-        Assert.Null(created.Club);
+        Assert.False(created.IsGuest);
+        Assert.Null(created.ClubId);
         Assert.Null(created.PhotoVersion);
     }
 

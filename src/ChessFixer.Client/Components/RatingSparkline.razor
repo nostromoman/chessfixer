@@ -1,0 +1,36 @@
+@* A small line of the latest ratings (oldest left), green when it went up, red when it went down. *@
+@if (Values.Count >= 2)
+{
+    <svg class="rating-sparkline" viewBox="0 0 @Width @Height" width="@Width" height="@Height" role="img"
+         aria-label="@string.Join(" → ", Values)">
+        <polyline points="@Points" fill="none" stroke="@Stroke" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+        <circle cx="@X(Values.Count - 1)" cy="@Y(Values[^1])" r="2" fill="@Stroke" />
+    </svg>
+}
+else
+{
+    <span class="mud-text-secondary">–</span>
+}
+
+@code {
+    private const double Width = 100, Height = 24, Padding = 3;
+
+    [Parameter, EditorRequired] public IReadOnlyList<int> Values { get; set; } = [];
+
+    private int Min => Values.Min();
+    private int Max => Values.Max();
+
+    private string Stroke =>
+        Values[^1] > Values[0] ? "var(--mud-palette-success)"
+        : Values[^1] < Values[0] ? "var(--mud-palette-error)"
+        : "var(--mud-palette-text-secondary)";
+
+    private string Points => string.Join(" ", Values.Select((v, i) => $"{Fmt(X(i))},{Fmt(Y(v))}"));
+
+    private double X(int index) => Padding + index * (Width - 2 * Padding) / (Values.Count - 1);
+
+    private double Y(int value) =>
+        Max == Min ? Height / 2 : Height - Padding - (value - Min) * (Height - 2 * Padding) / (Max - Min);
+
+    private static string Fmt(double value) => value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+}

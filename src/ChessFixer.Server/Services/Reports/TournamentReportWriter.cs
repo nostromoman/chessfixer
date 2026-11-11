@@ -64,7 +64,7 @@ public class TournamentReportWriter(
         var standings = await tournaments.GetStandingsAsync(tournamentId);
 
         var playerIds = standings.Select(s => s.PlayerId).ToList();
-        var players = await db.Players.Where(p => playerIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+        var players = await db.Players.Include(p => p.Club).Where(p => playerIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
         var startedAt = await db.Rounds
             .Where(r => r.TournamentId == tournamentId && r.StartedAt != null)
             .Select(r => r.StartedAt)

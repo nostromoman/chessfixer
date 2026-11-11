@@ -1,0 +1,139 @@
+@page "/rating-log"
+@using System.Globalization
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* The rating log: every rating change, newest first, a page at a time; optionally of one player. *@
+<PageTitle>@L["RatingLog"]</PageTitle>
+
+<div class="d-flex align-center gap-2 mb-4">
+    <MudText Typo="Typo.h4">@L["RatingLog"]</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Leaderboard" Href="rating">@L["RatingList"]</MudButton>
+</div>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <div class="d-flex flex-wrap align-center gap-4 mb-3">
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["RatingLogIntro"]</MudText>
+        <MudSpacer />
+        <MudSelect T="int?" Value="_playerId" ValueChanged="OnPlayerChangedAsync" Label="@L["Player"]" Variant="Variant.Outlined"
+                   Margin="Margin.Dense" Style="min-width: 16em; max-width: 20em" AnchorOrigin="Origin.BottomCenter">
+            <MudSelectItem T="int?" Value="null">@L["AllPlayers"]</MudSelectItem>
+            @foreach (var player in _players)
+            {
+                <MudSelectItem T="int?" Value="player.Id">@player.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </div>
+
+    <MudTable @ref="_table" T="RatingLogEntryDto" ServerData="LoadPageAsync" Dense="true" Hover="true" Striped="true"
+              Elevation="0" RowsPerPage="50">
+        <HeaderContent>
+            <MudTh>@L["RatingLogWhen"]</MudTh>
+            <MudTh>@L["Player"]</MudTh>
+            <MudTh Style="text-align: right">@L["RatingLogBefore"]</MudTh>
+            <MudTh Style="text-align: right">@L["RatingChange"]</MudTh>
+            <MudTh Style="text-align: right">@L["RatingAfter"]</MudTh>
+            <MudTh>@L["RatingLogReason"]</MudTh>
+            <MudTh>@L["RatingLogDetails"]</MudTh>
+            <MudTh>@L["RatingLogChangedBy"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@L["RatingLogWhen"]" Style="white-space: nowrap">
+                @context.At.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
+            </MudTd>
+            <MudTd DataLabel="@L["Player"]"><PlayerName Name="@context.Player.Name" IsDeleted="context.Player.IsDeleted" /></MudTd>
+            <MudTd DataLabel="@L["RatingLogBefore"]" Style="text-align: right">@context.RatingBefore</MudTd>
+            <MudTd DataLabel="@L["RatingChange"]" Style="text-align: right" Class="@ChangeClass(context)">@ChangeText(context)</MudTd>
+            <MudTd DataLabel="@L["RatingAfter"]" Style="text-align: right"><b>@context.RatingAfter</b></MudTd>
+            <MudTd DataLabel="@L["RatingLogReason"]">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@ReasonColor(context.Reason)" Class="ma-0">
+                    @L[$"RatingReason_{context.Reason}"]
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="@L["RatingLogDetails"]">
+                @if (context.TournamentTitle is not null)
+                {
+                    <MudLink Href="@(context.TournamentId is { } id ? $"tournament/{id}" : null)" Disabled="@(context.TournamentId is null)">
+                        @context.TournamentTitle
+                    </MudLink>
+                    <span class="mud-text-secondary">, @L["RatingLogRound", context.Round ?? 0]</span>
+                }
+                @if (context.Opponent is { } opponent)
+                {
+                    <div>
+                        <span class="mud-text-secondary">@L["RatingLogAgainst"] </span>
+                        <PlayerName Name="@opponent.Name" IsDeleted="opponent.IsDeleted" />
+                        <span class="mud-text-secondary"> (@context.OpponentRating)</span>
+                        @if (context.Result is { } result && context.IsWhite is { } isWhite)
+                        {
+                            <span>: </span><span class="@Display.OutcomeClass(result, isWhite)">@L[$"Result_{result}"]</span>
+                        }
+                    </div>
+                }
+            </MudTd>
+            <MudTd DataLabel="@L["RatingLogChangedBy"]">@context.ChangedBy</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2">@L["RatingLogEmpty"]</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudProgressLinear Indeterminate="true" />
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="[25, 50, 100, 200]" RowsPerPageString="@L["RowsPerPage"]" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<RatingLogEntryDto>? _table;
+    private List<PlayerDto> _players = [];
+    private int? _playerId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _players = await Api.GetPlayersAsync(includeDeleted: true);
+        }
+        catch (Exception)
+        {
+            // The filter then only offers "all players".
+        }
+    }
+
+    private async Task<TableData<RatingLogEntryDto>> LoadPageAsync(TableState state, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var page = await Api.GetRatingLogAsync(state.Page * state.PageSize, state.PageSize, _playerId);
+            return new TableData<RatingLogEntryDto> { TotalItems = page.Total, Items = page.Entries };
+        }
+        catch (Exception)
+        {
+            return new TableData<RatingLogEntryDto> { TotalItems = 0, Items = [] };
+        }
+    }
+
+    private async Task OnPlayerChangedAsync(int? playerId)
+    {
+        _playerId = playerId;
+        if (_table is not null) await _table.ReloadServerData();
+    }
+
+    /// <summary>A new player has no change: their starting rating.</summary>
+    private static string ChangeText(RatingLogEntryDto entry) =>
+        entry.Reason == RatingChangeReason.NewPlayer ? "" : entry.Change > 0 ? $"+{entry.Change}" : entry.Change.ToString(CultureInfo.CurrentCulture);
+
+    private static string? ChangeClass(RatingLogEntryDto entry) =>
+        entry.Change > 0 ? "outcome-win" : entry.Change < 0 ? "outcome-loss" : null;
+
+    private static Color ReasonColor(RatingChangeReason reason) => reason switch
+    {
+        RatingChangeReason.Game => Color.Primary,
+        RatingChangeReason.Manual => Color.Info,
+        RatingChangeReason.GameReverted or RatingChangeReason.RoundCancelled => Color.Warning,
+        _ => Color.Default
+    };
+}
