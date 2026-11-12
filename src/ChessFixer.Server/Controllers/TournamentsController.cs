@@ -58,6 +58,11 @@ public class TournamentsController(TournamentService service) : ControllerBase
     [HttpDelete("{id:int}/players/{playerId:int}")]
     public Task<TournamentDto> RemovePlayer(int id, int playerId) => service.RemovePlayerAsync(id, playerId);
 
+    /// <summary>Marks a player as present or absent for the next round.</summary>
+    [HttpPut("{id:int}/players/{playerId:int}/presence")]
+    public Task<TournamentDto> SetPresence(int id, int playerId, SetPresenceRequest request) =>
+        service.SetPresenceAsync(id, playerId, request.IsPresent);
+
     // ----- Rounds, results, standings -----
 
     /// <summary>All rounds; the last one is the pending round when IsStarted is false.</summary>

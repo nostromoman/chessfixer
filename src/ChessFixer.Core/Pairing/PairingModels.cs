@@ -5,11 +5,11 @@ namespace ChessFixer.Core.Pairing;
 /// <summary>A player that can be paired. Id is the tournament participant id (stable, in registration order).</summary>
 public record PairingPlayer(int Id, int? Rating);
 
-/// <summary>A game from an earlier round. BlackId is null for a bye.</summary>
+/// <summary>A game from an earlier round. BlackId is null for a bye and for an absence (<see cref="GameResult.Absent"/>).</summary>
 public record PlayedGame(int Round, int WhiteId, int? BlackId, GameResult Result);
 
 /// <summary>Everything needed to pair the next round.</summary>
-/// <param name="Players">The active players (removed players are left out).</param>
+/// <param name="Players">The players to pair: active and present (removed and absent players are left out).</param>
 /// <param name="History">All games of earlier rounds, including games of removed players.</param>
 /// <param name="Scoring">Points per result, used for score groups.</param>
 public record PairingInput(

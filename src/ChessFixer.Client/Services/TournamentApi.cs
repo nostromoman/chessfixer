@@ -62,6 +62,9 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<TournamentDto> RemovePlayerAsync(int id, int playerId) =>
         SendAsync<TournamentDto>(HttpMethod.Delete, $"api/tournaments/{id}/players/{playerId}");
 
+    public Task<TournamentDto> SetPresenceAsync(int id, int playerId, bool isPresent) =>
+        SendAsync<TournamentDto>(HttpMethod.Put, $"api/tournaments/{id}/players/{playerId}/presence", new SetPresenceRequest(isPresent));
+
     // ----- Rounds, results, standings -----
 
     public Task<List<RoundDto>> GetRoundsAsync(int id) =>

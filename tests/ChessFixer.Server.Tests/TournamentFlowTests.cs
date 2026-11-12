@@ -191,6 +191,63 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
+    public async Task AbsentPlayer_IsNotPaired_GetsAbsenceLine_AndCanComeBack()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 5);
+
+        // Marking a player absent re-pairs the pending round without them: 2 games, no bye, 1 absence.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false));
+        var pending = Assert.Single(await GetRoundsAsync(id));
+        Assert.Equal(2, pending.Games.Count(g => g.Black is not null));
+        Assert.DoesNotContain(pending.Games, g => g.Result == GameResult.Bye);
+        var absence = Assert.Single(pending.Games, g => g.Result == GameResult.Absent);
+        Assert.Equal(players[0], absence.White.PlayerId);
+        Assert.Null(absence.Board);
+
+        var participant = (await GetAsync<List<TournamentPlayerDto>>($"api/tournaments/{id}/players"))
+            .Single(p => p.PlayerId == players[0]);
+        Assert.True(participant.IsActive);
+        Assert.False(participant.IsPresent);
+
+        await StartRoundAsync(id);
+        // The absence line has no result to enter.
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}/games/{absence.Id}/result", new SetResultRequest(GameResult.WhiteWins)),
+            HttpStatusCode.Conflict, ApiErrorCode.ResultNotEditable);
+        await FinishActiveRoundAsync(id);
+
+        // Still in the standings (as active), without a game and with 0 points (the default).
+        var row = (await GetStandingsAsync(id)).Single(s => s.PlayerId == players[0]);
+        Assert.True(row.IsActive);
+        Assert.Equal(0, row.Points);
+        Assert.Equal(0, row.Played);
+
+        // Back next week: paired again.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(true));
+        var round2 = (await GetRoundsAsync(id))[1];
+        Assert.DoesNotContain(round2.Games, g => g.Result == GameResult.Absent);
+        Assert.Contains(round2.Games, g => g.White.PlayerId == players[0] || g.Black?.PlayerId == players[0]);
+    }
+
+    [Fact]
+    public async Task PointsForAbsence_CountInTheStandings()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 3);
+        var tournament = await GetTournamentAsync(id);
+        Assert.Equal(0, tournament.Settings.PointsForAbsence);
+        await PutAsync<TournamentDto>($"api/tournaments/{id}",
+            new UpdateTournamentRequest(tournament.Title, tournament.Settings with { PointsForAbsence = 0.5 }));
+
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[2]}/presence", new SetPresenceRequest(false));
+        await StartRoundAsync(id);
+        await FinishActiveRoundAsync(id);
+
+        Assert.Equal(0.5, (await GetStandingsAsync(id)).Single(s => s.PlayerId == players[2]).Points);
+    }
+
+    [Fact]
     public async Task LateJoiner_IsIncludedInNextPendingRound()
     {
         var id = await CreateTournamentAsync();

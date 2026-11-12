@@ -81,7 +81,8 @@ public static class TournamentReportPrompt
         if (FormatDate(data.FirstRoundStartedAt, data.LastRoundStartedAt) is { } date) text.AppendLine($"Datum: {date}");
         text.AppendLine($"Indelingssysteem: {(s.PairingSystem == PairingSystem.Swiss ? "Zwitsers" : "Round robin (iedereen tegen iedereen)")}");
         text.AppendLine($"Tempo: {s.GameTimeMinutes} minuten per speler + {s.IncrementSeconds} seconden per zet");
-        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}, bye {Points(s.PointsForBye)}");
+        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}, bye {Points(s.PointsForBye)}"
+            + (s.PointsForAbsence > 0 ? $", afwezig {Points(s.PointsForAbsence)}" : ""));
         text.AppendLine($"Aantal gespeelde rondes: {t.RoundsStarted}");
         text.AppendLine($"Aantal spelers: {data.Standings.Count}");
 
@@ -105,6 +106,11 @@ public static class TournamentReportPrompt
             text.AppendLine($"Ronde {round.Number}:");
             foreach (var game in round.Games.OrderBy(g => g.Number))
             {
+                if (game.Result == GameResult.Absent)
+                {
+                    text.AppendLine($"- {game.White.Name} was afwezig");
+                    continue;
+                }
                 if (game.Black is null)
                 {
                     text.AppendLine($"- {game.White.Name} had een bye (vrij)");

@@ -13,6 +13,23 @@ public class StandingsCalculatorTests
         rows.Single(r => r.PlayerId == playerId);
 
     [Fact]
+    public void Absence_GivesPointsForAbsence_ButIsNotAGame()
+    {
+        var scoring = ScoringRules.Default with { Absent = 0.5 };
+        var rows = StandingsCalculator.Calculate([1, 2, 3],
+        [
+            new(1, 1, 2, GameResult.WhiteWins),
+            new(1, 3, null, GameResult.Absent)
+        ], scoring);
+
+        var absent = Row(rows, 3);
+        Assert.Equal(0.5, absent.Points);
+        Assert.Equal(0, absent.Played);
+        Assert.Equal(0, absent.Wins + absent.Draws + absent.Losses);
+        Assert.Equal(0.5, absent.Buchholz); // virtual opponent with own points, like a bye
+    }
+
+    [Fact]
     public void PointsBuchholzAndSonnebornBerger()
     {
         // R1: 1 beats 2, 3–4 draw.  R2: 1–3 draw, 4 beats 2.

@@ -196,13 +196,32 @@ else if (Tournament.State == TournamentState.New)
         _leaving.Remove(game.Id);
     }
 
-    /// <summary>The player(s) with a bye in a round, in their own group; nothing when there is no bye.</summary>
+    /// <summary>
+    /// The player(s) with a bye in a round, in their own group, and then the absent players (by name only);
+    /// nothing when there are none.
+    /// </summary>
     private RenderFragment Byes(RoundDto round, bool isStarted) => __builder =>
     {
-        var byes = round.Games.Where(g => g.Black is null).OrderBy(g => g.Number).ToList();
-        if (byes.Count == 0) return;
-        <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesBye"]</MudText>
-        @Cards(byes, isStarted, editable: false)
+        var byes = round.Games.Where(g => g.Black is null && g.Result != GameResult.Absent).OrderBy(g => g.Number).ToList();
+        if (byes.Count > 0)
+        {
+            <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesBye"]</MudText>
+            @Cards(byes, isStarted, editable: false)
+        }
+
+        var absent = round.Games.Where(g => g.Result == GameResult.Absent).OrderBy(g => g.Number).ToList();
+        if (absent.Count > 0)
+        {
+            <MudText Typo="Typo.h6" Class="mt-6 mb-2">@L["GamesAbsent"]</MudText>
+            <div class="d-flex flex-wrap gap-1">
+                @foreach (var game in absent)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.EventBusy" Class="ma-0">
+                        <PlayerName Name="@game.White.Name" IsDeleted="game.White.IsDeleted" />
+                    </MudChip>
+                }
+            </div>
+        }
     };
 
     private RenderFragment Cards(IEnumerable<GameDto> games, bool isStarted, bool editable, bool queued = false) =>

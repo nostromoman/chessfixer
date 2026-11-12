@@ -101,7 +101,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
                 t.HasCheckConstraint("CK_Tournaments_Boards", "\"Boards\" >= 1");
                 t.HasCheckConstraint("CK_Tournaments_TimeControl", "\"GameTimeMinutes\" > 0 AND \"IncrementSeconds\" >= 0");
                 t.HasCheckConstraint("CK_Tournaments_Points",
-                    "\"PointsForWin\" >= 0 AND \"PointsForDraw\" >= 0 AND \"PointsForLoss\" >= 0 AND \"PointsForBye\" >= 0");
+                    "\"PointsForWin\" >= 0 AND \"PointsForDraw\" >= 0 AND \"PointsForLoss\" >= 0 AND \"PointsForBye\" >= 0 AND \"PointsForAbsence\" >= 0");
             });
         });
 

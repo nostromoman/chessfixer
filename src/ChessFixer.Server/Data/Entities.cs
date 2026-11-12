@@ -65,6 +65,9 @@ public class Tournament
     public double PointsForLoss { get; set; } = 0;
     public double PointsForBye { get; set; } = 1;
 
+    /// <summary>Points for a round a player was absent (marked as not present). Usually 0.</summary>
+    public double PointsForAbsence { get; set; }
+
     /// <summary>Whether the games change the players' ratings. Locked once round 1 has started.</summary>
     public bool IsRated { get; set; } = true;
 
@@ -139,6 +142,12 @@ public class TournamentPlayer
 
     /// <summary>False once the player is removed; their earlier games stay in the standings.</summary>
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Whether the player is there for the next round. An absent player stays in the tournament but is not paired:
+    /// the round gets an <see cref="GameResult.Absent"/> line for them instead. Stays as set until changed.
+    /// </summary>
+    public bool IsPresent { get; set; } = true;
 }
 
 public class Round
@@ -168,7 +177,8 @@ public class Game
     public int WhiteId { get; set; }
     public TournamentPlayer White { get; set; } = null!;
 
-    /// <summary>Null when White has a bye (and then the result is always <see cref="GameResult.Bye"/>).</summary>
+    /// <summary>Null when White has a bye or is absent (the result is then <see cref="GameResult.Bye"/> or
+    /// <see cref="GameResult.Absent"/>).</summary>
     public int? BlackId { get; set; }
     public TournamentPlayer? Black { get; set; }
 

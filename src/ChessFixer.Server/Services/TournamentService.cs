@@ -63,7 +63,7 @@ public class TournamentService(
         return tournament.Players
             .OrderByDescending(p => p.IsActive)
             .ThenBy(p => p.Player.Name)
-            .Select(p => new TournamentPlayerDto(p.PlayerId, p.Player.Name, p.Player.Rating, p.IsActive, p.Player.IsDeleted))
+            .Select(p => new TournamentPlayerDto(p.PlayerId, p.Player.Name, p.Player.Rating, p.IsActive, p.Player.IsDeleted, p.IsPresent))
             .ToList();
     }
 
@@ -246,7 +246,7 @@ public class TournamentService(
         if (settings is null
             || settings.GameTimeMinutes <= 0 || settings.IncrementSeconds < 0 || settings.Boards < 1
             || settings.PointsForWin < 0 || settings.PointsForDraw < 0
-            || settings.PointsForLoss < 0 || settings.PointsForBye < 0
+            || settings.PointsForLoss < 0 || settings.PointsForBye < 0 || settings.PointsForAbsence < 0
             || !Enum.IsDefined(settings.PairingSystem))
             throw new ApiException(ApiErrorCode.InvalidSettings);
     }
@@ -260,6 +260,7 @@ public class TournamentService(
         tournament.PointsForDraw = settings.PointsForDraw;
         tournament.PointsForLoss = settings.PointsForLoss;
         tournament.PointsForBye = settings.PointsForBye;
+        tournament.PointsForAbsence = settings.PointsForAbsence;
         tournament.Boards = settings.Boards;
         tournament.IsRated = settings.IsRated;
     }
@@ -277,13 +278,33 @@ public class TournamentService(
             if (participant is null)
                 tournament.Players.Add(new TournamentPlayer { Player = player });
             else
+            {
                 participant.IsActive = true;
+                participant.IsPresent = true;
+            }
 
             await RefreshPendingRoundAsync(tournament);
         });
 
     /// <summary>
-    /// A player without games is removed completely; a player with games stays in the standings
+    /// Marks an active player as present or absent. An absent player stays in the tournament and keeps their
+    /// results, but is left out of the pairing of the next round (which gets an absence line for them instead).
+    /// During a round it applies to the next round.
+    /// </summary>
+    public Task<TournamentDto> SetPresenceAsync(int id, int playerId, bool isPresent) =>
+        MutateAsync(id, async tournament =>
+        {
+            EnsurePlayersCanChange(tournament);
+            var participant = tournament.Players.SingleOrDefault(p => p.PlayerId == playerId && p.IsActive)
+                              ?? throw new ApiException(ApiErrorCode.PlayerNotInTournament);
+            if (participant.IsPresent == isPresent) return;
+
+            participant.IsPresent = isPresent;
+            await RefreshPendingRoundAsync(tournament);
+        });
+
+    /// <summary>
+    /// A player without games (or absences) is removed completely; a player with games stays in the standings
     /// but is no longer paired.
     /// </summary>
     public Task<TournamentDto> RemovePlayerAsync(int id, int playerId) =>
@@ -376,7 +397,7 @@ public class TournamentService(
             var lastStarted = StartedRounds(tournament).LastOrDefault();
             if (lastStarted is null || game.RoundId != lastStarted.Id) throw new ApiException(ApiErrorCode.ResultNotEditable);
             if (game.BlackId is null) throw new ApiException(ApiErrorCode.ResultNotEditable);
-            if (result == GameResult.Bye || !Enum.IsDefined(result)) throw new ApiException(ApiErrorCode.InvalidResult);
+            if (result is GameResult.Bye or GameResult.Absent || !Enum.IsDefined(result)) throw new ApiException(ApiErrorCode.InvalidResult);
 
             // A game in the queue has not started yet: it has no result.
             if (game.Board is null) throw new ApiException(ApiErrorCode.ResultNotEditable);
@@ -588,7 +609,9 @@ public class TournamentService(
 
     private async Task<Round?> PairPendingRoundAsync(Tournament tournament, bool throwOnError)
     {
-        var activePlayers = tournament.Players.Where(p => p.IsActive).ToList();
+        var activePlayers = tournament.Players.Where(p => p is { IsActive: true, IsPresent: true }).ToList();
+        var absentPlayers = tournament.Players.Where(p => p is { IsActive: true, IsPresent: false })
+            .OrderBy(p => p.Player.Name).ToList();
         var input = new PairingInput(
             activePlayers.Select(p => new PairingPlayer(p.Id, p.Player.Rating)).ToList(),
             PlayedGames(tournament),
@@ -613,6 +636,13 @@ public class TournamentService(
             White = participants[p.WhiteId],
             Black = p.BlackId is { } blackId ? participants[blackId] : null,
             Result = p.IsBye ? GameResult.Bye : GameResult.NotPlayed
+        }));
+        // The absent players get a line without opponent and board, after the games.
+        round.Games.AddRange(absentPlayers.Select((p, i) => new Game
+        {
+            Number = pairings.Count + i + 1,
+            White = p,
+            Result = GameResult.Absent
         }));
         AssignBoards(round, tournament.Boards);
         tournament.Rounds.Add(round);
@@ -660,11 +690,11 @@ public class TournamentService(
             .ToList();
 
     private static ScoringRules ScoringOf(Tournament t) =>
-        new(t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye);
+        new(t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye, t.PointsForAbsence);
 
     private static TournamentSettingsDto SettingsOf(Tournament t) => new(
         t.PairingSystem, t.GameTimeMinutes, t.IncrementSeconds,
-        t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye, t.Boards, t.IsRated);
+        t.PointsForWin, t.PointsForDraw, t.PointsForLoss, t.PointsForBye, t.Boards, t.IsRated, t.PointsForAbsence);
 
     private static TournamentDto ToDto(Tournament t) => new(
         t.Id,

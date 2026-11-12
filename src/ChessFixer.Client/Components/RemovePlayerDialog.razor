@@ -1,0 +1,51 @@
+@inject IStringLocalizer<Strings> L
+
+@* Confirmation before taking a player out of the tournament. Points out that being absent for an evening is
+   something else (the "present" checkbox), and offers that instead. *@
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" />
+            <MudText Typo="Typo.h6">@L["RemovePlayerTitle", Name]</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+            @L["RemovePlayerOnlyAbsent", Name]
+        </MudAlert>
+        <MudText Typo="Typo.body1" Class="mb-2">
+            @if (GameCount > 0)
+            {
+                @L["RemovePlayerWithGames", Name, GameCount]
+            }
+            else
+            {
+                @L["RemovePlayerWithoutGames", Name]
+            }
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">@L["GoBack"]</MudButton>
+        @if (IsPresent)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventBusy"
+                       OnClick="() => Dialog.Close(RemovePlayerChoice.MarkAbsent)">@L["MarkAbsent"]</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.PersonRemove"
+                   OnClick="() => Dialog.Close(RemovePlayerChoice.Remove)">@L["RemovePlayerConfirm"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    public enum RemovePlayerChoice { Remove, MarkAbsent }
+
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    [Parameter] public string Name { get; set; } = "";
+
+    /// <summary>Number of games the player has played (or is playing) in this tournament.</summary>
+    [Parameter] public int GameCount { get; set; }
+
+    /// <summary>Whether the player is marked present; only then "mark absent" is offered.</summary>
+    [Parameter] public bool IsPresent { get; set; }
+}

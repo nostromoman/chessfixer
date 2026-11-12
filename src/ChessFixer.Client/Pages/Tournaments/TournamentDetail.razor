@@ -115,6 +115,7 @@ else
                         <tr><th>@L["PointsForDraw"]</th><td>@Display.Points(Tournament.Settings.PointsForDraw)</td></tr>
                         <tr><th>@L["PointsForLoss"]</th><td>@Display.Points(Tournament.Settings.PointsForLoss)</td></tr>
                         <tr><th>@L["PointsForBye"]</th><td>@Display.Points(Tournament.Settings.PointsForBye)</td></tr>
+                        <tr><th>@L["PointsForAbsence"]</th><td>@Display.Points(Tournament.Settings.PointsForAbsence)</td></tr>
                         <tr><th>@L["IsRated"]</th><td>@(Tournament.Settings.IsRated ? L["Yes"] : L["No"])</td></tr>
                     </tbody>
                 </MudSimpleTable>
@@ -177,6 +178,11 @@ else
                     </MudItem>
                     <MudItem xs="12">
                         <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
+                                         Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" Label="@L["PointsForAbsence"]"
+                                         HelperText="@L["PointsForAbsenceHelp"]"
                                          Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
                     </MudItem>
                     <MudItem xs="12">
@@ -396,6 +402,7 @@ else
         public double PointsForDraw { get; set; }
         public double PointsForLoss { get; set; }
         public double PointsForBye { get; set; }
+        public double PointsForAbsence { get; set; }
         public int Boards { get; set; }
         public bool IsRated { get; set; }
 
@@ -411,6 +418,7 @@ else
             PointsForDraw = t.Settings.PointsForDraw,
             PointsForLoss = t.Settings.PointsForLoss,
             PointsForBye = t.Settings.PointsForBye,
+            PointsForAbsence = t.Settings.PointsForAbsence,
             Boards = t.Settings.Boards,
             IsRated = t.Settings.IsRated
         };
@@ -418,7 +426,7 @@ else
         public UpdateTournamentRequest ToRequest() => new(
             Title,
             new TournamentSettingsDto(PairingSystem, GameTimeMinutes, IncrementSeconds,
-                PointsForWin, PointsForDraw, PointsForLoss, PointsForBye, Boards, IsRated),
+                PointsForWin, PointsForDraw, PointsForLoss, PointsForBye, Boards, IsRated, PointsForAbsence),
             NullIfEmpty(Location),
             NullIfEmpty(Description));
 

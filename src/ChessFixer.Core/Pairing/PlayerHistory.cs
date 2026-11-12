@@ -44,6 +44,9 @@ internal sealed class PlayerHistory
             if (white is not null) white.Score += whitePoints;
             if (black is not null) black.Score += blackPoints;
 
+            // An absence is not a bye: the player can still get a bye later.
+            if (game.Result == GameResult.Absent) continue;
+
             if (game.BlackId is null)
             {
                 if (white is not null) white.ByeCount++;

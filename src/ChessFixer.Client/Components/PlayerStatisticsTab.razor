@@ -93,7 +93,7 @@ else
                             }
                             else
                             {
-                                @L["ByeOpponent"]
+                                @(game.Result == GameResult.Absent ? L["AbsentOpponent"] : L["ByeOpponent"])
                             }
                         </td>
                         <td>

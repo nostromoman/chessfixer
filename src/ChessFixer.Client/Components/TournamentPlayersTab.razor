@@ -1,5 +1,6 @@
 ﻿@inject TournamentApi Api
 @inject ISnackbar Snackbar
+@inject IDialogService Dialogs
 @inject IStringLocalizer<Strings> L
 
 @* The players of one tournament with their status. Players are added with the search field and the + button:
@@ -55,9 +56,16 @@
 }
 else
 {
+    @if (AbsentCount > 0)
+    {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["PresentCount", ActiveCount - AbsentCount, ActiveCount]</MudText>
+    }
     <MudSimpleTable Dense="true" Hover="true" Striped="true" Elevation="0">
         <thead>
             <tr>
+                <th style="width: 1%">
+                    <MudTooltip Text="@L["PresentHelp"]">@L["PresentShort"]</MudTooltip>
+                </th>
                 <th style="width: 3em"></th>
                 <th>@L["Name"]</th>
                 <th class="hide-xs" style="text-align: right">@L["Rating"]</th>
@@ -70,7 +78,15 @@ else
             {
                 var info = Players.GetValueOrDefault(player.PlayerId);
                 var status = StatusOf(player);
-                <tr class="@(player.IsActive ? null : "withdrawn")">
+                <tr class="@(!player.IsActive ? "withdrawn" : !player.IsPresent ? "absent" : null)">
+                    <td>
+                        @if (player.IsActive)
+                        {
+                            <MudCheckBox T="bool" Value="player.IsPresent" ValueChanged="v => SetPresenceAsync(player, v)"
+                                         Color="Color.Primary" Dense="true" Size="Size.Small" aria-label="@L["Present"]"
+                                         Disabled="@(!CanChangePlayers || Disabled)" />
+                        }
+                    </td>
                     <td><PlayerAvatar FirstName="@(info?.FirstName ?? player.Name)" LastName="@info?.LastName" PhotoUrl="@info?.PhotoUrl" /></td>
                     <td>
                         @{ var playerId = player.PlayerId; }
@@ -116,7 +132,7 @@ else
 }
 
 @code {
-    private enum PlayerStatus { Waiting, WaitingForBoard, Playing, Bye, Withdrawn, Finished }
+    private enum PlayerStatus { Waiting, WaitingForBoard, Playing, Bye, Absent, Withdrawn, Finished }
 
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
     [Parameter, EditorRequired] public List<TournamentPlayerDto> Participants { get; set; } = [];
@@ -148,19 +164,23 @@ else
     {
         if (!player.IsActive) return PlayerStatus.Withdrawn;
         if (Tournament.State == TournamentState.Closed) return PlayerStatus.Finished;
-        if (Tournament.State != TournamentState.RoundActive) return PlayerStatus.Waiting;
+        if (Tournament.State != TournamentState.RoundActive) return player.IsPresent ? PlayerStatus.Waiting : PlayerStatus.Absent;
 
         var round = Rounds.LastOrDefault(r => r.IsStarted);
         var game = round?.Games.FirstOrDefault(g => g.White.PlayerId == player.PlayerId || g.Black?.PlayerId == player.PlayerId);
         return game switch
         {
-            null => PlayerStatus.Waiting, // joined during this round
+            null => player.IsPresent ? PlayerStatus.Waiting : PlayerStatus.Absent, // joined during this round
+            { Result: GameResult.Absent } => PlayerStatus.Absent,
             { Black: null } => PlayerStatus.Bye,
             { Result: GameResult.NotPlayed, Board: null } => PlayerStatus.WaitingForBoard,
             { Result: GameResult.NotPlayed } => PlayerStatus.Playing,
-            _ => PlayerStatus.Waiting // game finished, waiting for the others
+            _ => player.IsPresent ? PlayerStatus.Waiting : PlayerStatus.Absent // game finished, waiting for the others
         };
     }
+
+    private int ActiveCount => Participants.Count(p => p.IsActive);
+    private int AbsentCount => Participants.Count(p => p is { IsActive: true, IsPresent: false });
 
     /// <summary>Playing or waiting for a board: cannot withdraw until the game is finished.</summary>
     private static bool InGame(PlayerStatus status) => status is PlayerStatus.Playing or PlayerStatus.WaitingForBoard;
@@ -175,6 +195,7 @@ else
     {
         PlayerStatus.Playing => Color.Success,
         PlayerStatus.Bye => Color.Info,
+        PlayerStatus.Absent => Color.Secondary,
         PlayerStatus.Waiting or PlayerStatus.WaitingForBoard => Color.Warning,
         _ => Color.Default
     };
@@ -272,8 +293,36 @@ else
         if (_search is not null) await _search.ClearAsync();
     }
 
-    private Task RemoveAsync(TournamentPlayerDto player) =>
-        Run(() => Api.RemovePlayerAsync(Tournament.Id, player.PlayerId), L["PlayerRemoved", player.Name]);
+    /// <summary>
+    /// Taking a player out of the tournament is not the same as being absent for an evening, so it is always
+    /// confirmed; the dialog also offers to mark the player absent instead.
+    /// </summary>
+    private async Task RemoveAsync(TournamentPlayerDto player)
+    {
+        var gameCount = Rounds.Where(r => r.IsStarted).SelectMany(r => r.Games)
+            .Count(g => g.Black is not null && (g.White.PlayerId == player.PlayerId || g.Black.PlayerId == player.PlayerId));
+        var dialog = await Dialogs.ShowAsync<RemovePlayerDialog>(null,
+            new DialogParameters<RemovePlayerDialog>
+            {
+                { d => d.Name, player.Name },
+                { d => d.GameCount, gameCount },
+                { d => d.IsPresent, player.IsPresent }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        switch ((await dialog.Result)?.Data)
+        {
+            case RemovePlayerDialog.RemovePlayerChoice.Remove:
+                await Run(() => Api.RemovePlayerAsync(Tournament.Id, player.PlayerId), L["PlayerRemoved", player.Name]);
+                break;
+            case RemovePlayerDialog.RemovePlayerChoice.MarkAbsent:
+                await Run(() => Api.SetPresenceAsync(Tournament.Id, player.PlayerId, false), L["PlayerMarkedAbsent", player.Name]);
+                break;
+        }
+    }
+
+    private Task SetPresenceAsync(TournamentPlayerDto player, bool isPresent) =>
+        Run(() => Api.SetPresenceAsync(Tournament.Id, player.PlayerId, isPresent), null);
 
     private Task RejoinAsync(TournamentPlayerDto player) =>
         Run(() => Api.AddPlayerAsync(Tournament.Id, player.PlayerId), L["PlayerRejoined", player.Name]);

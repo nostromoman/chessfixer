@@ -93,6 +93,10 @@ tr.withdrawn td {
     font-style: italic;
 }
 
+tr.absent td {
+    color: var(--mud-palette-text-secondary);
+}
+
 /* Side drawers (player, tournament settings): half the screen, full width on small screens.
    The Width parameter sets --mud-drawer-width inline; a closed drawer is parked at right: -var(--mud-drawer-width).
    That variable must change as well, otherwise a closed 100vw drawer still covers half the screen. */

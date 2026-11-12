@@ -52,6 +52,7 @@ public record GenerateReportRequest(IReadOnlyList<string>? Events = null, int? W
 public record ReportPromptDto(string System, string User, string? Model);
 
 /// <param name="IsRated">Whether the games change the players' ratings. Locked once round 1 has started.</param>
+/// <param name="PointsForAbsence">Points for a round a player was absent (not marked as present).</param>
 public record TournamentSettingsDto(
     PairingSystem PairingSystem,
     int GameTimeMinutes,
@@ -61,12 +62,13 @@ public record TournamentSettingsDto(
     double PointsForLoss,
     double PointsForBye,
     int Boards,
-    bool IsRated = true)
+    bool IsRated = true,
+    double PointsForAbsence = 0)
 {
     /// <summary>The settings a new tournament starts with.</summary>
     public static TournamentSettingsDto Default { get; } = new(
         PairingSystem.RoundRobin, GameTimeMinutes: 15, IncrementSeconds: 10,
-        PointsForWin: 1, PointsForDraw: 0.5, PointsForLoss: 0, PointsForBye: 1, Boards: 8, IsRated: true);
+        PointsForWin: 1, PointsForDraw: 0.5, PointsForLoss: 0, PointsForBye: 1, Boards: 8, IsRated: true, PointsForAbsence: 0);
 }
 
 public record CreateTournamentRequest(
@@ -77,9 +79,12 @@ public record UpdateTournamentRequest(
 
 /// <summary>A player in a tournament. PlayerId refers to the central player list.</summary>
 /// <param name="IsDeleted">The player has been deleted from the player list (but stays in the tournament).</param>
-public record TournamentPlayerDto(int PlayerId, string Name, int Rating, bool IsActive, bool IsDeleted = false);
+/// <param name="IsPresent">Whether the player is there for the next round; an absent player is not paired.</param>
+public record TournamentPlayerDto(int PlayerId, string Name, int Rating, bool IsActive, bool IsDeleted = false, bool IsPresent = true);
 
 public record AddTournamentPlayerRequest(int PlayerId);
+
+public record SetPresenceRequest(bool IsPresent);
 
 /// <param name="IsStarted">False for the next round that is paired but not started yet.</param>
 /// <param name="StartedAt">When the round was started (UTC); null for the pending round.</param>
@@ -87,7 +92,7 @@ public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games,
 
 /// <param name="Number">Order of the game in the pairing; queued games get a board in this order.</param>
 /// <param name="Board">The board the game is (or was) played on; null while it waits in the queue, and for a bye.</param>
-/// <param name="Black">Null when White has a bye.</param>
+/// <param name="Black">Null when White has a bye or is absent (<see cref="GameResult.Absent"/>).</param>
 public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result);
 
 /// <param name="IsDeleted">The player has been deleted from the player list.</param>

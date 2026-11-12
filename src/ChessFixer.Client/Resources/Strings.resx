@@ -77,6 +77,8 @@
   <data name="PointsForDraw" xml:space="preserve"><value>Punten voor remise</value></data>
   <data name="PointsForLoss" xml:space="preserve"><value>Punten voor verlies</value></data>
   <data name="PointsForBye" xml:space="preserve"><value>Punten voor een bye</value></data>
+  <data name="PointsForAbsence" xml:space="preserve"><value>Punten bij afwezigheid</value></data>
+  <data name="PointsForAbsenceHelp" xml:space="preserve"><value>Voor een ronde waarin een speler niet aanwezig is. Meestal 0.</value></data>
   <data name="SettingsLockedInfo" xml:space="preserve"><value>Indelingssysteem, punten en rating liggen vast omdat ronde 1 al gestart is.</value></data>
   <data name="Boards" xml:space="preserve"><value>Borden</value></data>
   <data name="BoardsHelp" xml:space="preserve"><value>Speelplaatsen voor de volgende ronde</value></data>
@@ -114,6 +116,18 @@
   <data name="Status_WaitingForBoard" xml:space="preserve"><value>Wacht op een bord</value></data>
   <data name="Status_Finished" xml:space="preserve"><value>Klaar</value></data>
   <data name="Withdrawn" xml:space="preserve"><value>Uit toernooi gestapt</value></data>
+  <data name="Status_Absent" xml:space="preserve"><value>Afwezig</value></data>
+  <data name="Present" xml:space="preserve"><value>Aanwezig</value></data>
+  <data name="PresentShort" xml:space="preserve"><value>Aanw.</value></data>
+  <data name="PresentHelp" xml:space="preserve"><value>Aanwezig voor de volgende ronde. Wie niet aangevinkt is, wordt niet ingedeeld maar blijft gewoon in het toernooi.</value></data>
+  <data name="PresentCount" xml:space="preserve"><value>{0} van {1} spelers aanwezig</value></data>
+  <data name="MarkAbsent" xml:space="preserve"><value>Alleen afwezig melden</value></data>
+  <data name="PlayerMarkedAbsent" xml:space="preserve"><value>{0} is afwezig gemeld.</value></data>
+  <data name="RemovePlayerTitle" xml:space="preserve"><value>{0} uit het toernooi halen?</value></data>
+  <data name="RemovePlayerOnlyAbsent" xml:space="preserve"><value>Is {0} alleen een speelavond niet aanwezig? Haal {0} dan niet uit het toernooi, maar zet het vinkje "Aanwezig" uit (of kies "Alleen afwezig melden" hieronder).</value></data>
+  <data name="RemovePlayerWithGames" xml:space="preserve"><value>{0} stopt definitief met dit toernooi. De {1} gespeelde partij(en) blijven in de stand staan, maar {0} wordt niet meer ingedeeld en staat in de stand als uit het toernooi gestapt.</value></data>
+  <data name="RemovePlayerWithoutGames" xml:space="preserve"><value>{0} heeft nog geen partijen gespeeld en verdwijnt helemaal uit het toernooi.</value></data>
+  <data name="RemovePlayerConfirm" xml:space="preserve"><value>Uit toernooi halen</value></data>
   <data name="NoPlayers" xml:space="preserve"><value>Er doen nog geen spelers mee.</value></data>
   <data name="FirstName" xml:space="preserve"><value>Voornaam</value></data>
   <data name="LastName" xml:space="preserve"><value>Achternaam</value></data>
@@ -195,6 +209,8 @@
   <data name="Result" xml:space="preserve"><value>Uitslag</value></data>
   <data name="GamesBye" xml:space="preserve"><value>Vrij deze ronde (bye)</value></data>
   <data name="ByeOpponent" xml:space="preserve"><value>— vrij —</value></data>
+  <data name="GamesAbsent" xml:space="preserve"><value>Afwezig deze ronde</value></data>
+  <data name="AbsentOpponent" xml:space="preserve"><value>— afwezig —</value></data>
   <data name="ChangeResult" xml:space="preserve"><value>Uitslag wijzigen</value></data>
   <data name="ClearResult" xml:space="preserve"><value>Uitslag wissen</value></data>
   <data name="Matches" xml:space="preserve"><value>Matches</value></data>
@@ -223,6 +239,7 @@
   <data name="Result_WhiteWinsByForfeit" xml:space="preserve"><value>1 - 0 (reglementair)</value></data>
   <data name="Result_BlackWinsByForfeit" xml:space="preserve"><value>0 - 1 (reglementair)</value></data>
   <data name="Result_Bye" xml:space="preserve"><value>vrij</value></data>
+  <data name="Result_Absent" xml:space="preserve"><value>afwezig</value></data>
 
   <!-- Errors (key: Error_{ApiErrorCode}) -->
   <data name="Error_Unknown" xml:space="preserve"><value>Er ging iets mis. Probeer het opnieuw.</value></data>
@@ -575,12 +592,14 @@
   <data name="Field_PointsForDraw" xml:space="preserve"><value>Punten remise</value></data>
   <data name="Field_PointsForLoss" xml:space="preserve"><value>Punten verlies</value></data>
   <data name="Field_PointsForBye" xml:space="preserve"><value>Punten bye</value></data>
+  <data name="Field_PointsForAbsence" xml:space="preserve"><value>Punten afwezig</value></data>
   <data name="Field_IsRated" xml:space="preserve"><value>Telt voor rating</value></data>
   <data name="Field_Boards" xml:space="preserve"><value>Borden</value></data>
   <data name="Field_ClosedAt" xml:space="preserve"><value>Afgesloten op</value></data>
   <data name="Field_TournamentId" xml:space="preserve"><value>Toernooi (nr)</value></data>
   <data name="Field_PlayerId" xml:space="preserve"><value>Speler (nr)</value></data>
   <data name="Field_IsActive" xml:space="preserve"><value>Doet mee</value></data>
+  <data name="Field_IsPresent" xml:space="preserve"><value>Aanwezig</value></data>
   <data name="Field_Number" xml:space="preserve"><value>Nummer</value></data>
   <data name="Field_StartedAt" xml:space="preserve"><value>Gestart op</value></data>
   <data name="Field_RoundId" xml:space="preserve"><value>Ronde (nr)</value></data>
@@ -655,6 +674,7 @@
   <data name="ActivityAction_Tournaments_GenerateReport" xml:space="preserve"><value>Verslag laten schrijven</value></data>
   <data name="ActivityAction_Tournaments_AddPlayer" xml:space="preserve"><value>Speler aan toernooi toevoegen</value></data>
   <data name="ActivityAction_Tournaments_RemovePlayer" xml:space="preserve"><value>Speler uit toernooi halen</value></data>
+  <data name="ActivityAction_Tournaments_SetPresence" xml:space="preserve"><value>Aanwezigheid speler wijzigen</value></data>
   <data name="ActivityAction_Tournaments_SetResult" xml:space="preserve"><value>Uitslag invoeren</value></data>
 
   <!-- Home (dashboard) -->

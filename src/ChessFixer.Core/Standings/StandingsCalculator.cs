@@ -19,6 +19,7 @@ public record StandingRow(
 /// Calculates the standings: points, then Buchholz, then Sonneborn-Berger.
 /// <list type="bullet">
 /// <item>Games without a result yet are ignored, so the standings can be shown during a round.</item>
+/// <item>An absence gives the points for absence but does not count as a game (played, won, drawn or lost).</item>
 /// <item><b>Buchholz</b>: sum of the opponents' points. A bye or forfeit counts as a game against a
 /// virtual opponent with the player's own points (FIDE approach), so a bye does not hurt the tie-break.</item>
 /// <item><b>Sonneborn-Berger</b>: sum of the points of beaten opponents plus half the points of opponents
@@ -91,6 +92,13 @@ public static class StandingsCalculator
         if (!stats.TryGetValue(playerId, out var player)) return;
 
         player.Points += points;
+        // Like a bye, an absence counts as an unplayed game for Buchholz (virtual opponent with the own points).
+        if (result == GameResult.Absent)
+        {
+            player.UnplayedGames++;
+            return;
+        }
+
         player.Played++;
         if (fraction == 1) player.Wins++;
         else if (fraction == 0.5) player.Draws++;

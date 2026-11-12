@@ -36,7 +36,7 @@ public partial class ActivityRevertService(
     private static readonly HashSet<string> TournamentActions =
     [
         "Tournaments.Update", "Tournaments.SetResult", "Tournaments.AddPlayer", "Tournaments.RemovePlayer",
-        "Tournaments.StartNextRound"
+        "Tournaments.SetPresence", "Tournaments.StartNextRound"
     ];
 
     /// <summary>Rows that are put back. The rating log is never changed: a rating that is put back gets a new entry.</summary>
@@ -113,7 +113,7 @@ public partial class ActivityRevertService(
                 var request = new UpdateTournamentRequest(tournament.Title,
                     new TournamentSettingsDto(tournament.PairingSystem, tournament.GameTimeMinutes, tournament.IncrementSeconds,
                         tournament.PointsForWin, tournament.PointsForDraw, tournament.PointsForLoss, tournament.PointsForBye,
-                        tournament.Boards, tournament.IsRated),
+                        tournament.Boards, tournament.IsRated, tournament.PointsForAbsence),
                     tournament.Location, tournament.Description);
                 db.ChangeTracker.Clear();
                 await tournaments.UpdateAsync(tournamentId, request);
@@ -134,6 +134,18 @@ public partial class ActivityRevertService(
                 await tournaments.AddPlayerAsync(tournamentId, playerId);
                 break;
             }
+            case "Tournaments.SetPresence":
+            {
+                var change = Modified(changes, nameof(TournamentPlayer), nameof(TournamentPlayer.IsPresent))
+                             ?? throw new ApiException(ApiErrorCode.NotRevertible);
+                var participant = await db.TournamentPlayers.FindAsync(int.Parse(change.EntityKey))
+                                  ?? throw new ApiException(ApiErrorCode.ChangedSinceAction);
+                var isPresent = Property(change, nameof(TournamentPlayer.IsPresent));
+                if (!participant.IsActive || (participant.IsPresent ? "true" : "false") != isPresent.After)
+                    throw new ApiException(ApiErrorCode.ChangedSinceAction);
+                await tournaments.SetPresenceAsync(tournamentId, participant.PlayerId, bool.Parse(isPresent.Before!));
+                break;
+            }
             case "Tournaments.StartNextRound":
             {
                 var change = Modified(changes, nameof(Round), nameof(Round.StartedAt))
@@ -145,7 +157,7 @@ public partial class ActivityRevertService(
                 var lastStarted = await db.Rounds.Where(r => r.TournamentId == tournamentId && r.StartedAt != null)
                     .MaxAsync(r => (int?)r.Number);
                 if (round.Number != lastStarted
-                    || round.Games.Any(g => g.Result is not (GameResult.NotPlayed or GameResult.Bye)))
+                    || round.Games.Any(g => g.Result is not (GameResult.NotPlayed or GameResult.Bye or GameResult.Absent)))
                     throw new ApiException(ApiErrorCode.ChangedSinceAction);
                 await tournaments.CancelRoundAsync(tournamentId);
                 break;

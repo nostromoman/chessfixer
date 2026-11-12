@@ -11,5 +11,8 @@ public enum GameResult
     BlackWins,
     WhiteWinsByForfeit,
     BlackWinsByForfeit,
-    Bye
+    Bye,
+
+    /// <summary>The player was absent this round: no game and no opponent (Black is null), points for absence.</summary>
+    Absent
 }
