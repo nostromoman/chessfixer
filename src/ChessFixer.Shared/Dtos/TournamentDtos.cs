@@ -91,7 +91,9 @@ public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games,
 public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result);
 
 /// <param name="IsDeleted">The player has been deleted from the player list.</param>
-public record GamePlayerDto(int PlayerId, string Name, bool IsDeleted = false);
+/// <param name="IsGuest">A guest player; only filled where the UI shows it (the player statistics).</param>
+/// <param name="ClubName">The club of a guest player, if any; only filled together with <paramref name="IsGuest"/>.</param>
+public record GamePlayerDto(int PlayerId, string Name, bool IsDeleted = false, bool IsGuest = false, string? ClubName = null);
 
 public record SetResultRequest(GameResult Result);
 

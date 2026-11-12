@@ -51,9 +51,6 @@
                 <MudNavLink Href="players" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
                     @L["Players"]
                 </MudNavLink>
-                <MudNavLink Href="clubs" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Groups">
-                    @L["Clubs"]
-                </MudNavLink>
                 <MudNavLink Href="rating" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Leaderboard">
                     @L["RatingList"]
                 </MudNavLink>
@@ -74,15 +71,11 @@
                 </AuthorizeView>
             </MudNavMenu>
 
-            @* Application settings (a gear) and help at the bottom left of the menu. *@
+            @* Application settings (a gear) at the bottom left of the menu. *@
             <div class="pa-2 d-flex gap-1">
                 <MudTooltip Text="@L["AppSettings"]" Placement="Placement.Right">
                     <MudIconButton Icon="@Icons.Material.Filled.Settings" Href="settings" aria-label="@L["AppSettings"]"
                                    Color="@(IsOn("settings") ? Color.Primary : Color.Default)" />
-                </MudTooltip>
-                <MudTooltip Text="@L["Help"]" Placement="Placement.Right">
-                    <MudIconButton Icon="@Icons.Material.Filled.HelpOutline" Href="help" aria-label="@L["Help"]"
-                                   Color="@(IsOn("help") ? Color.Primary : Color.Default)" />
                 </MudTooltip>
             </div>
         </div>

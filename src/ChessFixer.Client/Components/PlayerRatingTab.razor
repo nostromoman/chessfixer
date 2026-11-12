@@ -3,7 +3,7 @@
 @inject IStringLocalizer<Strings> L
 
 @* Rating of one player in the player drawer: the current rating, a line chart of every rating change, and every
-   rated tournament with each game and its change. The ratings change when a tournament is closed; the games of a
+   rated tournament (a card) with each game and its change. The ratings change when a tournament is closed; the games of a
    running tournament show what they would give if it were closed now. *@
 @if (_failed)
 {
@@ -19,10 +19,6 @@ else
         <div class="player-stats-tile">
             <div class="player-stats-value">@_rating.Rating</div>
             <div class="player-stats-label">@L["RatingCurrent"]</div>
-        </div>
-        <div class="player-stats-tile">
-            <div class="player-stats-value">@_rating.RatedGames</div>
-            <div class="player-stats-label">@L["RatingGames"]</div>
         </div>
         @if (_rating.Tournaments.FirstOrDefault(t => !t.IsProcessed) is { } running)
         {
@@ -46,79 +42,64 @@ else
     else
     {
         <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">@L["RatingTournaments"]</MudText>
-        <MudExpansionPanels MultiExpansion="true" Elevation="0" Outlined="true">
-            @for (var i = 0; i < _rating.Tournaments.Count; i++)
+        @* One card per tournament, newest first; tap the header to show the games. Narrow enough for a phone. *@
+        <div class="rt-list">
+            @foreach (var tournament in _rating.Tournaments)
             {
-                var tournament = _rating.Tournaments[i];
-                <MudExpansionPanel @key="tournament.TournamentId" Expanded="i == 0">
-                    <TitleContent>
-                        <div class="d-flex flex-wrap align-center gap-2">
-                            <b>@tournament.Title</b>
-                            @if (tournament.Date is { } date)
-                            {
-                                <span class="mud-text-secondary">@date.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)</span>
-                            }
-                            @if (!tournament.IsProcessed)
-                            {
-                                <MudTooltip Text="@L["RatingProvisionalTournamentHelp"]">
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="my-0">@L["RatingProvisionalTournament"]</MudChip>
-                                </MudTooltip>
-                            }
-                            <MudSpacer />
-                            <span class="rating-tournament-total">
-                                @tournament.RatingBefore → <b>@tournament.RatingAfter</b>
-                                <span class="@ChangeClass(tournament.Change)">(@SignedChange(tournament.Change))</span>
-                            </span>
-                        </div>
-                    </TitleContent>
-                    <ChildContent>
-                        <MudSimpleTable Dense="true" Hover="true" Elevation="0" Class="rating-games-table">
-                            <thead>
-                                <tr>
-                                    <th style="text-align: right">@L["StatsRound"]</th>
-                                    <th>@L["StatsOpponent"]</th>
-                                    <th>@L["Result"]</th>
-                                    <th class="value">@L["RatingInfoStepScore"]</th>
-                                    <th class="value">@L["RatingInfoStepExpected"]</th>
-                                    <th class="value">K</th>
-                                    <th class="value">@L["RatingMutation"]</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var game in tournament.Games)
+                var expanded = IsExpanded(tournament.TournamentId);
+                <div @key="tournament.TournamentId" class="rt-card">
+                    <button type="button" class="rt-head" aria-expanded="@(expanded ? "true" : "false")"
+                            @onclick="() => Toggle(tournament.TournamentId)">
+                        <div class="rt-head-main">
+                            <div class="rt-title">
+                                <span class="rt-title-text">@tournament.Title</span>
+                                @if (!tournament.IsProcessed)
                                 {
-                                    <tr class="@(game.CountsForRating ? null : "rating-game-not-counted")">
-                                        <td style="text-align: right">@game.Round</td>
-                                        <td>
+                                    <MudTooltip Text="@L["RatingProvisionalTournamentHelp"]">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="my-0 ml-0">@L["RatingProvisionalTournament"]</MudChip>
+                                    </MudTooltip>
+                                }
+                            </div>
+                            <div class="rt-sub">@SubLine(tournament)</div>
+                        </div>
+                        <span class="rt-badge @BadgeClass(tournament.Change)">@SignedChange(tournament.Change)</span>
+                        <MudIcon Icon="@(expanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                 Class="mud-text-secondary" />
+                    </button>
+
+                    @if (expanded)
+                    {
+                        <ul class="rt-games">
+                            @foreach (var game in tournament.Games)
+                            {
+                                <li class="rt-game @(game.CountsForRating ? null : "rt-game-not-counted")">
+                                    <span class="rt-round">@L["RatingGameRound", game.Round]</span>
+                                    <span class="rt-color @(game.IsWhite ? "rt-color-white" : "rt-color-black")"
+                                          title="@(game.IsWhite ? L["White"] : L["Black"])"></span>
+                                    <div class="rt-game-main">
+                                        <div class="rt-opponent">
                                             <PlayerName Name="@game.Opponent.Name" IsDeleted="game.Opponent.IsDeleted" />
                                             <span class="mud-text-secondary">(@game.OpponentRating)</span>
-                                        </td>
-                                        <td><span class="@Display.OutcomeClass(game.Result, game.IsWhite)">@L[$"Result_{game.Result}"]</span></td>
-                                        <td class="value">@Num(game.Score)</td>
-                                        @if (game.CountsForRating)
-                                        {
-                                            <td class="value">@(game.ExpectedScore is { } e ? Num(e) : "")</td>
-                                            <td class="value">@game.K</td>
-                                            <td class="value @ChangeClass(game.Change ?? 0)">@(game.Change is { } c ? SignedExact(c) : "")</td>
-                                        }
-                                        else
-                                        {
-                                            <td colspan="3" class="value mud-text-secondary">@L["RatingGameNotCounted"]</td>
-                                        }
-                                    </tr>
-                                }
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="6">@L["RatingTournamentTotal", Exact(tournament.ExactChange)]</td>
-                                    <td class="value @ChangeClass(tournament.Change)"><b>@SignedChange(tournament.Change)</b></td>
-                                </tr>
-                            </tfoot>
-                        </MudSimpleTable>
-                    </ChildContent>
-                </MudExpansionPanel>
+                                        </div>
+                                        <div class="rt-detail">
+                                            <span class="@Display.OutcomeClass(game.Result, game.IsWhite)">@L[$"Result_{game.Result}"]</span>
+                                            @GameDetail(game)
+                                        </div>
+                                    </div>
+                                    <span class="rt-change @ChangeClass(game.Change ?? 0)">
+                                        @(game.CountsForRating && game.Change is { } c ? SignedExact(c) : "")
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                        <div class="rt-total">
+                            <span>@L["RatingTournamentTotal", Exact(tournament.ExactChange)]</span>
+                            <b class="@ChangeClass(tournament.Change)">@SignedChange(tournament.Change)</b>
+                        </div>
+                    }
+                </div>
             }
-        </MudExpansionPanels>
+        </div>
     }
 }
 
@@ -132,6 +113,36 @@ else
 
     private PlayerRatingDto? _rating;
     private bool _failed;
+
+    /// <summary>Tournaments opened or closed by the user; without a choice only the newest one is open.</summary>
+    private readonly Dictionary<int, bool> _expanded = [];
+
+    private bool IsExpanded(int tournamentId) =>
+        _expanded.TryGetValue(tournamentId, out var expanded) ? expanded : _rating!.Tournaments[0].TournamentId == tournamentId;
+
+    private void Toggle(int tournamentId) => _expanded[tournamentId] = !IsExpanded(tournamentId);
+
+    private static string BadgeClass(int change) => change > 0 ? "rt-badge-up" : change < 0 ? "rt-badge-down" : "rt-badge-even";
+
+    /// <summary>Date, number of games and the rating before and after, e.g. "3 nov 2026 · 5 partijen · 1450 → 1462".</summary>
+    private string SubLine(RatingTournamentDto tournament)
+    {
+        var parts = new List<string>();
+        if (tournament.Date is { } date) parts.Add(date.ToLocalTime().ToString("d MMM yyyy", CultureInfo.CurrentCulture));
+        parts.Add(L["RatingLogGames", tournament.Games.Count]);
+        parts.Add($"{tournament.RatingBefore} → {tournament.RatingAfter}");
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>After the result: the expected score and K, or why the game does not count.</summary>
+    private string GameDetail(RatingGameDto game)
+    {
+        if (!game.CountsForRating) return $" · {L["RatingGameNotCounted"]}";
+        var detail = "";
+        if (game.ExpectedScore is { } expected) detail += $" · {L["RatingGameExpected", Num(expected)]}";
+        if (game.K is { } k) detail += $" · K {k}";
+        return detail;
+    }
 
     /// <summary>Index of the point under the mouse (0 = rating before the first change), or null.</summary>
     private int? _hover;

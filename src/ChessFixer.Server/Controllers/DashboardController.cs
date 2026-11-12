@@ -12,22 +12,15 @@ namespace ChessFixer.Server.Controllers;
 [ApiController]
 [Route("api/dashboard")]
 public class DashboardController(
-    ChessFixerDbContext db, RatingLogService ratings, TournamentService tournaments, TimeProvider time) : ControllerBase
+    ChessFixerDbContext db, RatingLogService ratings, TimeProvider time) : ControllerBase
 {
-    public const int TopPlayerCount = 5;
+    public const int TopPlayerCount = 10;
     public const int RiserCount = 3;
-    public const int RecentlyClosedCount = 3;
     public const int Months = 12;
 
     [HttpGet]
     public async Task<DashboardDto> Get()
     {
-        var tournamentCount = await db.Tournaments.CountAsync();
-        var closedCount = await db.Tournaments.CountAsync(t => t.ClosedAt != null);
-        var guestCount = await db.Players.CountAsync(p => !p.IsDeleted && p.IsGuest);
-        var clubCount = await db.Clubs.CountAsync();
-        var ratedGames = await db.Games.CountAsync(g => g.RatedAt != null);
-
         var byResult = await db.Games
             .GroupBy(g => g.Result)
             .Select(g => new { g.Key, Count = g.Count() })
@@ -40,15 +33,13 @@ public class DashboardController(
 
         // The own players, highest rating first (with trend and 30-day change).
         var ratingList = await ratings.GetRatingListAsync();
-        int? averageRating = ratingList.Count == 0 ? null : (int)Math.Round(ratingList.Average(p => p.Rating));
         var risers = ratingList.Where(p => p.Change30Days > 0)
             .OrderByDescending(p => p.Change30Days).ThenBy(p => p.Name)
             .Take(RiserCount).ToList();
 
         return new DashboardDto(
-            tournamentCount, closedCount, ratingList.Count, guestCount, clubCount, results.Total, ratedGames, averageRating,
             results, await GamesPerMonthAsync(), ratingList.Take(TopPlayerCount).ToList(), risers,
-            await OpenTournamentsAsync(), await RecentlyClosedAsync());
+            await OpenTournamentsAsync());
     }
 
     private async Task<List<DashboardMonthDto>> GamesPerMonthAsync()
@@ -98,28 +89,5 @@ public class DashboardController(
                 : TournamentState.WaitingForNextRound,
                 t.Players, t.Round?.Number ?? 0, t.Round?.Finished ?? 0, t.Round?.Games ?? 0))
             .ToList();
-    }
-
-    private async Task<List<DashboardClosedTournamentDto>> RecentlyClosedAsync()
-    {
-        var closed = await db.Tournaments
-            .Where(t => t.ClosedAt != null)
-            .OrderByDescending(t => t.ClosedAt).ThenByDescending(t => t.Id)
-            .Take(RecentlyClosedCount)
-            .Select(t => new
-            {
-                t.Id, t.Title, ClosedAt = t.ClosedAt!.Value,
-                Players = t.Players.Count,
-                Rounds = t.Rounds.Count(r => r.StartedAt != null)
-            })
-            .ToListAsync();
-
-        var list = new List<DashboardClosedTournamentDto>();
-        foreach (var t in closed)
-        {
-            var winner = (await tournaments.GetStandingsAsync(t.Id)).FirstOrDefault(s => s.Rank == 1 && s.Played > 0);
-            list.Add(new DashboardClosedTournamentDto(t.Id, t.Title, t.ClosedAt, t.Players, t.Rounds, winner?.Name));
-        }
-        return list;
     }
 }

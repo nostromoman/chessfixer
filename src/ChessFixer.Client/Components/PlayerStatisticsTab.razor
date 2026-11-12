@@ -86,6 +86,10 @@ else
                             @if (game.Opponent is { } opponent)
                             {
                                 <PlayerName Name="@opponent.Name" IsDeleted="opponent.IsDeleted" />
+                                @if (opponent.IsGuest)
+                                {
+                                    <GuestChip ClubName="@opponent.ClubName" />
+                                }
                             }
                             else
                             {

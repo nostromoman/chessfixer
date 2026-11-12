@@ -13,17 +13,13 @@
 </div>
 
 <MudPaper Class="pa-2 pa-sm-4" Elevation="1">
-    <div class="d-flex flex-wrap align-center gap-4 mb-3">
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["RatingLogIntro"]</MudText>
-        <MudSpacer />
-        <MudSelect T="int?" Value="_playerId" ValueChanged="OnPlayerChangedAsync" Label="@L["Player"]" Variant="Variant.Outlined"
-                   Margin="Margin.Dense" Style="min-width: 16em; max-width: 20em" AnchorOrigin="Origin.BottomCenter">
-            <MudSelectItem T="int?" Value="null">@L["AllPlayers"]</MudSelectItem>
-            @foreach (var player in _players)
-            {
-                <MudSelectItem T="int?" Value="player.Id">@player.Name</MudSelectItem>
-            }
-        </MudSelect>
+    @* Type to search a player; arrow keys and Enter pick one. Empty (or cleared) shows all players. *@
+    <div class="mb-3" style="max-width: 20em">
+        <MudAutocomplete T="PlayerDto" Value="_player" ValueChanged="OnPlayerChangedAsync" Label="@L["Player"]"
+                         Placeholder="@L["AllPlayers"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                         SearchFunc="SearchPlayersAsync" ToStringFunc="@(p => p?.Name)" MaxItems="null"
+                         ResetValueOnEmptyText="true" CoerceText="true" SelectValueOnTab="true" Clearable="true"
+                         AdornmentIcon="@Icons.Material.Filled.Search" AnchorOrigin="Origin.BottomCenter" />
     </div>
 
     <MudTable @ref="_table" T="RatingLogEntryDto" ServerData="LoadPageAsync" Dense="true" Hover="true" Striped="true"
@@ -102,7 +98,7 @@
 @code {
     private MudTable<RatingLogEntryDto>? _table;
     private List<PlayerDto> _players = [];
-    private int? _playerId;
+    private PlayerDto? _player;
 
     protected override async Task OnInitializedAsync()
     {
@@ -112,7 +108,7 @@
         }
         catch (Exception)
         {
-            // The filter then only offers "all players".
+            // The filter then finds no players: the log shows all players.
         }
     }
 
@@ -120,7 +116,7 @@
     {
         try
         {
-            var page = await Api.GetRatingLogAsync(state.Page * state.PageSize, state.PageSize, _playerId);
+            var page = await Api.GetRatingLogAsync(state.Page * state.PageSize, state.PageSize, _player?.Id);
             return new TableData<RatingLogEntryDto> { TotalItems = page.Total, Items = page.Entries };
         }
         catch (Exception)
@@ -129,9 +125,16 @@
         }
     }
 
-    private async Task OnPlayerChangedAsync(int? playerId)
+    /// <summary>Players whose name contains the typed text (all players when nothing is typed).</summary>
+    private Task<IEnumerable<PlayerDto>> SearchPlayersAsync(string? text, CancellationToken cancellationToken) =>
+        Task.FromResult(string.IsNullOrWhiteSpace(text)
+            ? _players.AsEnumerable()
+            : _players.Where(p => p.Name.Contains(text.Trim(), StringComparison.CurrentCultureIgnoreCase)));
+
+    private async Task OnPlayerChangedAsync(PlayerDto? player)
     {
-        _playerId = playerId;
+        if (player?.Id == _player?.Id) return;
+        _player = player;
         if (_table is not null) await _table.ReloadServerData();
     }
 

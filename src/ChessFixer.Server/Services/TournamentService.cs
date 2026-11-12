@@ -131,6 +131,7 @@ public class TournamentService(
             .OrderByDescending(id => id)
             .ToListAsync();
 
+        var clubNames = await db.Clubs.ToDictionaryAsync(c => c.Id, c => c.Name);
         var results = new List<PlayerTournamentResultDto>();
         var games = new List<PlayerGameDto>();
         foreach (var tournamentId in tournamentIds)
@@ -156,7 +157,9 @@ public class TournamentService(
                 var (whitePoints, blackPoints) = scoring.PointsFor(game.Result);
                 games.Add(new PlayerGameDto(
                     tournament.Id, tournament.Title, round.Number, isWhite,
-                    opponent is null ? null : new GamePlayerDto(opponent.PlayerId, opponent.Player.Name, opponent.Player.IsDeleted),
+                    opponent is null ? null : new GamePlayerDto(
+                        opponent.PlayerId, opponent.Player.Name, opponent.Player.IsDeleted, opponent.Player.IsGuest,
+                        opponent.Player is { IsGuest: true, ClubId: { } clubId } ? clubNames.GetValueOrDefault(clubId) : null),
                     game.Result,
                     game.Result == GameResult.NotPlayed ? null : isWhite ? whitePoints : blackPoints));
             }

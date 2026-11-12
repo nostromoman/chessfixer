@@ -66,26 +66,32 @@
     {
         if (_editing is null) return;
         <div class="d-flex flex-column gap-4">
-            <div class="d-flex flex-wrap align-center gap-4">
+            @* The photo, with a pencil that opens a menu to choose, take or remove a photo. *@
+            <div class="photo-edit">
                 <PlayerAvatar FirstName="@_editing.FirstName" LastName="@_editing.LastName" PhotoUrl="@_editing.PhotoSource"
                               Size="Size.Large" />
+                <MudMenu Class="photo-edit-menu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft"
+                         aria-label="@L["EditPhoto"]">
+                    <ActivatorContent>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Filled"
+                                       Color="Color.Primary" Class="photo-edit-button" Disabled="_busy"
+                                       aria-label="@L["EditPhoto"]" OnClick="e => context.ToggleAsync(e)" />
+                    </ActivatorContent>
+                    <ChildContent>
+                        <MudMenuItem Icon="@Icons.Material.Filled.PhotoLibrary" OnClick="ChoosePhotoAsync">@L["ChoosePhoto"]</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Videocam" OnClick="TakePhotoAsync">@L["WebcamTakePhoto"]</MudMenuItem>
+                        @if (_editing.PhotoSource is not null)
+                        {
+                            <MudMenuItem Icon="@Icons.Material.Outlined.Delete" IconColor="Color.Error" OnClick="RemovePhoto">@L["RemovePhoto"]</MudMenuItem>
+                        }
+                    </ChildContent>
+                </MudMenu>
+                @* No visible content: the file picker is opened from the menu. *@
                 <MudFileUpload @ref="_photoUpload" T="IBrowserFile" Accept="image/*" FilesChanged="OnPhotoSelectedAsync"
-                               Disabled="_busy">
-                    <CustomContent Context="upload">
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_busy"
-                                   OnClick="upload.OpenFilePickerAsync">
-                            @L["ChoosePhoto"]
-                        </MudButton>
-                    </CustomContent>
+                               Disabled="_busy" Class="d-none">
+                    <CustomContent Context="upload" />
                     <SelectedTemplate />
                 </MudFileUpload>
-                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Videocam" Disabled="_busy"
-                           OnClick="TakePhotoAsync">@L["WebcamTakePhoto"]</MudButton>
-                @if (_editing.PhotoSource is not null)
-                {
-                    <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
-                               Disabled="_busy" OnClick="RemovePhoto">@L["RemovePhoto"]</MudButton>
-                }
             </div>
 
             <MudTextField @bind-Value="_editing.FirstName" Label="@L["FirstName"]" Variant="Variant.Outlined"
@@ -99,6 +105,9 @@
                            Disabled="_busy" />
             <MudTextField @bind-Value="_editing.City" Label="@L["City"]" Variant="Variant.Outlined"
                           MaxLength="100" OnKeyUp="OnKeyUp" Disabled="_busy" />
+            <MudNumericField T="int" @bind-Value="_editing.Rating" Label="@L["Rating"]" Variant="Variant.Outlined"
+                             HelperText="@(_editing.IsNew ? L["RatingHelpNew"] : L["RatingHelp"])" Max="4000"
+                             Min="0" HideSpinButtons="true" OnKeyUp="OnKeyUp" Disabled="_busy" />
             <div>
                 <MudSwitch T="bool" @bind-Value="_editing.IsGuest" Color="Color.Primary" Label="@L["GuestPlayer"]" Disabled="_busy" />
                 <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["GuestPlayerHelp"]</MudText>
@@ -115,9 +124,6 @@
                     }
                 </MudSelect>
             }
-            <MudNumericField T="int" @bind-Value="_editing.Rating" Label="@L["Rating"]" Variant="Variant.Outlined"
-                             HelperText="@(_editing.IsNew ? L["RatingHelpNew"] : L["RatingHelp"])" Max="4000"
-                             Min="0" HideSpinButtons="true" OnKeyUp="OnKeyUp" Disabled="_busy" />
 
             <div class="d-flex gap-2 justify-end">
                 <MudButton Variant="Variant.Text" OnClick="Close" Disabled="_busy">@L["Cancel"]</MudButton>
@@ -209,6 +215,11 @@
             _editing.SetNewPhoto(photo, PhotoContentType);
             StateHasChanged();
         }
+    }
+
+    private async Task ChoosePhotoAsync()
+    {
+        if (_photoUpload is not null) await _photoUpload.OpenFilePickerAsync();
     }
 
     private void RemovePhoto() => _editing?.RemovePhoto();
