@@ -146,9 +146,10 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             game.ToTable(t =>
             {
                 t.HasCheckConstraint("CK_Games_DifferentPlayers", "\"BlackId\" IS NULL OR \"BlackId\" <> \"WhiteId\"");
-                // A bye is exactly a game without Black, and it never takes a board.
+                // A bye or an absence is exactly a game without Black, and it never takes a board.
                 t.HasCheckConstraint("CK_Games_Bye",
-                    "(\"BlackId\" IS NULL) = (\"Result\" = 'Bye') AND (\"Result\" <> 'Bye' OR \"Board\" IS NULL)");
+                    "(\"BlackId\" IS NULL) = (\"Result\" IN ('Bye', 'Absent'))" +
+                    " AND (\"Result\" NOT IN ('Bye', 'Absent') OR \"Board\" IS NULL)");
                 // The rating columns are filled in together, or not at all.
                 t.HasCheckConstraint("CK_Games_Rating",
                     "(\"RatedAt\" IS NULL AND \"WhiteRatingBefore\" IS NULL AND \"BlackRatingBefore\" IS NULL" +

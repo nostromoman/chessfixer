@@ -202,6 +202,9 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
         return (await response.Content.ReadFromJsonAsync<T>())!;
     }
 
+    /// <summary>The body of an error answer; Code is null when the server sent no <see cref="ApiError"/>.</summary>
+    private sealed record ErrorBody(ApiErrorCode? Code);
+
     /// <summary>Sends the request and throws <see cref="ApiClientException"/> when it fails.
     /// The body is sent as JSON, unless it is already <see cref="HttpContent"/>.
     /// A 401 means the session ended; the user is then sent to the login page.</summary>
@@ -218,8 +221,9 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
         var response = await http.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
-            ApiError? error = null;
-            try { error = await response.Content.ReadFromJsonAsync<ApiError>(); }
+            // Not ApiError: an answer without a code (a crash, an unknown route) must not read as the first code.
+            ErrorBody? error = null;
+            try { error = await response.Content.ReadFromJsonAsync<ErrorBody>(); }
             catch { /* no ApiError body */ }
             var status = response.StatusCode;
             response.Dispose();

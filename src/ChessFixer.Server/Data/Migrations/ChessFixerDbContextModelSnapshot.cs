@@ -307,7 +307,7 @@ namespace ChessFixer.Server.Data.Migrations
 
                     b.ToTable("Games", t =>
                         {
-                            t.HasCheckConstraint("CK_Games_Bye", "(\"BlackId\" IS NULL) = (\"Result\" = 'Bye') AND (\"Result\" <> 'Bye' OR \"Board\" IS NULL)");
+                            t.HasCheckConstraint("CK_Games_Bye", "(\"BlackId\" IS NULL) = (\"Result\" IN ('Bye', 'Absent')) AND (\"Result\" NOT IN ('Bye', 'Absent') OR \"Board\" IS NULL)");
 
                             t.HasCheckConstraint("CK_Games_DifferentPlayers", "\"BlackId\" IS NULL OR \"BlackId\" <> \"WhiteId\"");
 
