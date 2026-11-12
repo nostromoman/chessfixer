@@ -315,6 +315,15 @@ else
             if (confirmed != true) return;
         }
 
+        // Players who would meet for the third time (or more): only when it could not be avoided, but ask first.
+        var repeats = _rounds.FirstOrDefault(r => !r.IsStarted)?.Games.Count(g => g.TimesMetBefore >= 2) ?? 0;
+        if (repeats > 0)
+        {
+            var confirmed = await Dialogs.ShowMessageBoxAsync(
+                L["StartWithRepeatsTitle"], L["StartWithRepeatsText", repeats], yesText: L["StartRound", round], cancelText: L["Cancel"]);
+            if (confirmed != true) return;
+        }
+
         await RunAsync(() => Api.StartNextRoundAsync(Id), L["RoundStarted", round]);
         if (Tournament?.State == TournamentState.RoundActive) _activeTab = MatchesTab;
     }

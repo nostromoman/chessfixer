@@ -86,6 +86,15 @@ public class TournamentService(
     public async Task<List<RoundDto>> GetRoundsAsync(int id)
     {
         var tournament = await LoadAsync(id);
+        var played = StartedRounds(tournament)
+            .SelectMany(r => r.Games.Where(g => g.BlackId is not null
+                    && g.Result is not (GameResult.WhiteWinsByForfeit or GameResult.BlackWinsByForfeit))
+                .Select(g => (Round: r.Number, Pair: PairKey(g.WhiteId, g.BlackId!.Value))))
+            .ToList();
+        int TimesMetBefore(Round round, Game game) => game.BlackId is { } blackId
+            ? played.Count(p => p.Round < round.Number && p.Pair == PairKey(game.WhiteId, blackId))
+            : 0;
+
         return tournament.Rounds
             .OrderBy(r => r.Number)
             .Select(r => new RoundDto(
@@ -97,7 +106,8 @@ public class TournamentService(
                     g.Board,
                     new GamePlayerDto(g.White.PlayerId, g.White.Player.Name, g.White.Player.IsDeleted),
                     g.Black is null ? null : new GamePlayerDto(g.Black.PlayerId, g.Black.Player.Name, g.Black.Player.IsDeleted),
-                    g.Result)).ToList(),
+                    g.Result,
+                    TimesMetBefore(r, g))).ToList(),
                 r.StartedAt))
             .ToList();
     }
@@ -119,6 +129,8 @@ public class TournamentService(
             })
             .ToList();
     }
+
+    private static (int, int) PairKey(int a, int b) => a < b ? (a, b) : (b, a);
 
     /// <summary>The player's place in every tournament they played in, and all their games (newest first).</summary>
     public async Task<PlayerStatisticsDto> GetPlayerStatisticsAsync(int playerId)
@@ -289,12 +301,12 @@ public class TournamentService(
     /// <summary>
     /// Marks an active player as present or absent. An absent player stays in the tournament and keeps their
     /// results, but is left out of the pairing of the next round (which gets an absence line for them instead).
-    /// During a round it applies to the next round.
+    /// Only between rounds: during a round the presence is fixed.
     /// </summary>
     public Task<TournamentDto> SetPresenceAsync(int id, int playerId, bool isPresent) =>
         MutateAsync(id, async tournament =>
         {
-            EnsurePlayersCanChange(tournament);
+            EnsureBetweenRounds(tournament);
             var participant = tournament.Players.SingleOrDefault(p => p.PlayerId == playerId && p.IsActive)
                               ?? throw new ApiException(ApiErrorCode.PlayerNotInTournament);
             if (participant.IsPresent == isPresent) return;

@@ -9,7 +9,8 @@ namespace ChessFixer.Core.Pairing;
 /// <item>Within a score group the top half plays the bottom half; a player left over floats to the next group.</item>
 /// <item>Players do not meet twice (backtracking makes sure the whole round still works out). Only when that is
 /// impossible (e.g. everyone has already played everyone) players meet again: first at most twice, then at most
-/// three times, and so on.</item>
+/// three times, and so on. At such a level as few pairs as possible meet that often (e.g. as few third meetings
+/// as possible).</item>
 /// <item>Color preferences are taken into account when choosing between equally good opponents.</item>
 /// <item>With an odd number of players, the lowest-ranked player without an earlier bye gets the bye.</item>
 /// </list>
@@ -34,12 +35,20 @@ public sealed class SwissPairing : IPairingStrategy
         var everyone = ranked.Length == 64 ? ulong.MaxValue : (1UL << ranked.Length) - 1;
 
         // Allow pairs that met at most maxTimesMet times; raise the limit until the round works out.
+        // Above 0, also limit how many pairs meet exactly maxTimesMet times, so as few as possible do.
         // With a limit above every meeting count all pairs are allowed, so that always succeeds.
         var mostMeetings = history.Values.SelectMany(h => h.TimesMet.Values).DefaultIfEmpty(0).Max();
         List<(int Higher, int Lower)>? pairs = null;
         int? byeIndex = null;
         for (var maxTimesMet = 0; pairs is null && maxTimesMet <= mostMeetings; maxTimesMet++)
-            (pairs, byeIndex) = TrySolve(new Solver(ranked, history, maxTimesMet), ranked, history, everyone);
+        {
+            int[] budgets = maxTimesMet == 0 ? [int.MaxValue] : [.. Enumerable.Range(1, ranked.Length / 2)];
+            foreach (var budget in budgets)
+            {
+                (pairs, byeIndex) = TrySolve(new Solver(ranked, history, maxTimesMet, budget), ranked, history, everyone);
+                if (pairs is not null) break;
+            }
+        }
 
         if (pairs is null) throw new PairingException(PairingError.NoValidPairing);
 
@@ -90,34 +99,39 @@ public sealed class SwissPairing : IPairingStrategy
     /// the set of unpaired players is a bit mask. Masks that cannot be paired are remembered.
     /// </summary>
     /// <param name="maxTimesMet">Only players who met at most this often may be paired (0: never met).</param>
-    private sealed class Solver(int[] ranked, Dictionary<int, PlayerHistory> history, int maxTimesMet)
+    /// <param name="budget">How many pairs may have met exactly <paramref name="maxTimesMet"/> times (when that is above 0).</param>
+    private sealed class Solver(int[] ranked, Dictionary<int, PlayerHistory> history, int maxTimesMet, int budget)
     {
         private const double Tolerance = 1e-9;
-        private readonly HashSet<ulong> _unsolvable = [];
+        private readonly HashSet<(ulong Unpaired, int Budget)> _unsolvable = [];
         private readonly Stack<(int Higher, int Lower)> _pairs = new();
 
         public List<(int Higher, int Lower)>? Solve(ulong unpaired)
         {
             _pairs.Clear();
-            return TryPair(unpaired) ? _pairs.Reverse().ToList() : null;
+            return TryPair(unpaired, budget) ? _pairs.Reverse().ToList() : null;
         }
 
-        private bool TryPair(ulong unpaired)
+        private bool TryPair(ulong unpaired, int budgetLeft)
         {
             if (unpaired == 0) return true;
-            if (_unsolvable.Contains(unpaired)) return false;
+            if (_unsolvable.Contains((unpaired, budgetLeft))) return false;
 
             var player = BitOperations.TrailingZeroCount(unpaired);
             var others = unpaired & ~(1UL << player);
+            var me = history[ranked[player]];
 
             foreach (var opponent in Candidates(player, others))
             {
+                var atLimit = maxTimesMet > 0 && me.TimesMet.GetValueOrDefault(ranked[opponent]) == maxTimesMet;
+                if (atLimit && budgetLeft == 0) continue;
+
                 _pairs.Push((player, opponent));
-                if (TryPair(others & ~(1UL << opponent))) return true;
+                if (TryPair(others & ~(1UL << opponent), atLimit ? budgetLeft - 1 : budgetLeft)) return true;
                 _pairs.Pop();
             }
 
-            _unsolvable.Add(unpaired);
+            _unsolvable.Add((unpaired, budgetLeft));
             return false;
         }
 

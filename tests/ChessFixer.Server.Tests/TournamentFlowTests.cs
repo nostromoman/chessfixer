@@ -231,6 +231,36 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
+    public async Task Presence_CannotChangeDuringARound()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false)),
+            HttpStatusCode.Conflict, ApiErrorCode.RoundInProgress);
+
+        await FinishActiveRoundAsync(id);
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false));
+    }
+
+    [Fact]
+    public async Task Games_TellHowOftenThePlayersMetBefore()
+    {
+        var id = await CreateTournamentAsync();
+        await AddNewPlayersAsync(id, 2);
+        for (var round = 0; round < 2; round++)
+        {
+            await StartRoundAsync(id);
+            await FinishActiveRoundAsync(id);
+        }
+
+        var rounds = await GetRoundsAsync(id);
+        Assert.Equal([0, 1, 2], rounds.Select(r => Assert.Single(r.Games).TimesMetBefore));
+    }
+
+    [Fact]
     public async Task PointsForAbsence_CountInTheStandings()
     {
         var id = await CreateTournamentAsync();

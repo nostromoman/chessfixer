@@ -189,6 +189,46 @@ public class SwissPairingTests
     }
 
     [Fact]
+    public void ThirdMeetings_AsFewAsPossible()
+    {
+        // Every pair met once or twice (random); the pairing must have the fewest pairs meeting a third time.
+        var random = new Random(12345);
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            var players = TournamentSimulator.CreatePlayers(6);
+            var history = new List<PlayedGame>();
+            var times = new Dictionary<(int, int), int>();
+            var round = 1;
+            for (var a = 1; a <= 6; a++)
+            for (var b = a + 1; b <= 6; b++)
+            {
+                times[(a, b)] = random.Next(1, 3);
+                for (var i = 0; i < times[(a, b)]; i++) history.Add(new(round++, a, b, GameResult.Draw));
+            }
+
+            int Third(IEnumerable<(int A, int B)> pairs) =>
+                pairs.Count(p => times[(Math.Min(p.A, p.B), Math.Max(p.A, p.B))] >= 2);
+
+            var boards = new SwissPairing().PairNextRound(new PairingInput(players, history, ScoringRules.Default));
+            var actual = Third(boards.Select(b => (b.WhiteId, b.BlackId!.Value)));
+            Assert.Equal(PerfectMatchings([1, 2, 3, 4, 5, 6]).Min(Third), actual);
+        }
+    }
+
+    private static IEnumerable<List<(int A, int B)>> PerfectMatchings(List<int> players)
+    {
+        if (players.Count == 0)
+        {
+            yield return [];
+            yield break;
+        }
+        var first = players[0];
+        foreach (var partner in players.Skip(1))
+        foreach (var rest in PerfectMatchings(players.Where(p => p != first && p != partner).ToList()))
+            yield return [(first, partner), .. rest];
+    }
+
+    [Fact]
     public void Rematch_ColorsAreReversed()
     {
         var players = TournamentSimulator.CreatePlayers(2);

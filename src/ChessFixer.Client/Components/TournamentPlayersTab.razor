@@ -82,9 +82,11 @@ else
                     <td>
                         @if (player.IsActive)
                         {
-                            <MudCheckBox T="bool" Value="player.IsPresent" ValueChanged="v => SetPresenceAsync(player, v)"
-                                         Color="Color.Primary" Dense="true" Size="Size.Small" aria-label="@L["Present"]"
-                                         Disabled="@(!CanChangePlayers || Disabled)" />
+                            <MudTooltip Text="@(PresenceLocked ? L["PresenceLockedInRound"] : L["Present"])">
+                                <MudCheckBox T="bool" Value="player.IsPresent" ValueChanged="v => SetPresenceAsync(player, v)"
+                                             Color="Color.Primary" Dense="true" Size="Size.Small" aria-label="@L["Present"]"
+                                             Disabled="@(!CanChangePlayers || Disabled || PresenceLocked)" />
+                            </MudTooltip>
                         }
                     </td>
                     <td><PlayerAvatar FirstName="@(info?.FirstName ?? player.Name)" LastName="@info?.LastName" PhotoUrl="@info?.PhotoUrl" /></td>
@@ -178,6 +180,9 @@ else
             _ => player.IsPresent ? PlayerStatus.Waiting : PlayerStatus.Absent // game finished, waiting for the others
         };
     }
+
+    /// <summary>During a round the presence cannot change (the server refuses it too).</summary>
+    private bool PresenceLocked => Tournament.State == TournamentState.RoundActive;
 
     private int ActiveCount => Participants.Count(p => p.IsActive);
     private int AbsentCount => Participants.Count(p => p is { IsActive: true, IsPresent: false });
@@ -306,7 +311,7 @@ else
             {
                 { d => d.Name, player.Name },
                 { d => d.GameCount, gameCount },
-                { d => d.IsPresent, player.IsPresent }
+                { d => d.IsPresent, player.IsPresent && !PresenceLocked }
             },
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
 

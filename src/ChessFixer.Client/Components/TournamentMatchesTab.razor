@@ -29,6 +29,10 @@
 else if (Tournament.State == TournamentState.New && PendingRound is not null)
 {
     <MudText Typo="Typo.h5" Class="mb-3"><b>@L["PairingRound", PendingRound.Number]</b></MudText>
+    @if (PendingRound.Games.Count(g => g.TimesMetBefore >= 2) is var repeats and > 0)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-3">@L["RepeatMeetingsInPairing", repeats]</MudAlert>
+    }
     @Cards(Games(PendingRound).Where(g => g.Board is not null).OrderBy(g => g.Board), isStarted: false, editable: false)
 
     @if (Queue(PendingRound).Any())

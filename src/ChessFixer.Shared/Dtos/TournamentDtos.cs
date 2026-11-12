@@ -93,7 +93,10 @@ public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games,
 /// <param name="Number">Order of the game in the pairing; queued games get a board in this order.</param>
 /// <param name="Board">The board the game is (or was) played on; null while it waits in the queue, and for a bye.</param>
 /// <param name="Black">Null when White has a bye or is absent (<see cref="GameResult.Absent"/>).</param>
-public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result);
+/// <param name="TimesMetBefore">How often the two players met in earlier rounds of this tournament (forfeits not
+/// counted, as in the pairing). 2 or more: this game is (at least) their third meeting.</param>
+public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result,
+    int TimesMetBefore = 0);
 
 /// <param name="IsDeleted">The player has been deleted from the player list.</param>
 /// <param name="IsGuest">A guest player; only filled where the UI shows it (the player statistics).</param>

@@ -11,6 +11,13 @@
         {
             <span class="game-card-board game-card-queued">@L["QueuePosition", position]</span>
         }
+        @if (Game.TimesMetBefore >= 2)
+        {
+            <MudTooltip Text="@L["RepeatMeetingHelp", Game.TimesMetBefore]">
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="ma-0"
+                         Icon="@Icons.Material.Filled.Warning">@L["RepeatMeeting", Game.TimesMetBefore + 1]</MudChip>
+            </MudTooltip>
+        }
         @if (IsPlaying)
         {
             <span class="game-card-live">@L["Status_Playing"]</span>

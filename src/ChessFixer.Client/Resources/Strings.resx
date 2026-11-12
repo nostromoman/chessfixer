@@ -120,6 +120,12 @@
   <data name="Present" xml:space="preserve"><value>Aanwezig</value></data>
   <data name="PresentShort" xml:space="preserve"><value>Aanw.</value></data>
   <data name="PresentHelp" xml:space="preserve"><value>Aanwezig voor de volgende ronde. Wie niet aangevinkt is, wordt niet ingedeeld maar blijft gewoon in het toernooi.</value></data>
+  <data name="PresenceLockedInRound" xml:space="preserve"><value>Aanwezigheid kan pas weer veranderen als de ronde klaar is</value></data>
+  <data name="RepeatMeeting" xml:space="preserve"><value>{0}e keer</value></data>
+  <data name="RepeatMeetingHelp" xml:space="preserve"><value>Deze spelers speelden al {0} keer tegen elkaar in dit toernooi.</value></data>
+  <data name="RepeatMeetingsInPairing" xml:space="preserve"><value>Let op: in deze indeling spelen {0} paar spelers voor de derde keer (of vaker) tegen elkaar. Dat was met de aanwezige spelers niet te voorkomen; de indeling houdt het aantal zo laag mogelijk.</value></data>
+  <data name="StartWithRepeatsTitle" xml:space="preserve"><value>Spelers treffen elkaar voor de derde keer</value></data>
+  <data name="StartWithRepeatsText" xml:space="preserve"><value>In deze indeling spelen {0} paar spelers voor de derde keer (of vaker) tegen elkaar. Weet je zeker dat je de ronde toch wilt starten?</value></data>
   <data name="PresentCount" xml:space="preserve"><value>{0} van {1} spelers aanwezig</value></data>
   <data name="MarkAbsent" xml:space="preserve"><value>Alleen afwezig melden</value></data>
   <data name="PlayerMarkedAbsent" xml:space="preserve"><value>{0} is afwezig gemeld.</value></data>
