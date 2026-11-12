@@ -231,7 +231,36 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task Presence_CannotChangeDuringARound()
+    public async Task Swiss_LatecomerDuringARound_PlaysTheByePlayer()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 4);
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false));
+        await StartRoundAsync(id);
+        var round = Assert.Single(await GetRoundsAsync(id), r => r.IsStarted);
+        var bye = Assert.Single(round.Games, g => g.Result == GameResult.Bye).White.PlayerId;
+
+        // The latecomer is switched on during the round: an extra game against the bye player, in the round.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(true));
+        round = Assert.Single(await GetRoundsAsync(id), r => r.IsStarted);
+        Assert.DoesNotContain(round.Games, g => g.Result is GameResult.Bye or GameResult.Absent);
+        var late = Assert.Single(round.Games, g => g.White.PlayerId == players[0] || g.Black?.PlayerId == players[0]);
+        Assert.Contains(bye, new[] { late.White.PlayerId, late.Black!.PlayerId });
+        Assert.Equal(GameResult.NotPlayed, late.Result);
+        Assert.NotNull(late.Board);
+
+        // A second latecomer (a new player) has nobody left to play: waits for the next round.
+        var second = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(second.Id));
+        round = Assert.Single(await GetRoundsAsync(id), r => r.IsStarted);
+        Assert.Equal(2, round.Games.Count);
+
+        await FinishActiveRoundAsync(id);
+        Assert.Equal(TournamentState.WaitingForNextRound, (await GetTournamentAsync(id)).State);
+    }
+
+    [Fact]
+    public async Task Presence_CannotBeSwitchedOffDuringARound()
     {
         var id = await CreateTournamentAsync();
         var players = await AddNewPlayersAsync(id, 4);

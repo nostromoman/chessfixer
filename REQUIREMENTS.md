@@ -109,6 +109,8 @@ Tournaments have **no date**, only a state.
 - Players can be added to and removed from (withdraw from) a tournament at any time, also during a round (round robin: no new players once round 1 has started, see 5.3). A player added during a round waits for the next round. A player who withdraws during a round keeps their current game, which still needs a result.
 - A withdrawn player who has played games stays in the tournament player list and can rejoin; a player without games is removed completely.
 - A player who joins late starts with 0 points.
+- Per player a checkbox *Doet mee* (plays in the next round). Unchecked players are not paired and get a line *doet niet mee* for that round. During a round the box can only be switched on, for a latecomer.
+- Swiss, latecomers during a round: when a player is switched on or added during a round, the players who are free in that round (the bye, latecomers, players who did not play but now do) are paired with each other where possible (not when they met before); those games join the queue of the round. The player with the bye goes first; with an odd number the one left over keeps what they had.
 - A player who is removed keeps their earlier games and results in the standings but is no longer paired.
 
 ### 6.1 Rating

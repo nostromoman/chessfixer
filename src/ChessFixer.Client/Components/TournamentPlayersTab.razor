@@ -83,10 +83,16 @@ else
                         @if (player.IsActive)
                         {
                             var noAbsence = IsRoundRobin && player.IsPresent;
-                            <MudTooltip Text="@(PresenceLocked ? L["PresenceLockedInRound"] : noAbsence ? L["PresenceRoundRobin"] : L["Present"])">
+                            // During a round a player can be switched on (a latecomer), not off.
+                            var locked = PresenceLocked && player.IsPresent;
+                            var tooltip = locked ? L["PresenceLockedInRound"]
+                                : noAbsence ? L["PresenceRoundRobin"]
+                                : PresenceLocked && !IsRoundRobin ? L["PresentLate"]
+                                : L["Present"];
+                            <MudTooltip Text="@tooltip">
                                 <MudCheckBox T="bool" Value="player.IsPresent" ValueChanged="v => SetPresenceAsync(player, v)"
                                              Color="Color.Primary" Dense="true" Size="Size.Small" aria-label="@L["Present"]"
-                                             Disabled="@(!CanChangePlayers || Disabled || PresenceLocked || noAbsence)" />
+                                             Disabled="@(!CanChangePlayers || Disabled || locked || noAbsence)" />
                             </MudTooltip>
                         }
                     </td>
@@ -190,7 +196,7 @@ else
         };
     }
 
-    /// <summary>During a round the presence cannot change (the server refuses it too).</summary>
+    /// <summary>During a round a player cannot be switched off (the server refuses it too); switching on is allowed.</summary>
     private bool PresenceLocked => Tournament.State == TournamentState.RoundActive;
 
     private int ActiveCount => Participants.Count(p => p.IsActive);

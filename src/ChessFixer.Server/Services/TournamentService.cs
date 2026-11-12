@@ -321,17 +321,18 @@ public class TournamentService(
             }
 
             await RefreshPendingRoundAsync(tournament);
+            await AddLateGamesAsync(tournament);
         });
 
     /// <summary>
-    /// Marks an active player as present or absent. An absent player stays in the tournament and keeps their
-    /// results, but is left out of the pairing of the next round (which gets an absence line for them instead).
-    /// Only between rounds: during a round the presence is fixed.
+    /// Marks an active player as playing ("doet mee") or not. A player who does not play stays in the tournament and
+    /// keeps their results, but is left out of the pairing of the next round (which gets an absence line for them
+    /// instead). During a round a player can only be switched on (a latecomer): see <see cref="AddLateGamesAsync"/>.
     /// </summary>
     public Task<TournamentDto> SetPresenceAsync(int id, int playerId, bool isPresent) =>
         MutateAsync(id, async tournament =>
         {
-            EnsureBetweenRounds(tournament);
+            if (!isPresent || StateOf(tournament) != TournamentState.RoundActive) EnsureBetweenRounds(tournament);
             var participant = tournament.Players.SingleOrDefault(p => p.PlayerId == playerId && p.IsActive)
                               ?? throw new ApiException(ApiErrorCode.PlayerNotInTournament);
             if (participant.IsPresent == isPresent) return;
@@ -342,7 +343,62 @@ public class TournamentService(
 
             participant.IsPresent = isPresent;
             await RefreshPendingRoundAsync(tournament);
+            await AddLateGamesAsync(tournament);
         });
+
+    /// <summary>
+    /// Swiss, during a round: the players who are free this round (the bye, late joiners, and players who did not
+    /// play but now do) are paired with each other where possible, and those games join the queue of the round.
+    /// Pairs that have met before are not paired again. With an odd number the player with a bye keeps priority
+    /// to play (the bye counts in the pairing); the one left over keeps what they had (bye, absence line or nothing).
+    /// </summary>
+    private async Task AddLateGamesAsync(Tournament tournament)
+    {
+        if (tournament.PairingSystem != PairingSystem.Swiss || StateOf(tournament) != TournamentState.RoundActive) return;
+
+        await db.SaveChangesAsync(); // a late joiner needs their id
+        var round = StartedRounds(tournament).Last();
+        Game? LineOf(TournamentPlayer p) => round.Games.FirstOrDefault(g => g.WhiteId == p.Id || g.BlackId == p.Id);
+
+        var free = tournament.Players
+            .Where(p => p is { IsActive: true, IsPresent: true })
+            .Where(p => LineOf(p) is null or { BlackId: null, Result: GameResult.Bye or GameResult.Absent })
+            .ToDictionary(p => p.Id);
+        if (free.Count < 2) return;
+
+        IReadOnlyList<BoardPairing> pairings;
+        try
+        {
+            pairings = new SwissPairing().PairNextRound(new PairingInput(
+                free.Values.Select(p => new PairingPlayer(p.Id, p.Player.Rating)).ToList(),
+                PlayedGames(tournament),
+                ScoringOf(tournament)));
+        }
+        catch (PairingException)
+        {
+            return;
+        }
+
+        var met = Meetings(tournament).Select(m => m.Pair).ToHashSet();
+        var number = round.Games.Max(g => g.Number);
+        foreach (var pairing in pairings.Where(p => !p.IsBye && !met.Contains(PairKey(p.WhiteId, p.BlackId!.Value))))
+        {
+            foreach (var line in new[] { LineOf(free[pairing.WhiteId]), LineOf(free[pairing.BlackId!.Value]) })
+            {
+                if (line is null) continue;
+                round.Games.Remove(line);
+                db.Games.Remove(line);
+            }
+            round.Games.Add(new Game
+            {
+                Number = ++number,
+                White = free[pairing.WhiteId],
+                Black = free[pairing.BlackId!.Value],
+                Result = GameResult.NotPlayed
+            });
+        }
+        AssignBoards(round, tournament.Boards);
+    }
 
     /// <summary>
     /// A player without games (or absences) is removed completely; a player with games stays in the standings
