@@ -3,7 +3,8 @@
 @* The games per round, with a row of tabs: one tab per started round, the newest on the right. Starting a round
    adds its tab and opens it. Results can only be entered (and corrected) in the most recent round; the other
    rounds show their results. Before round 1 the pairing of round 1 is shown (without tabs).
-   A player with a bye is shown in a separate group at the bottom. *@
+   A player with a bye is shown in a separate group at the bottom, then the absent players, then the round report.
+   A finished round has a green check mark on its tab; the round in progress an hourglass. *@
 @if (StartedRounds.Count > 0)
 {
     <MudTabs @ref="_roundTabs" ActivePanelIndex="_selectedIndex" ActivePanelIndexChanged="i => _selectedIndex = i"
@@ -12,8 +13,8 @@
         {
             var inProgress = round == CurrentRound && Tournament.State == TournamentState.RoundActive;
             <MudTabPanel @key="round.Number" Text="@L["Round", round.Number]"
-                         Icon="@(inProgress ? Icons.Material.Filled.HourglassTop : null)"
-                         IconColor="@(inProgress ? Color.Warning : Color.Default)">
+                         Icon="@(inProgress ? Icons.Material.Filled.HourglassTop : round.IsFinished ? Icons.Material.Filled.CheckCircle : null)"
+                         IconColor="@(inProgress ? Color.Warning : round.IsFinished ? Color.Success : Color.Default)">
                 @if (round == CurrentRound && Tournament.State is TournamentState.RoundActive or TournamentState.WaitingForNextRound)
                 {
                     @CurrentRoundContent(round)
@@ -55,6 +56,9 @@ else if (Tournament.State == TournamentState.New)
     [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback<(GameDto Game, GameResult Result)> OnResult { get; set; }
+
+    /// <summary>The leader finished the report wizard for a round.</summary>
+    [Parameter] public EventCallback<(int Round, GenerateReportRequest Request)> OnGenerateReport { get; set; }
 
     /// <summary>The started rounds, oldest first: one tab each.</summary>
     private List<RoundDto> StartedRounds { get; set; } = [];
@@ -143,8 +147,7 @@ else if (Tournament.State == TournamentState.New)
     /// <summary>The most recent round, while results can be entered: playing, queue and finished games.</summary>
     private RenderFragment CurrentRoundContent(RoundDto round) => __builder =>
     {
-        <div class="d-flex justify-space-between align-center mb-3">
-            <MudText Typo="Typo.h5"><b>@L["Round", round.Number]</b></MudText>
+        <div class="d-flex justify-end align-center mb-3">
             <MudText Typo="Typo.body1" Class="mud-text-secondary">
                 @L["ResultsEntered", Finished(round).Count(), Games(round).Count()]
             </MudText>
@@ -170,6 +173,7 @@ else if (Tournament.State == TournamentState.New)
         }
 
         @Byes(round, isStarted: true)
+        @Report(round)
     };
 
     /// <summary>An earlier round (or any round of a closed tournament): its results, read-only.</summary>
@@ -178,6 +182,18 @@ else if (Tournament.State == TournamentState.New)
         <MudText Typo="Typo.h6" Class="mb-3">@L["ResultsRound", round.Number]</MudText>
         @Cards(Finished(round), isStarted: true, editable: false)
         @Byes(round, isStarted: true)
+        @Report(round)
+    };
+
+    /// <summary>The AI report of a round, at the bottom of the round; it can be made once every result is in.</summary>
+    private RenderFragment Report(RoundDto round) => __builder =>
+    {
+        <MudDivider Class="mt-6 mb-4" />
+        <MudText Typo="Typo.h6" Class="mb-2">@L["RoundReportTitle", round.Number]</MudText>
+        <TournamentReportTab TournamentId="Tournament.Id" RoundNumber="round.Number"
+                             Report="@(round.Report ?? new TournamentReportDto(ReportStatus.None, null, null, null, null, false))"
+                             NotAvailableReason="@(round.IsFinished ? null : L["RoundReportNotYet"].Value)"
+                             Disabled="Disabled" OnGenerate="request => OnGenerateReport.InvokeAsync((round.Number, request))" />
     };
 
     private static Group GroupOf(GameDto game) =>

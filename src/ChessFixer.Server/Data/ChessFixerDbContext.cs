@@ -16,6 +16,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
     public DbSet<PlayerPhoto> PlayerPhotos => Set<PlayerPhoto>();
     public DbSet<Tournament> Tournaments => Set<Tournament>();
     public DbSet<TournamentReport> TournamentReports => Set<TournamentReport>();
+    public DbSet<RoundReport> RoundReports => Set<RoundReport>();
     public DbSet<TournamentPlayer> TournamentPlayers => Set<TournamentPlayer>();
     public DbSet<Round> Rounds => Set<Round>();
     public DbSet<Game> Games => Set<Game>();
@@ -108,6 +109,16 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         modelBuilder.Entity<TournamentReport>(report =>
         {
             report.HasKey(r => r.TournamentId);
+            report.Property(r => r.Model).HasMaxLength(300);
+            report.Property(r => r.WritingStyleName).HasMaxLength(WritingStyleRules.MaxNameLength);
+            report.Property(r => r.WritingStyleDescription).HasMaxLength(WritingStyleRules.MaxDescriptionLength);
+        });
+
+        modelBuilder.Entity<RoundReport>(report =>
+        {
+            report.HasKey(r => r.RoundId);
+            report.HasOne(r => r.Round).WithOne(r => r.Report).HasForeignKey<RoundReport>(r => r.RoundId)
+                .OnDelete(DeleteBehavior.Cascade);
             report.Property(r => r.Model).HasMaxLength(300);
             report.Property(r => r.WritingStyleName).HasMaxLength(WritingStyleRules.MaxNameLength);
             report.Property(r => r.WritingStyleDescription).HasMaxLength(WritingStyleRules.MaxDescriptionLength);

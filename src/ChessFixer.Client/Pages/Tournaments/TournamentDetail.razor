@@ -3,8 +3,8 @@
 @using System.Globalization
 @inject IDialogService Dialogs
 
-@* One tournament: progress, and tabs for players, matches and standings (and the report once closed).
-   Settings are in a drawer. *@
+@* One tournament: progress, and tabs for the rules (settings), players, rounds and standings (and the report once
+   closed). The red power button in the header closes the tournament. *@
 <PageTitle>@(Tournament?.Title ?? L["Tournament"])</PageTitle>
 
 @if (IsLoading)
@@ -17,7 +17,7 @@ else if (IsNotFound || Tournament is null)
 }
 else
 {
-    <TournamentHeader Tournament="Tournament" OnOpenSettings="OpenSettings" />
+    <TournamentHeader Tournament="Tournament" CanClose="CanClose" Disabled="IsBusy" OnClose="CloseAsync" />
 
     <MudPaper Class="pa-4 mb-4" Elevation="1">
         <div class="d-flex align-center gap-3 mb-4">
@@ -41,11 +41,6 @@ else
                     @L["StartRound", Tournament.RoundsStarted + 1]
                 </MudButton>
             }
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Flag"
-                       Disabled="@(!CanClose || IsBusy)" OnClick="CloseAsync">
-                @L["CloseTournament"]
-            </MudButton>
-
         </div>
         @if (StartBlockedReason is { } blocked)
         {
@@ -57,14 +52,120 @@ else
     <MudPaper Elevation="1">
         <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" ApplyEffectsToContainer="true" TabPanelsClass="pa-2 pa-sm-4"
                  Class="tabs-icons-xs">
+            <MudTabPanel Text="@L["Rules"]" Icon="@Icons.Material.Filled.Tune">
+                <div class="rules-tab">
+                @if (!CanEditSettings)
+                {
+                    @* During a round or after closing nothing can change: show the settings as text. *@
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                        @(IsClosed ? L["PlayersLockedClosed"] : L["SettingsRoundActiveInfo"])
+                    </MudAlert>
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <tbody>
+                            <tr><th style="width: 45%">@L["Title"]</th><td>@Tournament.Title</td></tr>
+                            <tr><th>@L["Location"]</th><td>@Tournament.Location</td></tr>
+                            <tr><th>@L["Description"]</th><td style="white-space: pre-line">@Tournament.Description</td></tr>
+                            <tr><th>@L["Boards"]</th><td>@Tournament.Settings.Boards</td></tr>
+                            <tr><th>@L["GameTime"]</th><td>@Tournament.Settings.GameTimeMinutes</td></tr>
+                            <tr><th>@L["Increment"]</th><td>@Tournament.Settings.IncrementSeconds</td></tr>
+                            <tr><th>@L["PairingSystem"]</th><td>@L[$"PairingSystem_{Tournament.Settings.PairingSystem}"]</td></tr>
+                            <tr><th>@L["PointsForWin"]</th><td>@Display.Points(Tournament.Settings.PointsForWin)</td></tr>
+                            <tr><th>@L["PointsForDraw"]</th><td>@Display.Points(Tournament.Settings.PointsForDraw)</td></tr>
+                            <tr><th>@L["PointsForLoss"]</th><td>@Display.Points(Tournament.Settings.PointsForLoss)</td></tr>
+                            <tr><th>@L["PointsForBye"]</th><td>@Display.Points(Tournament.Settings.PointsForBye)</td></tr>
+                            <tr><th>@L["PointsForAbsence"]</th><td>@Display.Points(Tournament.Settings.PointsForAbsence)</td></tr>
+                            <tr><th>@L["IsRated"]</th><td>@(Tournament.Settings.IsRated ? L["Yes"] : L["No"])</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                }
+                else
+                {
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary">@L["SettingsGeneral"]</MudText></MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_form.Title" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_form.Location" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
+                                          Variant="Variant.Outlined" Immediate="true" MaxLength="200" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_form.Description" Label="@L["Description"]" HelperText="@L["DescriptionHelp"]"
+                                          Variant="Variant.Outlined" Immediate="true" Lines="3" Sizing="InputSizing.Auto" MaxLines="10" MaxLength="2000" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="int" @bind-Value="_form.Boards" Label="@L["Boards"]" HelperText="@L["BoardsHelp"]"
+                                             Variant="Variant.Outlined" Min="1" Immediate="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="int" @bind-Value="_form.GameTimeMinutes" Label="@L["GameTime"]"
+                                             Variant="Variant.Outlined" Min="1" Immediate="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="int" @bind-Value="_form.IncrementSeconds" Label="@L["Increment"]"
+                                             Variant="Variant.Outlined" Min="0" Immediate="true" />
+                        </MudItem>
+
+                        <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary mt-4">@L["SettingsPairingAndPoints"]</MudText></MudItem>
+                        @if (Tournament.SettingsLocked)
+                        {
+                            <MudItem xs="12">
+                                <MudAlert Severity="Severity.Info" Dense="true">@L["SettingsLockedInfo"]</MudAlert>
+                            </MudItem>
+                        }
+                        <MudItem xs="12">
+                            <MudSelect T="PairingSystem" @bind-Value="_form.PairingSystem" Label="@L["PairingSystem"]"
+                                       Variant="Variant.Outlined" Disabled="Tournament.SettingsLocked">
+                                @foreach (var system in Enum.GetValues<PairingSystem>())
+                                {
+                                    <MudSelectItem Value="system">@L[$"PairingSystem_{system}"]</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="double" @bind-Value="_form.PointsForWin" Label="@L["PointsForWin"]"
+                                             Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="double" @bind-Value="_form.PointsForDraw" Label="@L["PointsForDraw"]"
+                                             Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="double" @bind-Value="_form.PointsForLoss" Label="@L["PointsForLoss"]"
+                                             Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
+                                             Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" Label="@L["PointsForAbsence"]"
+                                             HelperText="@L["PointsForAbsenceHelp"]"
+                                             Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSwitch T="bool" @bind-Value="_form.IsRated" Label="@L["IsRated"]" Color="Color.Primary"
+                                       Disabled="Tournament.SettingsLocked" />
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["IsRatedHelp"]</MudText>
+                        </MudItem>
+                    </MudGrid>
+
+                    <div class="d-flex gap-2 justify-end mt-4">
+                        <MudButton Variant="Variant.Text" OnClick="ResetSettings" Disabled="@(!IsDirty || IsBusy)">@L["UndoChanges"]</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@(!IsDirty || IsBusy)" OnClick="SaveAsync">@L["Save"]</MudButton>
+                    </div>
+                }
+                </div>
+            </MudTabPanel>
             <MudTabPanel Text="@($"{L["Players"]} ({ActivePlayerCount})")" Icon="@Icons.Material.Filled.People">
                 <TournamentPlayersTab Tournament="Tournament" Participants="_participants" Rounds="_rounds"
                                       Players="_players" CanChangePlayers="CanChangePlayers" Disabled="IsBusy" Run="RunAsync"
                                       OnOpenPlayer="OpenPlayer" />
             </MudTabPanel>
-            <MudTabPanel Text="@L["Matches"]" Icon="@Icons.Material.Filled.GridOn">
+            <MudTabPanel Text="@L["Rounds"]" Icon="@Icons.Material.Filled.GridOn">
                 <TournamentMatchesTab Tournament="Tournament" Rounds="_rounds" Players="_players"
-                                      Disabled="IsBusy" OnResult="SetResultAsync" />
+                                      Disabled="IsBusy" OnResult="SetResultAsync" OnGenerateReport="GenerateRoundReportAsync" />
             </MudTabPanel>
             <MudTabPanel Text="@L["Standings"]" Icon="@Icons.Material.Filled.EmojiEvents">
                 <div class="standings-centered">
@@ -86,127 +187,13 @@ else
             }
         </MudTabs>
     </MudPaper>
-
-    <MudDrawer Open="_settingsOpen" OpenChanged="OnSettingsOpenChanged" Anchor="Anchor.End"
-               Variant="DrawerVariant.Temporary" Overlay="true" Elevation="2" Width="50vw" Class="side-drawer">
-        <MudDrawerHeader Class="d-flex align-center">
-            <MudText Typo="Typo.h6">@L["Settings"]</MudText>
-            <MudSpacer />
-            <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="@L["Close"]" OnClick="CloseSettings" />
-        </MudDrawerHeader>
-
-        <div class="px-6 pb-6">
-            @if (!CanEditSettings)
-            {
-                @* During a round or after closing nothing can change: show the settings as text. *@
-                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                    @(IsClosed ? L["PlayersLockedClosed"] : L["SettingsRoundActiveInfo"])
-                </MudAlert>
-                <MudSimpleTable Dense="true" Elevation="0">
-                    <tbody>
-                        <tr><th style="width: 45%">@L["Title"]</th><td>@Tournament.Title</td></tr>
-                        <tr><th>@L["Location"]</th><td>@Tournament.Location</td></tr>
-                        <tr><th>@L["Description"]</th><td style="white-space: pre-line">@Tournament.Description</td></tr>
-                        <tr><th>@L["Boards"]</th><td>@Tournament.Settings.Boards</td></tr>
-                        <tr><th>@L["GameTime"]</th><td>@Tournament.Settings.GameTimeMinutes</td></tr>
-                        <tr><th>@L["Increment"]</th><td>@Tournament.Settings.IncrementSeconds</td></tr>
-                        <tr><th>@L["PairingSystem"]</th><td>@L[$"PairingSystem_{Tournament.Settings.PairingSystem}"]</td></tr>
-                        <tr><th>@L["PointsForWin"]</th><td>@Display.Points(Tournament.Settings.PointsForWin)</td></tr>
-                        <tr><th>@L["PointsForDraw"]</th><td>@Display.Points(Tournament.Settings.PointsForDraw)</td></tr>
-                        <tr><th>@L["PointsForLoss"]</th><td>@Display.Points(Tournament.Settings.PointsForLoss)</td></tr>
-                        <tr><th>@L["PointsForBye"]</th><td>@Display.Points(Tournament.Settings.PointsForBye)</td></tr>
-                        <tr><th>@L["PointsForAbsence"]</th><td>@Display.Points(Tournament.Settings.PointsForAbsence)</td></tr>
-                        <tr><th>@L["IsRated"]</th><td>@(Tournament.Settings.IsRated ? L["Yes"] : L["No"])</td></tr>
-                    </tbody>
-                </MudSimpleTable>
-            }
-            else
-            {
-                <MudGrid Spacing="2">
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary">@L["SettingsGeneral"]</MudText></MudItem>
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="_form.Title" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="_form.Location" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
-                                      Variant="Variant.Outlined" Immediate="true" MaxLength="200" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="_form.Description" Label="@L["Description"]" HelperText="@L["DescriptionHelp"]"
-                                      Variant="Variant.Outlined" Immediate="true" Lines="3" Sizing="InputSizing.Auto" MaxLines="10" MaxLength="2000" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="int" @bind-Value="_form.Boards" Label="@L["Boards"]" HelperText="@L["BoardsHelp"]"
-                                         Variant="Variant.Outlined" Min="1" Immediate="true" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="int" @bind-Value="_form.GameTimeMinutes" Label="@L["GameTime"]"
-                                         Variant="Variant.Outlined" Min="1" Immediate="true" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="int" @bind-Value="_form.IncrementSeconds" Label="@L["Increment"]"
-                                         Variant="Variant.Outlined" Min="0" Immediate="true" />
-                    </MudItem>
-
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary mt-4">@L["SettingsPairingAndPoints"]</MudText></MudItem>
-                    @if (Tournament.SettingsLocked)
-                    {
-                        <MudItem xs="12">
-                            <MudAlert Severity="Severity.Info" Dense="true">@L["SettingsLockedInfo"]</MudAlert>
-                        </MudItem>
-                    }
-                    <MudItem xs="12">
-                        <MudSelect T="PairingSystem" @bind-Value="_form.PairingSystem" Label="@L["PairingSystem"]"
-                                   Variant="Variant.Outlined" Disabled="Tournament.SettingsLocked">
-                            @foreach (var system in Enum.GetValues<PairingSystem>())
-                            {
-                                <MudSelectItem Value="system">@L[$"PairingSystem_{system}"]</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="double" @bind-Value="_form.PointsForWin" Label="@L["PointsForWin"]"
-                                         Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="double" @bind-Value="_form.PointsForDraw" Label="@L["PointsForDraw"]"
-                                         Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="double" @bind-Value="_form.PointsForLoss" Label="@L["PointsForLoss"]"
-                                         Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
-                                         Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" Label="@L["PointsForAbsence"]"
-                                         HelperText="@L["PointsForAbsenceHelp"]"
-                                         Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudSwitch T="bool" @bind-Value="_form.IsRated" Label="@L["IsRated"]" Color="Color.Primary"
-                                   Disabled="Tournament.SettingsLocked" />
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["IsRatedHelp"]</MudText>
-                    </MudItem>
-                </MudGrid>
-
-                <div class="d-flex gap-2 justify-end mt-4">
-                    <MudButton Variant="Variant.Text" OnClick="CloseSettings" Disabled="IsBusy">@L["Cancel"]</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                               Disabled="@(!IsDirty || IsBusy)" OnClick="SaveAsync">@L["Save"]</MudButton>
-                </div>
-            }
-        </div>
-    </MudDrawer>
 }
 
 @* The same player drawer as on the Players page, opened from the Players and Standings tabs. *@
 <PlayerEditDrawer @ref="_playerDrawer" OnSaved="_ => RunAsync(() => Task.CompletedTask)" />
 
 @code {
-    private const int PlayersTab = 0, MatchesTab = 1, StandingsTab = 2, ReportTab = 3;
+    private const int RulesTab = 0, PlayersTab = 1, RoundsTab = 2, StandingsTab = 3, ReportTab = 4;
 
     private List<TournamentPlayerDto> _participants = [];
     private Dictionary<int, PlayerDto> _players = [];
@@ -215,7 +202,6 @@ else
 
     private int _activeTab;
     private bool _initialTabChosen;
-    private bool _settingsOpen;
     private PlayerEditDrawer? _playerDrawer;
 
     private SettingsForm _form = new();
@@ -263,7 +249,7 @@ else
                 TournamentState.New => PlayersTab,
                 TournamentState.Closed when HasReport => ReportTab,
                 TournamentState.Closed => StandingsTab,
-                _ => MatchesTab
+                _ => RoundsTab
             };
             _initialTabChosen = true;
         }
@@ -274,20 +260,8 @@ else
         if (_players.TryGetValue(playerId, out var player)) _playerDrawer?.OpenEdit(player);
     }
 
-    private void OpenSettings()
-    {
-        _form = SettingsForm.From(Tournament!);
-        _settingsOpen = true;
-    }
-
-    /// <summary>Closing the drawer without saving discards the changes.</summary>
-    private void CloseSettings() => OnSettingsOpenChanged(false);
-
-    private void OnSettingsOpenChanged(bool open)
-    {
-        _settingsOpen = open;
-        if (!open && Tournament is not null) _form = SettingsForm.From(Tournament);
-    }
+    /// <summary>Discards the changes in the rules tab.</summary>
+    private void ResetSettings() => _form = SettingsForm.From(Tournament!);
 
     private async Task SaveAsync()
     {
@@ -296,8 +270,6 @@ else
             await Api.UpdateTournamentAsync(Id, _form.ToRequest());
             _loaded = null; // force the form to take over the saved values
         }, L["Saved"]);
-
-        if (!IsDirty) _settingsOpen = false;
     }
 
     private Task SetResultAsync((GameDto Game, GameResult Result) change) =>
@@ -325,7 +297,7 @@ else
         }
 
         await RunAsync(() => Api.StartNextRoundAsync(Id), L["RoundStarted", round]);
-        if (Tournament?.State == TournamentState.RoundActive) _activeTab = MatchesTab;
+        if (Tournament?.State == TournamentState.RoundActive) _activeTab = RoundsTab;
     }
 
     /// <summary>A round without results that started less than this long ago is cancelled without asking.</summary>
@@ -366,6 +338,9 @@ else
 
     private Task GenerateReportAsync(GenerateReportRequest request) =>
         RunAsync(() => Api.GenerateReportAsync(Id, request), L["ReportRequested"]);
+
+    private Task GenerateRoundReportAsync((int Round, GenerateReportRequest Request) report) =>
+        RunAsync(() => Api.GenerateRoundReportAsync(Id, report.Round, report.Request), L["RoundReportRequested", report.Round]);
 
     /// <summary>A report exists or is being written.</summary>
     private bool HasReport => Tournament?.Report is { } r && (r.Text is not null || r.Status == ReportStatus.Generating);

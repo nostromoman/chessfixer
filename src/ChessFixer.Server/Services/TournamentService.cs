@@ -94,6 +94,17 @@ public class TournamentService(
         int TimesMetBefore(Round round, Game game) => game.BlackId is { } blackId
             ? played.Count(p => p.Round < round.Number && p.Pair == PairKey(game.WhiteId, blackId))
             : 0;
+        // The round reports without their prompts (those can be long).
+        var reports = await db.RoundReports
+            .Where(r => r.Round.TournamentId == id)
+            .Select(r => new
+            {
+                r.RoundId,
+                Dto = new TournamentReportDto(r.Status, r.Text, r.GeneratedAt, r.Error, r.Model, r.UserPrompt != null,
+                    r.Events, r.WritingStyleId, r.WritingStyleName)
+            })
+            .ToDictionaryAsync(r => r.RoundId, r => r.Dto);
+        var noReport = new TournamentReportDto(ReportStatus.None, null, null, null, null, false);
 
         return tournament.Rounds
             .OrderBy(r => r.Number)
@@ -108,17 +119,20 @@ public class TournamentService(
                     g.Black is null ? null : new GamePlayerDto(g.Black.PlayerId, g.Black.Player.Name, g.Black.Player.IsDeleted),
                     g.Result,
                     TimesMetBefore(r, g))).ToList(),
-                r.StartedAt))
+                r.StartedAt,
+                reports.GetValueOrDefault(r.Id, noReport)))
             .ToList();
     }
 
-    public async Task<List<StandingDto>> GetStandingsAsync(int id)
+    /// <param name="afterRound">The standings after this round (for a round report); null for the current standings.</param>
+    public async Task<List<StandingDto>> GetStandingsAsync(int id, int? afterRound = null)
     {
         var tournament = await LoadAsync(id);
         var participants = tournament.Players.ToDictionary(p => p.Id);
+        var games = PlayedGames(tournament).Where(g => afterRound is null || g.Round <= afterRound);
 
         return StandingsCalculator
-            .Calculate(participants.Keys, PlayedGames(tournament), ScoringOf(tournament))
+            .Calculate(participants.Keys, games, ScoringOf(tournament))
             .Select(row =>
             {
                 var participant = participants[row.PlayerId];
@@ -507,6 +521,68 @@ public class TournamentService(
     /// </summary>
     public async Task<TournamentDto> GenerateReportAsync(int id, GenerateReportRequest request)
     {
+        var wizard = await WizardInputAsync(request);
+
+        var result = await MutateAsync(id, tournament =>
+        {
+            if (StateOf(tournament) != TournamentState.Closed) throw new ApiException(ApiErrorCode.ReportNotAvailable);
+
+            // An earlier report stays until the new one is ready.
+            wizard.ApplyTo(tournament.Report ??= new TournamentReport());
+            return Task.CompletedTask;
+        });
+
+        reportQueue.Enqueue(new ReportJob(id));
+        return result;
+    }
+
+    /// <summary>
+    /// (Re)writes the report of one finished round in the background, like <see cref="GenerateReportAsync"/>.
+    /// Possible once every game of the round has a result, also while the tournament goes on.
+    /// </summary>
+    public async Task<TournamentDto> GenerateRoundReportAsync(int id, int roundNumber, GenerateReportRequest request)
+    {
+        var wizard = await WizardInputAsync(request);
+        int roundId = 0;
+
+        var result = await MutateAsync(id, async tournament =>
+        {
+            var round = StartedRounds(tournament).SingleOrDefault(r => r.Number == roundNumber)
+                        ?? throw new ApiException(ApiErrorCode.ReportNotAvailable);
+            if (round.Games.Any(g => g.Result == GameResult.NotPlayed)) throw new ApiException(ApiErrorCode.ReportNotAvailable);
+
+            roundId = round.Id;
+            var report = await db.RoundReports.FindAsync(round.Id);
+            if (report is null)
+            {
+                report = new RoundReport { RoundId = round.Id };
+                db.RoundReports.Add(report);
+            }
+            wizard.ApplyTo(report);
+        });
+
+        reportQueue.Enqueue(new ReportJob(id, roundId));
+        return result;
+    }
+
+    /// <summary>The prompt that produced the current report of a round.</summary>
+    public async Task<ReportPromptDto> GetRoundReportPromptAsync(int id, int roundNumber)
+    {
+        if (!await db.Tournaments.AnyAsync(t => t.Id == id)) throw new ApiException(ApiErrorCode.TournamentNotFound);
+
+        var prompt = await db.RoundReports
+            .Where(r => r.Round.TournamentId == id && r.Round.Number == roundNumber && r.Round.StartedAt != null)
+            .Select(r => new { r.SystemPrompt, r.UserPrompt, r.Model })
+            .SingleOrDefaultAsync();
+
+        if (prompt?.SystemPrompt is null || prompt.UserPrompt is null)
+            throw new ApiException(ApiErrorCode.ReportNotAvailable);
+        return new ReportPromptDto(prompt.SystemPrompt, prompt.UserPrompt, prompt.Model);
+    }
+
+    /// <summary>What the leader gave in the report wizard, checked and trimmed.</summary>
+    private async Task<ReportWizardInput> WizardInputAsync(GenerateReportRequest request)
+    {
         if (!await aiSettings.IsConfiguredAsync()) throw new ApiException(ApiErrorCode.AiNotConfigured);
         // No style chosen: the standard style from the settings; none when that is not set (no style is sent).
         var style = request.WritingStyleId is { } styleId ? await writingStyles.FindAsync(styleId)
@@ -518,24 +594,21 @@ public class TournamentService(
             .Select(e => e.Length <= WritingStyleRules.MaxEventLength ? e : e[..WritingStyleRules.MaxEventLength])
             .Take(WritingStyleRules.MaxEvents)
             .ToList();
+        return new ReportWizardInput(events, style);
+    }
 
-        var result = await MutateAsync(id, tournament =>
+    private sealed record ReportWizardInput(List<string> Events, WritingStyle? Style)
+    {
+        /// <summary>Marks the report as being written; an earlier text stays until the new one is ready.</summary>
+        public void ApplyTo(AiReport report)
         {
-            if (StateOf(tournament) != TournamentState.Closed) throw new ApiException(ApiErrorCode.ReportNotAvailable);
-
-            // An earlier report stays until the new one is ready.
-            var report = tournament.Report ??= new TournamentReport();
             report.Status = ReportStatus.Generating;
             report.Error = null;
-            report.Events = events;
-            report.WritingStyleId = style?.Id;
-            report.WritingStyleName = style?.Name;
-            report.WritingStyleDescription = style?.Description;
-            return Task.CompletedTask;
-        });
-
-        reportQueue.Enqueue(id);
-        return result;
+            report.Events = Events;
+            report.WritingStyleId = Style?.Id;
+            report.WritingStyleName = Style?.Name;
+            report.WritingStyleDescription = Style?.Description;
+        }
     }
 
     // ---------- Helpers ----------

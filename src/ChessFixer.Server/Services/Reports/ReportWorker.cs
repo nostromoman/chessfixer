@@ -14,12 +14,12 @@ public class ReportWorker(ReportQueue queue, IServiceScopeFactory scopes, ILogge
     {
         await RequeueUnfinishedAsync(stoppingToken);
 
-        await foreach (var tournamentId in queue.ReadAllAsync(stoppingToken))
+        await foreach (var job in queue.ReadAllAsync(stoppingToken))
         {
             try
             {
                 using var scope = scopes.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<TournamentReportWriter>().WriteAsync(tournamentId, stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<TournamentReportWriter>().WriteAsync(job, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -28,7 +28,7 @@ public class ReportWorker(ReportQueue queue, IServiceScopeFactory scopes, ILogge
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Writing the report of tournament {TournamentId} failed.", tournamentId);
+                logger.LogError(e, "Writing the report of tournament {TournamentId} (round id {RoundId}) failed.", job.TournamentId, job.RoundId);
             }
         }
     }
@@ -40,11 +40,17 @@ public class ReportWorker(ReportQueue queue, IServiceScopeFactory scopes, ILogge
         {
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ChessFixerDbContext>();
-            var ids = await db.TournamentReports
+            var tournamentIds = await db.TournamentReports
                 .Where(r => r.Status == ReportStatus.Generating)
                 .Select(r => r.TournamentId)
                 .ToListAsync(cancellationToken);
-            ids.ForEach(queue.Enqueue);
+            tournamentIds.ForEach(id => queue.Enqueue(new ReportJob(id)));
+
+            var rounds = await db.RoundReports
+                .Where(r => r.Status == ReportStatus.Generating)
+                .Select(r => new { r.Round.TournamentId, r.RoundId })
+                .ToListAsync(cancellationToken);
+            rounds.ForEach(r => queue.Enqueue(new ReportJob(r.TournamentId, r.RoundId)));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

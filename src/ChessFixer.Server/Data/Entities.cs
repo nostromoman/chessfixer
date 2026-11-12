@@ -87,11 +87,12 @@ public class Tournament
     public TournamentReport? Report { get; set; }
 }
 
-/// <summary>The report of a closed tournament, written by an AI.</summary>
-public class TournamentReport
+/// <summary>
+/// A report written by an AI: of a closed tournament (<see cref="TournamentReport"/>) or of one round
+/// (<see cref="RoundReport"/>). Not an entity itself: each kind has its own table.
+/// </summary>
+public abstract class AiReport
 {
-    public int TournamentId { get; set; }
-
     /// <summary>Generating, Ready or Failed (no row means <see cref="ReportStatus.None"/>).</summary>
     public ReportStatus Status { get; set; } = ReportStatus.Generating;
 
@@ -119,6 +120,19 @@ public class TournamentReport
     public int? WritingStyleId { get; set; }
     public string? WritingStyleName { get; set; }
     public string? WritingStyleDescription { get; set; }
+}
+
+/// <summary>The report of a closed tournament, written by an AI.</summary>
+public class TournamentReport : AiReport
+{
+    public int TournamentId { get; set; }
+}
+
+/// <summary>The report of one finished round (one club evening), written by an AI. Removed with the round.</summary>
+public class RoundReport : AiReport
+{
+    public int RoundId { get; set; }
+    public Round Round { get; set; } = null!;
 }
 
 /// <summary>A writing style for the AI report (Settings, AI-verslag), chosen in the report wizard.</summary>
@@ -161,6 +175,9 @@ public class Round
     public DateTime? StartedAt { get; set; }
 
     public List<Game> Games { get; set; } = [];
+
+    /// <summary>The AI-written report of this round; null when none was requested. Not loaded with the tournament.</summary>
+    public RoundReport? Report { get; set; }
 }
 
 public class Game

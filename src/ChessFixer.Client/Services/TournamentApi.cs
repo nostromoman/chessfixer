@@ -48,6 +48,14 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
         SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/report", request);
 
     /// <summary>The prompt that was sent to the AI for the current report.</summary>
+    /// <summary>Has the AI (re)write the report of a finished round, in the background.</summary>
+    public Task<TournamentDto> GenerateRoundReportAsync(int id, int round, GenerateReportRequest request) =>
+        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/rounds/{round}/report", request);
+
+    /// <summary>The prompt that was sent to the AI for the current report of a round.</summary>
+    public Task<ReportPromptDto> GetRoundReportPromptAsync(int id, int round) =>
+        SendAsync<ReportPromptDto>(HttpMethod.Get, $"api/tournaments/{id}/rounds/{round}/report/prompt");
+
     public Task<ReportPromptDto> GetReportPromptAsync(int id) =>
         SendAsync<ReportPromptDto>(HttpMethod.Get, $"api/tournaments/{id}/report/prompt");
 

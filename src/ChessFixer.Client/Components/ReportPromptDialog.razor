@@ -45,6 +45,9 @@
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
     [Parameter] public int TournamentId { get; set; }
 
+    /// <summary>For the report of a round; null for the tournament report.</summary>
+    [Parameter] public int? RoundNumber { get; set; }
+
     private ReportPromptDto? _prompt;
     private bool _failed;
 
@@ -52,7 +55,9 @@
     {
         try
         {
-            _prompt = await Api.GetReportPromptAsync(TournamentId);
+            _prompt = RoundNumber is { } round
+                ? await Api.GetRoundReportPromptAsync(TournamentId, round)
+                : await Api.GetReportPromptAsync(TournamentId);
         }
         catch (Exception e) when (e is ApiClientException or HttpRequestException)
         {

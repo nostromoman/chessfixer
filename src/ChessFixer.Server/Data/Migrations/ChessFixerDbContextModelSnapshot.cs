@@ -485,6 +485,55 @@ namespace ChessFixer.Server.Data.Migrations
                     b.ToTable("Rounds");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.RoundReport", b =>
+                {
+                    b.Property<int>("RoundId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("TEXT");
+
+                    b.PrimitiveCollection<string>("Events")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("GeneratedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SystemPrompt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserPrompt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WritingStyleDescription")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WritingStyleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WritingStyleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RoundId");
+
+                    b.ToTable("RoundReports");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Tournament", b =>
                 {
                     b.Property<int>("Id")
@@ -771,6 +820,17 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Navigation("Tournament");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.RoundReport", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.Round", "Round")
+                        .WithOne("Report")
+                        .HasForeignKey("ChessFixer.Server.Data.RoundReport", "RoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Round");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.TournamentPlayer", b =>
                 {
                     b.HasOne("ChessFixer.Server.Data.Player", "Player")
@@ -812,6 +872,8 @@ namespace ChessFixer.Server.Data.Migrations
             modelBuilder.Entity("ChessFixer.Server.Data.Round", b =>
                 {
                     b.Navigation("Games");
+
+                    b.Navigation("Report");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.Tournament", b =>

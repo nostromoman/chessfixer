@@ -93,6 +93,11 @@ tr.withdrawn td {
     font-style: italic;
 }
 
+/* The rules (settings) tab: a readable width on a wide screen. */
+.rules-tab {
+    max-width: 720px;
+}
+
 tr.absent td {
     color: var(--mud-palette-text-secondary);
 }

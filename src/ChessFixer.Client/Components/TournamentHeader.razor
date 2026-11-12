@@ -1,6 +1,6 @@
 ﻿@inject IStringLocalizer<Strings> L
 
-@* Title of a tournament, with a gear button that opens the settings. *@
+@* Title of a tournament, with a red power button that closes the tournament (not shown once it is closed). *@
 <div class="d-flex align-start justify-space-between gap-2 mb-4">
     <div style="min-width: 0">
         <MudText Typo="Typo.h4">@Tournament.Title</MudText>
@@ -13,12 +13,20 @@
         }
     </div>
 
-    <MudTooltip Text="@L["Settings"]">
-        <MudIconButton Icon="@Icons.Material.Filled.Settings" aria-label="@L["Settings"]" OnClick="OnOpenSettings" />
-    </MudTooltip>
+    @if (Tournament.State != TournamentState.Closed)
+    {
+        <MudTooltip Text="@(CanClose ? L["CloseTournament"] : L["CloseBlockedInRound"])">
+            <MudIconButton Icon="@Icons.Material.Filled.PowerSettingsNew" Color="Color.Error" aria-label="@L["CloseTournament"]"
+                           Disabled="@(!CanClose || Disabled)" OnClick="OnClose" />
+        </MudTooltip>
+    }
 </div>
 
 @code {
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
-    [Parameter] public EventCallback OnOpenSettings { get; set; }
+
+    /// <summary>Closing is possible before and between rounds, not during a round.</summary>
+    [Parameter] public bool CanClose { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
 }

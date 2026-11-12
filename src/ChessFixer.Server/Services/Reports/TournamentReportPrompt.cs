@@ -55,6 +55,24 @@ public static class TournamentReportPrompt
         - Begin met een pakkende titel op de eerste regel. Schrijf daarna de alinea's, gescheiden door een lege regel.
         """;
 
+    /// <summary>The instructions for the report of one round (one club evening). Not configurable (yet).</summary>
+    public const string DefaultRoundSystemPrompt = """
+        Je bent een verslaggever van een schaakclub. Je schrijft in het Nederlands een kort verslag van één ronde van een
+        clubtoernooi. Het toernooi loopt over meerdere speelavonden; dit verslag gaat over één avond.
+
+        Regels:
+        - Gebruik alleen de feiten uit de gegevens. Verzin geen zetten, openingen, partijverloop, citaten of andere feiten.
+        - Bespreek de uitslagen van deze ronde, met aandacht voor opvallende uitslagen (bijvoorbeeld een speler die wint
+          van een veel hoger gerateerde tegenstander).
+        - Vertel hoe de stand er na deze ronde voor staat: wie er bovenaan staan en wat er veranderde.
+        - Noem afwezigen hooguit kort; maak er geen punt van.
+        - Is het niet de laatste ronde, schrijf dan niet alsof het toernooi afgelopen is.
+        - Zijn er bijzondere gebeurtenissen gegeven, verwerk die dan op een natuurlijke plek in het verslag. Ze maken het
+          verslag persoonlijker, maar blijf bij wat er staat en dik ze niet aan.
+        - Schrijf platte tekst zonder Markdown, opsommingstekens of tabellen.
+        - Begin met een pakkende titel op de eerste regel. Schrijf daarna de alinea's, gescheiden door een lege regel.
+        """;
+
     /// <summary>The system prompt, with the writing style below it. Without a style, no style is sent.</summary>
     private static string SystemPrompt(string? style, ReportPromptOptions options) =>
         string.IsNullOrWhiteSpace(style)
@@ -127,6 +145,69 @@ public static class TournamentReportPrompt
             text.AppendLine().AppendLine($"OPVALLENDE UITSLAGEN (winst tegen een minstens {options.UpsetRatingDifference} punten hoger gerateerde tegenstander)");
             upsets.ForEach(u => text.AppendLine($"- {u}"));
         }
+
+        if (data.Events is { Count: > 0 } events)
+        {
+            text.AppendLine().AppendLine("BIJZONDERE GEBEURTENISSEN (geen schaakuitslagen, maar wel het vermelden waard; door de toernooileider opgegeven)");
+            foreach (var e in events) text.AppendLine($"- {e.ReplaceLineEndings(" ")}");
+        }
+
+        return new AiPrompt(SystemPrompt(data.WritingStyle, options), text.ToString());
+    }
+
+    /// <summary>The prompt for the report of round <paramref name="roundNumber"/>. The standings in
+    /// <paramref name="data"/> must be the standings after that round.</summary>
+    public static AiPrompt BuildRound(TournamentReportData data, int roundNumber, ReportPromptOptions? options = null)
+    {
+        options ??= ReportPromptOptions.Default;
+        var t = data.Tournament;
+        var s = t.Settings;
+        var round = data.Rounds.Single(r => r.Number == roundNumber);
+        var text = new StringBuilder();
+
+        text.AppendLine($"Schrijf een verslag van ronde {roundNumber} van dit toernooi.").AppendLine();
+        text.AppendLine("TOERNOOI");
+        text.AppendLine($"Naam: {t.Title}");
+        if (!string.IsNullOrWhiteSpace(t.Location)) text.AppendLine($"Locatie: {t.Location}");
+        if (!string.IsNullOrWhiteSpace(t.Description)) text.AppendLine($"Omschrijving: {t.Description}");
+        text.AppendLine($"Indelingssysteem: {(s.PairingSystem == PairingSystem.Swiss ? "Zwitsers" : "Round robin (iedereen tegen iedereen)")}");
+        text.AppendLine($"Tempo: {s.GameTimeMinutes} minuten per speler + {s.IncrementSeconds} seconden per zet");
+        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}, bye {Points(s.PointsForBye)}"
+            + (s.PointsForAbsence > 0 ? $", afwezig {Points(s.PointsForAbsence)}" : ""));
+        var isLast = t.State == TournamentState.Closed && roundNumber == t.RoundsStarted;
+        text.AppendLine($"Dit is ronde {roundNumber}; er zijn tot nu toe {t.RoundsStarted} rondes gestart. " +
+                        (isLast ? "Dit was de laatste ronde: het toernooi is afgesloten." : "Het toernooi is nog niet afgelopen."));
+        if (round.StartedAt is { } startedAt) text.AppendLine($"Datum van deze ronde: {startedAt.ToLocalTime().ToString("dddd d MMMM yyyy", Dutch)}");
+
+        text.AppendLine().AppendLine($"PARTIJEN VAN RONDE {roundNumber}");
+        var upsets = new List<string>();
+        foreach (var game in round.Games.OrderBy(g => g.Number))
+        {
+            if (game.Result == GameResult.Absent)
+            {
+                text.AppendLine($"- {game.White.Name} was afwezig");
+                continue;
+            }
+            if (game.Black is null)
+            {
+                text.AppendLine($"- {game.White.Name} had een bye (vrij)");
+                continue;
+            }
+
+            var meeting = game.TimesMetBefore > 0 ? $" (hun {game.TimesMetBefore + 1}e ontmoeting in dit toernooi)" : "";
+            text.AppendLine($"- {NameWithRating(game.White, data)} (wit) tegen {NameWithRating(game.Black, data)} (zwart): {Result(game.Result)}{meeting}");
+            if (Upset(game, roundNumber, data, options.UpsetRatingDifference) is { } upset) upsets.Add(upset);
+        }
+
+        if (upsets.Count > 0)
+        {
+            text.AppendLine().AppendLine($"OPVALLENDE UITSLAGEN (winst tegen een minstens {options.UpsetRatingDifference} punten hoger gerateerde tegenstander)");
+            upsets.ForEach(u => text.AppendLine($"- {u}"));
+        }
+
+        text.AppendLine().AppendLine($"STAND NA RONDE {roundNumber} (tiebreaks: Buchholz, daarna Sonneborn-Berger)");
+        foreach (var row in data.Standings.OrderBy(r => r.Rank))
+            text.AppendLine($"{row.Rank}. {row.Name}: {Points(row.Points)} punten uit {row.Played} partijen");
 
         if (data.Events is { Count: > 0 } events)
         {

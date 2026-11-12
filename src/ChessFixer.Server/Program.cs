@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,7 +104,10 @@ builder.Services.AddSingleton<ChangeCapture>();
 builder.Services.AddScoped<ActivityRevertService>();
 builder.Services.AddDbContext<ChessFixerDbContext>((services, options) => options
     .UseSqlite(builder.Configuration.GetConnectionString("ChessFixer"))
-    .AddInterceptors(services.GetRequiredService<ChangeCapture>()));
+    .AddInterceptors(services.GetRequiredService<ChangeCapture>())
+    // Migrations are sometimes written by hand (dotnet ef is not always available): a small difference between the
+    // model snapshot and the model is logged as a warning instead of stopping the migration at startup.
+    .ConfigureWarnings(w => w.Log(RelationalEventId.PendingModelChangesWarning)));
 
 var app = builder.Build();
 

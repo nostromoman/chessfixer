@@ -88,7 +88,13 @@ public record SetPresenceRequest(bool IsPresent);
 
 /// <param name="IsStarted">False for the next round that is paired but not started yet.</param>
 /// <param name="StartedAt">When the round was started (UTC); null for the pending round.</param>
-public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games, DateTime? StartedAt = null);
+/// <param name="Report">The AI-written report of this round (status None when none was requested).</param>
+public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games, DateTime? StartedAt = null,
+    TournamentReportDto? Report = null)
+{
+    /// <summary>Started and every game has a result (byes and absences always have one).</summary>
+    public bool IsFinished => IsStarted && Games.All(g => g.Result != GameResult.NotPlayed);
+}
 
 /// <param name="Number">Order of the game in the pairing; queued games get a board in this order.</param>
 /// <param name="Board">The board the game is (or was) played on; null while it waits in the queue, and for a bye.</param>

@@ -220,6 +220,16 @@
   <data name="ChangeResult" xml:space="preserve"><value>Uitslag wijzigen</value></data>
   <data name="ClearResult" xml:space="preserve"><value>Uitslag wissen</value></data>
   <data name="Matches" xml:space="preserve"><value>Matches</value></data>
+  <data name="Rounds" xml:space="preserve"><value>Rondes</value></data>
+  <data name="Rules" xml:space="preserve"><value>Regels</value></data>
+  <data name="UndoChanges" xml:space="preserve"><value>Wijzigingen ongedaan maken</value></data>
+  <data name="CloseBlockedInRound" xml:space="preserve"><value>Het toernooi kan pas worden afgesloten als de lopende ronde klaar is</value></data>
+  <data name="RoundReportTitle" xml:space="preserve"><value>Verslag ronde {0}</value></data>
+  <data name="RoundReportGenerate" xml:space="preserve"><value>Maak verslag</value></data>
+  <data name="RoundReportNotYet" xml:space="preserve"><value>Kan zodra alle uitslagen van deze ronde zijn ingevuld.</value></data>
+  <data name="RoundReportGenerating" xml:space="preserve"><value>De AI schrijft het verslag van ronde {0}. Dit kan enkele minuten duren; het verslag verschijnt hier vanzelf.</value></data>
+  <data name="RoundReportWizardTitle" xml:space="preserve"><value>Verslag van ronde {0}</value></data>
+  <data name="RoundReportRequested" xml:space="preserve"><value>De AI gaat het verslag van ronde {0} schrijven.</value></data>
   <data name="GamesPlaying" xml:space="preserve"><value>Bezig</value></data>
   <data name="GamesQueue" xml:space="preserve"><value>Wachtrij</value></data>
   <data name="GamesQueueInfo" xml:space="preserve"><value>Deze partijen starten zodra er een bord vrijkomt.</value></data>
@@ -678,6 +688,7 @@
   <data name="ActivityAction_Tournaments_CancelRound" xml:space="preserve"><value>Ronde annuleren</value></data>
   <data name="ActivityAction_Tournaments_Close" xml:space="preserve"><value>Toernooi afsluiten</value></data>
   <data name="ActivityAction_Tournaments_GenerateReport" xml:space="preserve"><value>Verslag laten schrijven</value></data>
+  <data name="ActivityAction_Tournaments_GenerateRoundReport" xml:space="preserve"><value>Rondeverslag laten schrijven</value></data>
   <data name="ActivityAction_Tournaments_AddPlayer" xml:space="preserve"><value>Speler aan toernooi toevoegen</value></data>
   <data name="ActivityAction_Tournaments_RemovePlayer" xml:space="preserve"><value>Speler uit toernooi halen</value></data>
   <data name="ActivityAction_Tournaments_SetPresence" xml:space="preserve"><value>Aanwezigheid speler wijzigen</value></data>

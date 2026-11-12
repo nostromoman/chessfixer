@@ -285,6 +285,62 @@ public class TournamentReportTests : ApiTestBase
             HttpStatusCode.Conflict, ApiErrorCode.ReportNotAvailable);
     }
 
+    [Fact]
+    public async Task RoundReport_OnlyForAFinishedRound_WrittenWhileTheTournamentGoesOn()
+    {
+        await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
+        var id = await CreateTournamentAsync();
+        await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+
+        // Not while the round is still being played.
+        await AssertErrorAsync(await Client.PostAsJsonAsync($"api/tournaments/{id}/rounds/1/report", new GenerateReportRequest()),
+            HttpStatusCode.Conflict, ApiErrorCode.ReportNotAvailable);
+
+        await FinishActiveRoundAsync(id);
+        var requested = await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/1/report",
+            new GenerateReportRequest(["De klok van bord 2 viel om"]));
+        Assert.NotEqual(TournamentState.Closed, requested.State);
+
+        TournamentReportDto? report = null;
+        for (var i = 0; i < 100 && report?.Status is null or ReportStatus.Generating; i++)
+        {
+            await Task.Delay(50);
+            report = (await GetRoundsAsync(id)).Single(r => r.Number == 1).Report;
+        }
+        Assert.Equal(ReportStatus.Ready, report!.Status);
+        Assert.Equal("Titel\n\nVerslag 1", report.Text);
+        Assert.True(report.HasPrompt);
+
+        var prompt = Assert.Single(_ai.Prompts);
+        Assert.Contains("ronde 1", prompt.User);
+        Assert.Contains("STAND NA RONDE 1", prompt.User);
+        Assert.Contains("- De klok van bord 2 viel om", prompt.User);
+        Assert.Equal(prompt.User, (await GetAsync<ReportPromptDto>($"api/tournaments/{id}/rounds/1/report/prompt")).User);
+
+        // The pending round 2 has no report; the tournament report is untouched.
+        Assert.Equal(ReportStatus.None, (await GetTournamentAsync(id)).Report.Status);
+    }
+
+    [Fact]
+    public async Task CancellingARound_RemovesItsReport()
+    {
+        await PutAsync<AiSettingsDto>("api/settings/ai", OllamaSettings());
+        var id = await CreateTournamentAsync();
+        await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+        await FinishActiveRoundAsync(id);
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/1/report", new GenerateReportRequest());
+
+        // Reopen the round by clearing a result, then cancel it.
+        var game = (await GetRoundsAsync(id))[0].Games.First(g => g.Black is not null);
+        await SetResultAsync(id, game.Id, GameResult.NotPlayed);
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/cancel", null);
+
+        await StartRoundAsync(id);
+        Assert.Equal(ReportStatus.None, (await GetRoundsAsync(id))[0].Report!.Status);
+    }
+
     // ---------- Helpers ----------
 
     private static UpdateAiSettingsRequest OllamaSettings(string model = "test-model") =>

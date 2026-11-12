@@ -46,6 +46,16 @@ public class TournamentsController(TournamentService service) : ControllerBase
     [HttpGet("{id:int}/report/prompt")]
     public Task<ReportPromptDto> GetReportPrompt(int id) => service.GetReportPromptAsync(id);
 
+    /// <summary>Has the AI (re)write the report of a finished round, with the events and writing style from the
+    /// report wizard. The report is written in the background.</summary>
+    [HttpPost("{id:int}/rounds/{number:int}/report")]
+    public Task<TournamentDto> GenerateRoundReport(int id, int number, GenerateReportRequest? request) =>
+        service.GenerateRoundReportAsync(id, number, request ?? new GenerateReportRequest());
+
+    /// <summary>The prompt that was sent to the AI for the current report of a round.</summary>
+    [HttpGet("{id:int}/rounds/{number:int}/report/prompt")]
+    public Task<ReportPromptDto> GetRoundReportPrompt(int id, int number) => service.GetRoundReportPromptAsync(id, number);
+
     // ----- Players in this tournament -----
 
     [HttpGet("{id:int}/players")]

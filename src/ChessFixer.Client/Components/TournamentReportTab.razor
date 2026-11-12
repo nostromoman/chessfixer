@@ -3,8 +3,9 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 
-@* The report of a closed tournament. The leader asks for it with the report wizard (noteworthy events and a
-   writing style); the AI writes it in the background and the page reloads (SignalR) when it is ready. *@
+@* The report of a closed tournament, or (with RoundNumber) of one finished round. The leader asks for it with the
+   report wizard (noteworthy events and a writing style); the AI writes it in the background and the page reloads
+   (SignalR) when it is ready. For a round it is compact: no explanation while there is no report yet. *@
 <div class="report">
     @switch (Report.Status)
     {
@@ -12,7 +13,7 @@
             <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.AutoAwesome" Class="mb-4">
                 <div class="d-flex align-center gap-3">
                     <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Info" />
-                    <span>@L["ReportGenerating"]</span>
+                    <span>@(RoundNumber is { } n ? L["RoundReportGenerating", n] : L["ReportGenerating"])</span>
                 </div>
             </MudAlert>
             break;
@@ -27,7 +28,7 @@
             </MudAlert>
             break;
 
-        case ReportStatus.None when Report.Text is null:
+        case ReportStatus.None when Report.Text is null && RoundNumber is null:
             <MudAlert Severity="Severity.Info" Class="mb-4">@L["ReportNone"]</MudAlert>
             break;
     }
@@ -57,11 +58,16 @@
 
     @if (Report.Status != ReportStatus.Generating)
     {
-        <div class="d-flex flex-wrap gap-2 mt-4">
+        <div class="d-flex flex-wrap align-center gap-2 @(RoundNumber is null || Report.Text is not null ? "mt-4" : null)">
             <MudButton Variant="@(Report.Text is null ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="Disabled" OnClick="OpenWizardAsync">
-                @(Report.Text is null ? L["ReportGenerate"] : L["ReportRegenerate"])
+                       StartIcon="@Icons.Material.Filled.AutoAwesome" Disabled="@(Disabled || NotAvailableReason is not null)"
+                       OnClick="OpenWizardAsync">
+                @(Report.Text is not null ? L["ReportRegenerate"] : RoundNumber is not null ? L["RoundReportGenerate"] : L["ReportGenerate"])
             </MudButton>
+            @if (NotAvailableReason is { } reason)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@reason</MudText>
+            }
             @if (Report.Text is not null)
             {
                 <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopyAsync">
@@ -82,12 +88,19 @@
     [Parameter, EditorRequired] public int TournamentId { get; set; }
     [Parameter, EditorRequired] public TournamentReportDto Report { get; set; } = null!;
     [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>For the report of a round; null for the tournament report.</summary>
+    [Parameter] public int? RoundNumber { get; set; }
+
+    /// <summary>Why the report cannot be made yet (shown next to the disabled button); null when it can.</summary>
+    [Parameter] public string? NotAvailableReason { get; set; }
     /// <summary>The leader finished the report wizard.</summary>
     [Parameter] public EventCallback<GenerateReportRequest> OnGenerate { get; set; }
 
     private async Task OpenWizardAsync()
     {
-        var dialog = await Dialogs.ShowAsync<ReportWizardDialog>(L["ReportWizardTitle"],
+        var dialog = await Dialogs.ShowAsync<ReportWizardDialog>(
+            RoundNumber is { } round ? L["RoundReportWizardTitle", round] : L["ReportWizardTitle"],
             new DialogParameters<ReportWizardDialog> { { d => d.Report, Report } },
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false, CloseButton = true });
         if (await dialog.Result is { Canceled: false, Data: GenerateReportRequest request })
@@ -110,7 +123,7 @@
 
     private Task ShowPromptAsync() =>
         Dialogs.ShowAsync<ReportPromptDialog>(L["ReportPrompt"],
-            new DialogParameters<ReportPromptDialog> { { d => d.TournamentId, TournamentId } },
+            new DialogParameters<ReportPromptDialog> { { d => d.TournamentId, TournamentId }, { d => d.RoundNumber, RoundNumber } },
             new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
     private async Task CopyAsync()
