@@ -42,7 +42,6 @@
   <data name="WizardChangeLater" xml:space="preserve"><value>Dit kan later nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="WizardChangeBeforeRound1" xml:space="preserve"><value>Dit kan tot de start van ronde 1 nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="TournamentType" xml:space="preserve"><value>Toernooitype</value></data>
-  <data name="Recommended" xml:space="preserve"><value>Aanbevolen</value></data>
   <data name="PairingSystemInfo_RoundRobin" xml:space="preserve"><value>Iedereen speelt tegen iedereen. Elke ronde worden de spelers gekoppeld die elkaar nog het minst getroffen hebben. Spelers kunnen tussen de rondes in- en uitstappen. Heeft iedereen tegen iedereen gespeeld, dan begint het schema opnieuw.</value></data>
   <data name="PairingSystemInfo_Swiss" xml:space="preserve"><value>Spelers met een gelijke score spelen tegen elkaar, zonder dat ze elkaar twee keer treffen. Ronde 1 wordt ingedeeld op rating. Geschikt voor grote groepen waarin niet iedereen tegen iedereen kan spelen; spelers kunnen tussen de rondes in- en uitstappen.</value></data>
   <data name="TimeControl" xml:space="preserve"><value>Tempo</value></data>
@@ -284,7 +283,6 @@
   <!-- Tournament details (wizard step 5 and settings) -->
   <data name="WizardDetails" xml:space="preserve"><value>Locatie en omschrijving</value></data>
   <data name="WizardDetailsIntro" xml:space="preserve"><value>Waar wordt er gespeeld en wat voor toernooi is het? Dit is niet verplicht, maar helpt bij het verslag dat na afloop automatisch geschreven wordt.</value></data>
-  <data name="WizardOptionalChangeLater" xml:space="preserve"><value>Beide velden zijn optioneel en kunnen later nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="Location" xml:space="preserve"><value>Locatie</value></data>
   <data name="LocationPlaceholder" xml:space="preserve"><value>Bijvoorbeeld het clubgebouw of de plaats</value></data>
   <data name="Description" xml:space="preserve"><value>Omschrijving</value></data>
@@ -663,6 +661,17 @@
   <data name="Field_WritingStyleId" xml:space="preserve"><value>Schrijfstijl (nr)</value></data>
   <data name="Field_WritingStyleName" xml:space="preserve"><value>Schrijfstijl</value></data>
   <data name="Field_WritingStyleDescription" xml:space="preserve"><value>Beschrijving schrijfstijl</value></data>
+  <data name="Field_DefaultGameTimeMinutes" xml:space="preserve"><value>Standaard bedenktijd (min)</value></data>
+  <data name="Field_DefaultIncrementSeconds" xml:space="preserve"><value>Standaard increment (sec)</value></data>
+  <data name="Field_DefaultBoards" xml:space="preserve"><value>Standaard aantal borden</value></data>
+  <data name="Field_DefaultPointsForWin" xml:space="preserve"><value>Standaard punten winst</value></data>
+  <data name="Field_DefaultPointsForDraw" xml:space="preserve"><value>Standaard punten remise</value></data>
+  <data name="Field_DefaultPointsForLoss" xml:space="preserve"><value>Standaard punten verlies</value></data>
+  <data name="Field_DefaultPointsForBye" xml:space="preserve"><value>Standaard punten bye</value></data>
+  <data name="Field_DefaultPointsForAbsence" xml:space="preserve"><value>Standaard punten afwezig</value></data>
+  <data name="Field_DefaultIsRated" xml:space="preserve"><value>Standaard telt voor rating</value></data>
+  <data name="TournamentDefaults" xml:space="preserve"><value>Toernooi</value></data>
+  <data name="TournamentDefaultsIntro" xml:space="preserve"><value>De standaardwaarden waarmee een nieuw toernooi begint. Bij het aanmaken en in de instellingen van het toernooi kunnen ze per toernooi nog aangepast worden.</value></data>
   <data name="Error_NotRevertible" xml:space="preserve"><value>Deze wijziging kan niet worden teruggedraaid.</value></data>
   <data name="Error_AlreadyReverted" xml:space="preserve"><value>Deze wijziging is al teruggedraaid.</value></data>
   <data name="Error_ChangedSinceAction" xml:space="preserve"><value>Dit is daarna nog een keer gewijzigd; terugdraaien zou die latere wijziging ook ongedaan maken. Draai eerst de latere wijziging terug.</value></data>

@@ -89,6 +89,7 @@ builder.Services.AddScoped<TournamentService>();
 
 // AI-written tournament reports. Register one IAiTextGenerator per provider (Ollama now; e.g. Claude later).
 builder.Services.AddScoped<AiSettingsService>();
+builder.Services.AddScoped<TournamentDefaultsService>();
 builder.Services.AddScoped<IAiTextGenerator, OllamaTextGenerator>();
 builder.Services.AddScoped<IAiTextGenerator, ClaudeTextGenerator>();
 builder.Services.AddHttpClient(OllamaTextGenerator.HttpClientName, client => client.Timeout = TimeSpan.FromMinutes(10));

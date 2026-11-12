@@ -7,13 +7,15 @@
 @* Wizard in a modal to create a tournament: title, tournament type, boards and time control,
    points and whether it counts for the rating, and (optional) location and description, which the AI uses for the report after closing.
    Closes with the created TournamentDto as result. Open it with IDialogService.ShowAsync<TournamentCreateDialog>.
+   The type has to be chosen; the other values start from the defaults in the settings (Instellingen, Toernooi).
    Everything except the title can be changed later in the tournament settings. *@
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">@L["NewTournament"]</MudText>
-        <MudText Typo="Typo.caption" Class="mud-text-secondary">@string.Format(L["WizardStep"], _step, StepCount) · @StepTitle</MudText>
     </TitleContent>
     <DialogContent>
+        @* The step is shown here and not in TitleContent: the dialog does not re-render its title when the step changes. *@
+        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">@string.Format(L["WizardStep"], _step, StepCount) · @StepTitle</MudText>
         <MudProgressLinear Color="Color.Primary" Value="@(100.0 * _step / StepCount)" Class="mb-4" Rounded="true" />
 
         @switch (_step)
@@ -29,7 +31,7 @@
                 <div class="d-flex flex-column gap-3" role="radiogroup" aria-label="@L["TournamentType"]">
                     @foreach (var system in Systems)
                     {
-                        var selected = system == _settings.PairingSystem;
+                        var selected = system == _pairingSystem;
                         <MudPaper Outlined="true" Class="pa-3 d-flex gap-3 align-start"
                                   Style="@(selected ? "border-color: var(--mud-palette-primary); border-width: 2px; cursor: pointer" : "cursor: pointer")"
                                   role="radio" aria-checked="@(selected ? "true" : "false")" tabindex="0"
@@ -37,13 +39,7 @@
                             <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)"
                                      Color="@(selected ? Color.Primary : Color.Default)" Class="mt-1" />
                             <div>
-                                <div class="d-flex align-center gap-2">
-                                    <MudText Typo="Typo.subtitle1"><b>@L[$"PairingSystem_{system}"]</b></MudText>
-                                    @if (system == PairingSystem.RoundRobin)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ma-0">@L["Recommended"]</MudChip>
-                                    }
-                                </div>
+                                <MudText Typo="Typo.subtitle1"><b>@L[$"PairingSystem_{system}"]</b></MudText>
                                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@L[$"PairingSystemInfo_{system}"]</MudText>
                             </div>
                         </MudPaper>
@@ -92,7 +88,6 @@
                                   Variant="Variant.Outlined" Immediate="true" Lines="4" Sizing="InputSizing.Auto" MaxLines="10"
                                   MaxLength="2000" Disabled="_busy" />
                 </div>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 d-block">@L["WizardOptionalChangeLater"]</MudText>
                 break;
         }
     </DialogContent>
@@ -128,7 +123,11 @@
     private bool _busy;
 
     private string _title = "";
-    private TournamentSettingsDto _settings = TournamentSettingsDto.Default;
+    /// <summary>Null until the leader chooses a type: there is no preselected type.</summary>
+    private PairingSystem? _pairingSystem;
+    /// <summary>The defaults from the settings; bye and absence points are taken from here as they are.
+    /// Until they are loaded (or when loading fails) the built-in defaults are used.</summary>
+    private TournamentSettingsDto _defaults = TournamentSettingsDto.Default;
     private int _boards = TournamentSettingsDto.Default.Boards;
     private int _gameTimeMinutes = TournamentSettingsDto.Default.GameTimeMinutes;
     private int _incrementSeconds = TournamentSettingsDto.Default.IncrementSeconds;
@@ -138,6 +137,27 @@
     private bool _isRated = TournamentSettingsDto.Default.IsRated;
     private string _location = "";
     private string _description = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var defaults = (await Api.GetTournamentDefaultsAsync()).ToSettings(PairingSystem.RoundRobin);
+            _defaults = defaults;
+            if (_step >= PlayStep) return; // the leader is already filling in these values
+            _boards = defaults.Boards;
+            _gameTimeMinutes = defaults.GameTimeMinutes;
+            _incrementSeconds = defaults.IncrementSeconds;
+            _pointsForWin = defaults.PointsForWin;
+            _pointsForDraw = defaults.PointsForDraw;
+            _pointsForLoss = defaults.PointsForLoss;
+            _isRated = defaults.IsRated;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            // Keep the built-in defaults; creating the tournament itself reports a server problem.
+        }
+    }
 
     private string StepTitle => _step switch
     {
@@ -151,6 +171,7 @@
     /// <summary>Whether the current step and all steps before it are filled in correctly.</summary>
     private bool IsStepValid =>
         !string.IsNullOrWhiteSpace(_title)
+        && (_step < TypeStep || _pairingSystem is not null)
         && (_step < PlayStep || (_boards >= 1 && _gameTimeMinutes >= 1 && _incrementSeconds >= 0))
         && (_step < PointsStep || (_pointsForWin >= 0 && _pointsForDraw >= 0 && _pointsForLoss >= 0));
 
@@ -171,7 +192,7 @@
         if (e.Key == "Enter") Next();
     }
 
-    private void SelectSystem(PairingSystem system) => _settings = _settings with { PairingSystem = system };
+    private void SelectSystem(PairingSystem system) => _pairingSystem = system;
 
     private void OnTypeKeyUp(KeyboardEventArgs e, PairingSystem system)
     {
@@ -185,8 +206,9 @@
         _busy = true;
         try
         {
-            var settings = _settings with
+            var settings = _defaults with
             {
+                PairingSystem = _pairingSystem!.Value,
                 Boards = _boards,
                 GameTimeMinutes = _gameTimeMinutes,
                 IncrementSeconds = _incrementSeconds,

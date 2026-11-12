@@ -1,3 +1,4 @@
+using ChessFixer.Server.Services;
 using ChessFixer.Server.Services.Ai;
 using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Dtos;
@@ -8,8 +9,16 @@ namespace ChessFixer.Server.Controllers;
 /// <summary>Application settings.</summary>
 [ApiController]
 [Route("api/settings")]
-public class SettingsController(AiSettingsService ai, WritingStyleService writingStyles) : ControllerBase
+public class SettingsController(AiSettingsService ai, WritingStyleService writingStyles, TournamentDefaultsService tournamentDefaults)
+    : ControllerBase
 {
+    /// <summary>The values a new tournament starts with.</summary>
+    [HttpGet("tournament-defaults")]
+    public Task<TournamentDefaultsDto> GetTournamentDefaults() => tournamentDefaults.GetAsync();
+
+    [HttpPut("tournament-defaults")]
+    public Task<TournamentDefaultsDto> UpdateTournamentDefaults(TournamentDefaultsDto request) => tournamentDefaults.UpdateAsync(request);
+
     /// <summary>The AI that writes the tournament reports. The password is never returned.</summary>
     [HttpGet("ai")]
     public Task<AiSettingsDto> GetAi() => ai.GetAsync();

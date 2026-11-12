@@ -86,6 +86,12 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
 
     // ----- Application settings -----
 
+    public Task<TournamentDefaultsDto> GetTournamentDefaultsAsync() =>
+        SendAsync<TournamentDefaultsDto>(HttpMethod.Get, "api/settings/tournament-defaults");
+
+    public Task<TournamentDefaultsDto> UpdateTournamentDefaultsAsync(TournamentDefaultsDto request) =>
+        SendAsync<TournamentDefaultsDto>(HttpMethod.Put, "api/settings/tournament-defaults", request);
+
     public Task<AiSettingsDto> GetAiSettingsAsync() =>
         SendAsync<AiSettingsDto>(HttpMethod.Get, "api/settings/ai");
 

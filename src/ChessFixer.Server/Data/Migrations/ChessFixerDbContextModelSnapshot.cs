@@ -142,6 +142,33 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DefaultBoards")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DefaultGameTimeMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DefaultIncrementSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DefaultIsRated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("DefaultPointsForAbsence")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("DefaultPointsForBye")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("DefaultPointsForDraw")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("DefaultPointsForLoss")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("DefaultPointsForWin")
+                        .HasColumnType("REAL");
+
                     b.Property<int?>("DefaultWritingStyleId")
                         .HasColumnType("INTEGER");
 

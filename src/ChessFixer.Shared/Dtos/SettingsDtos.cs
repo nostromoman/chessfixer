@@ -46,3 +46,21 @@ public record AiConnectionTestResult(bool Success, IReadOnlyList<string> Models,
 public record WritingStyleDto(int Id, string Name, string Description, bool IsDefault = false);
 
 public record SaveWritingStyleRequest(string Name, string Description);
+
+/// <summary>The values a new tournament starts with (the tournament type has no default: it is always chosen).</summary>
+public record TournamentDefaultsDto(
+    int GameTimeMinutes,
+    int IncrementSeconds,
+    int Boards,
+    double PointsForWin,
+    double PointsForDraw,
+    double PointsForLoss,
+    double PointsForBye,
+    double PointsForAbsence,
+    bool IsRated)
+{
+    /// <summary>The settings of a new tournament of the given type.</summary>
+    public TournamentSettingsDto ToSettings(PairingSystem pairingSystem) => new(
+        pairingSystem, GameTimeMinutes, IncrementSeconds, PointsForWin, PointsForDraw, PointsForLoss,
+        PointsForBye, Boards, IsRated, PointsForAbsence);
+}

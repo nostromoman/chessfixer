@@ -267,7 +267,7 @@ public class TournamentService(
         return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 
-    private static void ValidateSettings(TournamentSettingsDto? settings)
+    internal static void ValidateSettings(TournamentSettingsDto? settings)
     {
         if (settings is null
             || settings.GameTimeMinutes <= 0 || settings.IncrementSeconds < 0 || settings.Boards < 1

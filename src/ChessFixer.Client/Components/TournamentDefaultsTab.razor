@@ -1,0 +1,137 @@
+@using System.Globalization
+@inject TournamentApi Api
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* The values a new tournament starts with (a tab of the settings page). The tournament type has no default:
+   the leader chooses it in the wizard for every tournament. *@
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L["TournamentDefaultsIntro"]</MudText>
+
+@if (_form is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudGrid Spacing="2" Style="max-width: 640px">
+        <MudItem xs="12" sm="4">
+            <MudNumericField T="int" @bind-Value="_form.GameTimeMinutes" Label="@L["GameTime"]" Variant="Variant.Outlined"
+                             Min="1" Immediate="true" Disabled="_busy" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudNumericField T="int" @bind-Value="_form.IncrementSeconds" Label="@L["Increment"]" Variant="Variant.Outlined"
+                             Min="0" Immediate="true" Disabled="_busy" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudNumericField T="int" @bind-Value="_form.Boards" Label="@L["Boards"]" Variant="Variant.Outlined"
+                             Min="1" Immediate="true" Disabled="_busy" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudNumericField T="double" @bind-Value="_form.PointsForWin" Label="@L["PointsForWin"]" Variant="Variant.Outlined"
+                             Min="0" Step="0.5" Immediate="true" Disabled="_busy" Culture="CultureInfo.CurrentCulture" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudNumericField T="double" @bind-Value="_form.PointsForDraw" Label="@L["PointsForDraw"]" Variant="Variant.Outlined"
+                             Min="0" Step="0.5" Immediate="true" Disabled="_busy" Culture="CultureInfo.CurrentCulture" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudNumericField T="double" @bind-Value="_form.PointsForLoss" Label="@L["PointsForLoss"]" Variant="Variant.Outlined"
+                             Min="0" Step="0.5" Immediate="true" Disabled="_busy" Culture="CultureInfo.CurrentCulture" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]" Variant="Variant.Outlined"
+                             Min="0" Step="0.5" Immediate="true" Disabled="_busy" Culture="CultureInfo.CurrentCulture" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" Label="@L["PointsForAbsence"]" HelperText="@L["PointsForAbsenceHelp"]"
+                             Variant="Variant.Outlined" Min="0" Step="0.5" Immediate="true" Disabled="_busy" Culture="CultureInfo.CurrentCulture" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudSwitch T="bool" @bind-Value="_form.IsRated" Label="@L["IsRated"]" Color="Color.Primary" Disabled="_busy" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["IsRatedHelp"]</MudText>
+        </MudItem>
+    </MudGrid>
+
+    <div class="d-flex gap-2 justify-end mt-4" style="max-width: 640px">
+        <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="@(!IsDirty || _busy)">@L["UndoChanges"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@(!IsDirty || !IsValid || _busy)" OnClick="SaveAsync">@L["Save"]</MudButton>
+    </div>
+}
+
+@code {
+    private TournamentDefaultsDto? _saved;
+    private Form? _form;
+    private bool _busy;
+
+    private bool IsDirty => _form is not null && _form.ToDto() != _saved;
+
+    private bool IsValid => _form is { GameTimeMinutes: >= 1, IncrementSeconds: >= 0, Boards: >= 1 }
+        && _form.PointsForWin >= 0 && _form.PointsForDraw >= 0 && _form.PointsForLoss >= 0
+        && _form.PointsForBye >= 0 && _form.PointsForAbsence >= 0;
+
+    protected override Task OnInitializedAsync() => RunAsync(async () => Show(await Api.GetTournamentDefaultsAsync()));
+
+    private void Show(TournamentDefaultsDto defaults)
+    {
+        _saved = defaults;
+        _form = Form.Of(defaults);
+    }
+
+    private void Reset()
+    {
+        if (_saved is not null) _form = Form.Of(_saved);
+    }
+
+    private Task SaveAsync() =>
+        RunAsync(async () =>
+        {
+            Show(await Api.UpdateTournamentDefaultsAsync(_form!.ToDto()));
+            Snackbar.Add(L["Saved"], Severity.Success);
+        });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed class Form
+    {
+        public int GameTimeMinutes { get; set; }
+        public int IncrementSeconds { get; set; }
+        public int Boards { get; set; }
+        public double PointsForWin { get; set; }
+        public double PointsForDraw { get; set; }
+        public double PointsForLoss { get; set; }
+        public double PointsForBye { get; set; }
+        public double PointsForAbsence { get; set; }
+        public bool IsRated { get; set; }
+
+        public static Form Of(TournamentDefaultsDto d) => new()
+        {
+            GameTimeMinutes = d.GameTimeMinutes, IncrementSeconds = d.IncrementSeconds, Boards = d.Boards,
+            PointsForWin = d.PointsForWin, PointsForDraw = d.PointsForDraw, PointsForLoss = d.PointsForLoss,
+            PointsForBye = d.PointsForBye, PointsForAbsence = d.PointsForAbsence, IsRated = d.IsRated
+        };
+
+        public TournamentDefaultsDto ToDto() => new(
+            GameTimeMinutes, IncrementSeconds, Boards, PointsForWin, PointsForDraw, PointsForLoss,
+            PointsForBye, PointsForAbsence, IsRated);
+    }
+}

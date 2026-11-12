@@ -247,6 +247,18 @@ public class AppSettings
     /// <summary>The writing style that is preselected in the report wizard; null preselects the first style.
     /// Becomes null when that style is deleted.</summary>
     public int? DefaultWritingStyleId { get; set; }
+
+    // The values a new tournament starts with (Settings, Toernooi). The tournament type has no default:
+    // the leader chooses it for every tournament.
+    public int DefaultGameTimeMinutes { get; set; } = 15;
+    public int DefaultIncrementSeconds { get; set; } = 10;
+    public int DefaultBoards { get; set; } = 8;
+    public double DefaultPointsForWin { get; set; } = 1;
+    public double DefaultPointsForDraw { get; set; } = 0.5;
+    public double DefaultPointsForLoss { get; set; }
+    public double DefaultPointsForBye { get; set; } = 1;
+    public double DefaultPointsForAbsence { get; set; }
+    public bool DefaultIsRated { get; set; } = true;
 }
 
 /// <summary>
