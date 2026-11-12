@@ -1,6 +1,7 @@
 using ChessFixer.Server.Services;
 using ChessFixer.Shared.Dtos;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace ChessFixer.Server.Controllers;
 
@@ -25,9 +26,11 @@ public class TournamentsController(TournamentService service) : ControllerBase
     [HttpPut("{id:int}")]
     public Task<TournamentDto> Update(int id, UpdateTournamentRequest request) => service.UpdateAsync(id, request);
 
-    /// <summary>Starts the next round (which is already paired while waiting).</summary>
+    /// <summary>Starts the next round (which is already paired while waiting). Without a body every game is played.</summary>
     [HttpPost("{id:int}/rounds/start")]
-    public Task<TournamentDto> StartNextRound(int id) => service.StartNextRoundAsync(id);
+    public Task<TournamentDto> StartNextRound(int id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] StartRoundRequest? request = null) =>
+        service.StartNextRoundAsync(id, request?.SkipRepeatMeetings ?? false);
 
     /// <summary>Cancels the round in progress: its pairing and any results are removed, rating changes are undone.</summary>
     [HttpPost("{id:int}/rounds/cancel")]

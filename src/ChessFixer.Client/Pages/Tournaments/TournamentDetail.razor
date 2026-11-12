@@ -287,16 +287,24 @@ else
             if (confirmed != true) return;
         }
 
-        // Players who would meet for the third time (or more): only when it could not be avoided, but ask first.
-        var repeats = _rounds.FirstOrDefault(r => !r.IsStarted)?.Games.Count(g => g.TimesMetBefore >= 2) ?? 0;
-        if (repeats > 0)
+        // Players who would meet for the third time (or more): only when it could not be avoided. Show who, and
+        // let those games be played anyway or skipped (both players absent for this round).
+        var skipRepeats = false;
+        var repeats = _rounds.FirstOrDefault(r => !r.IsStarted)?.Games.Where(g => g.TimesMetBefore >= 2).ToList() ?? [];
+        if (repeats.Count > 0)
         {
-            var confirmed = await Dialogs.ShowMessageBoxAsync(
-                L["StartWithRepeatsTitle"], L["StartWithRepeatsText", repeats], yesText: L["StartRound", round], cancelText: L["Cancel"]);
-            if (confirmed != true) return;
+            var dialog = await Dialogs.ShowAsync<RepeatMeetingsDialog>(null,
+                new DialogParameters<RepeatMeetingsDialog>
+                {
+                    { d => d.Games, repeats },
+                    { d => d.PointsForAbsence, Tournament.Settings.PointsForAbsence }
+                },
+                new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+            if (await dialog.Result is not { Canceled: false, Data: bool skip }) return;
+            skipRepeats = skip;
         }
 
-        await RunAsync(() => Api.StartNextRoundAsync(Id), L["RoundStarted", round]);
+        await RunAsync(() => Api.StartNextRoundAsync(Id, skipRepeats), L["RoundStarted", round]);
         if (Tournament?.State == TournamentState.RoundActive) _activeTab = RoundsTab;
     }
 

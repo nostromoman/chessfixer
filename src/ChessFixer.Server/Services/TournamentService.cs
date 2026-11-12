@@ -86,14 +86,8 @@ public class TournamentService(
     public async Task<List<RoundDto>> GetRoundsAsync(int id)
     {
         var tournament = await LoadAsync(id);
-        var played = StartedRounds(tournament)
-            .SelectMany(r => r.Games.Where(g => g.BlackId is not null
-                    && g.Result is not (GameResult.WhiteWinsByForfeit or GameResult.BlackWinsByForfeit))
-                .Select(g => (Round: r.Number, Pair: PairKey(g.WhiteId, g.BlackId!.Value))))
-            .ToList();
-        int TimesMetBefore(Round round, Game game) => game.BlackId is { } blackId
-            ? played.Count(p => p.Round < round.Number && p.Pair == PairKey(game.WhiteId, blackId))
-            : 0;
+        var meetings = Meetings(tournament);
+        int TimesMetBefore(Round round, Game game) => TimesMet(meetings, round, game);
         // The round reports without their prompts (those can be long).
         var reports = await db.RoundReports
             .Where(r => r.Round.TournamentId == id)
@@ -145,6 +139,21 @@ public class TournamentService(
     }
 
     private static (int, int) PairKey(int a, int b) => a < b ? (a, b) : (b, a);
+
+    /// <summary>Every game played in the started rounds, as its round and pair of players (forfeits not counted,
+    /// as in the pairing).</summary>
+    private static List<(int Round, (int, int) Pair)> Meetings(Tournament tournament) =>
+        StartedRounds(tournament)
+            .SelectMany(r => r.Games.Where(g => g.BlackId is not null
+                    && g.Result is not (GameResult.WhiteWinsByForfeit or GameResult.BlackWinsByForfeit))
+                .Select(g => (r.Number, PairKey(g.WhiteId, g.BlackId!.Value))))
+            .ToList();
+
+    /// <summary>How often the two players of the game met in the rounds before its round.</summary>
+    private static int TimesMet(List<(int Round, (int, int) Pair)> meetings, Round round, Game game) =>
+        game.BlackId is { } blackId
+            ? meetings.Count(m => m.Round < round.Number && m.Pair == PairKey(game.WhiteId, blackId))
+            : 0;
 
     /// <summary>The player's place in every tournament they played in, and all their games (newest first).</summary>
     public async Task<PlayerStatisticsDto> GetPlayerStatisticsAsync(int playerId)
@@ -363,7 +372,9 @@ public class TournamentService(
             await RefreshPendingRoundAsync(tournament);
         });
 
-    public Task<TournamentDto> StartNextRoundAsync(int id) =>
+    /// <param name="skipRepeatMeetings">Games in which the players would meet for the third time (or more) are not
+    /// played: both players get an absence line for this round instead (they stay present for the next round).</param>
+    public Task<TournamentDto> StartNextRoundAsync(int id, bool skipRepeatMeetings = false) =>
         MutateAsync(id, async tournament =>
         {
             EnsureBetweenRounds(tournament);
@@ -371,8 +382,41 @@ public class TournamentService(
             // Normally the pending round exists already. If pairing failed earlier, try again to report why.
             var round = PendingRound(tournament) ?? await PairPendingRoundAsync(tournament, throwOnError: true);
 
+            if (skipRepeatMeetings) SkipRepeatMeetings(tournament, round!);
             round!.StartedAt = time.GetUtcNow().UtcDateTime;
+
+            // When every game was skipped the round is over right away: pair the next one.
+            if (StateOf(tournament) == TournamentState.WaitingForNextRound)
+            {
+                await db.SaveChangesAsync();
+                await RefreshPendingRoundAsync(tournament);
+            }
         });
+
+    /// <summary>
+    /// Turns each game of the (not started) round in which the players would meet for the third time or more into
+    /// two absence lines, one per player. The other games keep their pairing; the boards are handed out again.
+    /// </summary>
+    private static void SkipRepeatMeetings(Tournament tournament, Round round)
+    {
+        var meetings = Meetings(tournament);
+        var repeats = round.Games.Where(g => TimesMet(meetings, round, g) >= 2).ToList();
+        if (repeats.Count == 0) return;
+
+        var number = round.Games.Max(g => g.Number);
+        foreach (var game in repeats)
+        {
+            var black = game.Black!;
+            game.Black = null;
+            game.BlackId = null;
+            game.Result = GameResult.Absent;
+            round.Games.Add(new Game { Number = ++number, White = black, Result = GameResult.Absent });
+        }
+
+        // Absence lines take no board; the remaining games get the boards again in pairing order.
+        foreach (var game in round.Games) game.Board = null;
+        AssignBoards(round, tournament.Boards);
+    }
 
     /// <summary>
     /// Cancels the round in progress, as if it was never started: its games (and results) are removed, and the

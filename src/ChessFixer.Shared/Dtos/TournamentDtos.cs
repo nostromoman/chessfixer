@@ -86,6 +86,10 @@ public record AddTournamentPlayerRequest(int PlayerId);
 
 public record SetPresenceRequest(bool IsPresent);
 
+/// <param name="SkipRepeatMeetings">Games in which the players would meet for the third time (or more) are not
+/// played: both players are absent for this round only.</param>
+public record StartRoundRequest(bool SkipRepeatMeetings = false);
+
 /// <param name="IsStarted">False for the next round that is paired but not started yet.</param>
 /// <param name="StartedAt">When the round was started (UTC); null for the pending round.</param>
 /// <param name="Report">The AI-written report of this round (status None when none was requested).</param>

@@ -261,6 +261,30 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
+    public async Task StartRound_CanSkipThirdMeetings_BothPlayersAbsentForThatRoundOnly()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 2);
+        for (var round = 0; round < 2; round++)
+        {
+            await StartRoundAsync(id);
+            await FinishActiveRoundAsync(id);
+        }
+
+        var tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/start", new StartRoundRequest(true));
+
+        // The only game was skipped: the round is over at once and the next one is paired.
+        Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
+        var rounds = await GetRoundsAsync(id);
+        var round3 = rounds.Single(r => r.Number == 3);
+        Assert.True(round3.IsStarted);
+        Assert.All(round3.Games, g => Assert.Equal((GameResult.Absent, null, null), (g.Result, g.Black, g.Board)));
+        Assert.Equal(players.Order(), round3.Games.Select(g => g.White.PlayerId).Order());
+        Assert.Contains(rounds, r => r.Number == 4 && !r.IsStarted);
+        Assert.All(await GetAsync<List<TournamentPlayerDto>>($"api/tournaments/{id}/players"), p => Assert.True(p.IsPresent));
+    }
+
+    [Fact]
     public async Task PointsForAbsence_CountInTheStandings()
     {
         var id = await CreateTournamentAsync();

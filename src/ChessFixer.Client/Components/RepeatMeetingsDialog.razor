@@ -1,0 +1,45 @@
+@inject IStringLocalizer<Strings> L
+
+@* Before starting a round in which players meet for the third time (or more): shows those pairs, and lets the
+   round start with those games played anyway, or skipped (both players absent for this round only).
+   Closes with true to skip them, false to play them; cancelled to go back. *@
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">@L["StartWithRepeatsTitle"]</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-2">@L["StartWithRepeatsText", Games.Count]</MudText>
+        <MudList T="string" Dense="true" ReadOnly="true" Class="mb-3">
+            @foreach (var game in Games)
+            {
+                <MudListItem T="string" Icon="@Icons.Material.Filled.People">
+                    <b>@game.White.Name</b> – <b>@game.Black?.Name</b>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">
+                        @L["RepeatMeeting", game.TimesMetBefore + 1]
+                    </MudChip>
+                </MudListItem>
+            }
+        </MudList>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["SkipRepeatsHelp", Display.Points(PointsForAbsence)]</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => Dialog.Close(false)">
+            @L["PlayRepeatsAnyway"]
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
+                   OnClick="() => Dialog.Close(true)">@L["SkipRepeatsAndStart"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>The games of the pending round in which the players meet for the third time or more.</summary>
+    [Parameter] public IReadOnlyList<GameDto> Games { get; set; } = [];
+
+    [Parameter] public double PointsForAbsence { get; set; }
+}

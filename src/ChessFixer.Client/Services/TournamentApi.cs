@@ -33,8 +33,10 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<TournamentDto> UpdateTournamentAsync(int id, UpdateTournamentRequest request) =>
         SendAsync<TournamentDto>(HttpMethod.Put, $"api/tournaments/{id}", request);
 
-    public Task<TournamentDto> StartNextRoundAsync(int id) =>
-        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/rounds/start");
+    /// <param name="skipRepeatMeetings">Skip the games in which players meet for the third time (or more): both
+    /// players are absent for this round.</param>
+    public Task<TournamentDto> StartNextRoundAsync(int id, bool skipRepeatMeetings = false) =>
+        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/rounds/start", new StartRoundRequest(skipRepeatMeetings));
 
     /// <summary>Cancels the round in progress (its pairing and results are removed).</summary>
     public Task<TournamentDto> CancelRoundAsync(int id) =>
