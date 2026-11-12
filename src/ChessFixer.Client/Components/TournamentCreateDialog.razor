@@ -7,7 +7,7 @@
 @* Wizard in a modal to create a tournament: title, tournament type, boards and time control,
    points and whether it counts for the rating, and (optional) location and description, which the AI uses for the report after closing.
    Closes with the created TournamentDto as result. Open it with IDialogService.ShowAsync<TournamentCreateDialog>.
-   The type has to be chosen; the other values start from the defaults in the settings (Instellingen, Toernooi).
+   The type starts at Swiss (round robin is for a fixed group); the other values start from the defaults in the settings (Instellingen, Toernooi).
    Everything except the title can be changed later in the tournament settings. *@
 <MudDialog>
     <TitleContent>
@@ -115,7 +115,7 @@
     private const int TitleStep = 1, TypeStep = 2, PlayStep = 3, PointsStep = 4, DetailsStep = 5, StepCount = 5;
 
     /// <summary>Order in which the types are offered.</summary>
-    private static readonly PairingSystem[] Systems = [PairingSystem.RoundRobin, PairingSystem.Swiss];
+    private static readonly PairingSystem[] Systems = [PairingSystem.Swiss, PairingSystem.RoundRobin];
 
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
 
@@ -123,8 +123,8 @@
     private bool _busy;
 
     private string _title = "";
-    /// <summary>Null until the leader chooses a type: there is no preselected type.</summary>
-    private PairingSystem? _pairingSystem;
+    /// <summary>Swiss is preselected: it fits most club evenings, where the group can change.</summary>
+    private PairingSystem? _pairingSystem = PairingSystem.Swiss;
     /// <summary>The defaults from the settings; bye and absence points are taken from here as they are.
     /// Until they are loaded (or when loading fails) the built-in defaults are used.</summary>
     private TournamentSettingsDto _defaults = TournamentSettingsDto.Default;

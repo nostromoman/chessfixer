@@ -42,8 +42,8 @@
   <data name="WizardChangeLater" xml:space="preserve"><value>Dit kan later nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="WizardChangeBeforeRound1" xml:space="preserve"><value>Dit kan tot de start van ronde 1 nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="TournamentType" xml:space="preserve"><value>Toernooitype</value></data>
-  <data name="PairingSystemInfo_RoundRobin" xml:space="preserve"><value>Iedereen speelt tegen iedereen. Elke ronde worden de spelers gekoppeld die elkaar nog het minst getroffen hebben. Spelers kunnen tussen de rondes in- en uitstappen. Heeft iedereen tegen iedereen gespeeld, dan begint het schema opnieuw.</value></data>
-  <data name="PairingSystemInfo_Swiss" xml:space="preserve"><value>Spelers met een gelijke score spelen tegen elkaar, zonder dat ze elkaar twee keer treffen. Ronde 1 wordt ingedeeld op rating. Geschikt voor grote groepen waarin niet iedereen tegen iedereen kan spelen; spelers kunnen tussen de rondes in- en uitstappen.</value></data>
+  <data name="PairingSystemInfo_RoundRobin" xml:space="preserve"><value>Voor een vaste groep: iedereen speelt tegen iedereen volgens een vast schema. Na de start van ronde 1 kunnen er geen spelers meer bij en kan niemand afwezig zijn; wie stopt, verliest de resterende partijen reglementair. Heeft iedereen tegen iedereen gespeeld, dan begint het schema opnieuw.</value></data>
+  <data name="PairingSystemInfo_Swiss" xml:space="preserve"><value>Spelers met een gelijke score spelen tegen elkaar, zonder dat ze elkaar twee keer treffen. Ronde 1 wordt ingedeeld op rating. Geschikt voor clubavonden en competities: niet iedereen hoeft tegen iedereen, en spelers kunnen tussen de rondes in- en uitstappen of afwezig zijn.</value></data>
   <data name="TimeControl" xml:space="preserve"><value>Tempo</value></data>
   <data name="TimeControlHelp" xml:space="preserve"><value>Bedenktijd in minuten + increment in seconden per zet</value></data>
   <data name="Points" xml:space="preserve"><value>Punten</value></data>
@@ -120,6 +120,7 @@
   <data name="PresentShort" xml:space="preserve"><value>Aanw.</value></data>
   <data name="PresentHelp" xml:space="preserve"><value>Aanwezig voor de volgende ronde. Wie niet aangevinkt is, wordt niet ingedeeld maar blijft gewoon in het toernooi.</value></data>
   <data name="PresenceLockedInRound" xml:space="preserve"><value>Aanwezigheid kan pas weer veranderen als de ronde klaar is</value></data>
+  <data name="PresenceRoundRobin" xml:space="preserve"><value>Bij een round robin kan niemand afwezig zijn: iedereen speelt tegen iedereen. Kan iemand een partij niet spelen, voer dan reglementair verlies in.</value></data>
   <data name="RepeatMeeting" xml:space="preserve"><value>{0}e keer</value></data>
   <data name="RepeatMeetingHelp" xml:space="preserve"><value>Deze spelers speelden al {0} keer tegen elkaar in dit toernooi.</value></data>
   <data name="RepeatMeetingsInPairing" xml:space="preserve"><value>Let op: in deze indeling spelen {0} paar spelers voor de derde keer (of vaker) tegen elkaar. Dat was met de aanwezige spelers niet te voorkomen; de indeling houdt het aantal zo laag mogelijk.</value></data>
@@ -135,6 +136,7 @@
   <data name="RemovePlayerOnlyAbsent" xml:space="preserve"><value>Is {0} alleen een speelavond niet aanwezig? Haal {0} dan niet uit het toernooi, maar zet het vinkje "Aanwezig" uit (of kies "Alleen afwezig melden" hieronder).</value></data>
   <data name="RemovePlayerWithGames" xml:space="preserve"><value>{0} stopt definitief met dit toernooi. De {1} gespeelde partij(en) blijven in de stand staan, maar {0} wordt niet meer ingedeeld en staat in de stand als uit het toernooi gestapt.</value></data>
   <data name="RemovePlayerWithoutGames" xml:space="preserve"><value>{0} heeft nog geen partijen gespeeld en verdwijnt helemaal uit het toernooi.</value></data>
+  <data name="RemovePlayerRoundRobin" xml:space="preserve"><value>{0} stopt definitief met dit toernooi. De {1} gespeelde partij(en) blijven in de stand staan; alle resterende partijen van {0} worden reglementair verloren, zodat het schema voor de anderen gelijk blijft.</value></data>
   <data name="RemovePlayerConfirm" xml:space="preserve"><value>Uit toernooi halen</value></data>
   <data name="NoPlayers" xml:space="preserve"><value>Er doen nog geen spelers mee.</value></data>
   <data name="FirstName" xml:space="preserve"><value>Voornaam</value></data>
@@ -200,6 +202,7 @@
   <data name="PlayerAdded" xml:space="preserve"><value>{0} is toegevoegd.</value></data>
   <data name="PlayerRemoved" xml:space="preserve"><value>{0} is uit het toernooi gehaald.</value></data>
   <data name="PlayersLockedClosed" xml:space="preserve"><value>Dit toernooi is afgesloten.</value></data>
+  <data name="PlayersLockedRoundRobin" xml:space="preserve"><value>Round robin: de spelerslijst ligt vast sinds ronde 1 is gestart. Wie gestopt is, kan wel weer instappen.</value></data>
 
   <!-- Matches and standings -->
   <data name="Round" xml:space="preserve"><value>Ronde {0}</value></data>
@@ -277,6 +280,8 @@
   <data name="Error_PlayerAlreadyInTournament" xml:space="preserve"><value>Deze speler doet al mee.</value></data>
   <data name="Error_PlayerNotInTournament" xml:space="preserve"><value>Deze speler doet niet mee.</value></data>
   <data name="Error_PlayerInActiveGame" xml:space="preserve"><value>Deze speler is nog bezig met een partij en kan pas uit het toernooi stappen als de uitslag bekend is.</value></data>
+  <data name="Error_PlayersFixed" xml:space="preserve"><value>Bij een round robin kunnen er na de start van ronde 1 geen nieuwe spelers meer bij.</value></data>
+  <data name="Error_AbsenceNotAllowed" xml:space="preserve"><value>Bij een round robin kan niemand afwezig gemeld worden. Kan iemand een partij niet spelen, voer dan reglementair verlies in.</value></data>
   <data name="RemoveBlockedInGame" xml:space="preserve"><value>Kan pas uitstappen als de partij klaar is</value></data>
   <data name="Error_ResultNotEditable" xml:space="preserve"><value>Deze uitslag kan niet meer gewijzigd worden.</value></data>
   <data name="Error_NotEnoughPlayers" xml:space="preserve"><value>Er zijn minimaal 2 spelers nodig.</value></data>

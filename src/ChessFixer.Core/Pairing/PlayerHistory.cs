@@ -9,6 +9,9 @@ internal sealed class PlayerHistory
     public HashSet<int> Opponents { get; } = [];
     /// <summary>How often this player met each opponent (forfeits excluded).</summary>
     public Dictionary<int, int> TimesMet { get; } = [];
+    /// <summary>How often this player was paired against each opponent, forfeits included. Round robin uses this:
+    /// a forfeited game is a game of the schedule that has been used up.</summary>
+    public Dictionary<int, int> TimesPaired { get; } = [];
     /// <summary>Per opponent: games with White minus games with Black against that opponent.</summary>
     public Dictionary<int, int> WhiteBalanceAgainst { get; } = [];
 
@@ -52,6 +55,11 @@ internal sealed class PlayerHistory
                 if (white is not null) white.ByeCount++;
                 continue;
             }
+
+            if (white is not null)
+                white.TimesPaired[game.BlackId.Value] = white.TimesPaired.GetValueOrDefault(game.BlackId.Value) + 1;
+            if (black is not null)
+                black.TimesPaired[game.WhiteId] = black.TimesPaired.GetValueOrDefault(game.WhiteId) + 1;
 
             if (game.Result is GameResult.WhiteWinsByForfeit or GameResult.BlackWinsByForfeit)
                 continue;

@@ -42,6 +42,10 @@ public enum ApiErrorCode
     PlayerAlreadyInTournament,
     PlayerNotInTournament,
     PlayerInActiveGame,
+    /// <summary>Round robin: no new players once round 1 has started.</summary>
+    PlayersFixed,
+    /// <summary>Round robin: players cannot be marked absent.</summary>
+    AbsenceNotAllowed,
     ResultNotEditable,
     NotEnoughPlayers,
     TooManyPlayers,

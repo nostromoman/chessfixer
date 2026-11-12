@@ -10,11 +10,18 @@
         </div>
     </TitleContent>
     <DialogContent>
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
-            @L["RemovePlayerOnlyAbsent", Name]
-        </MudAlert>
+        @if (!IsRoundRobin)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+                @L["RemovePlayerOnlyAbsent", Name]
+            </MudAlert>
+        }
         <MudText Typo="Typo.body1" Class="mb-2">
-            @if (GameCount > 0)
+            @if (GameCount > 0 && IsRoundRobin)
+            {
+                @L["RemovePlayerRoundRobin", Name, GameCount]
+            }
+            else if (GameCount > 0)
             {
                 @L["RemovePlayerWithGames", Name, GameCount]
             }
@@ -26,7 +33,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => Dialog.Cancel()">@L["GoBack"]</MudButton>
-        @if (IsPresent)
+        @if (IsPresent && !IsRoundRobin)
         {
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventBusy"
                        OnClick="() => Dialog.Close(RemovePlayerChoice.MarkAbsent)">@L["MarkAbsent"]</MudButton>
@@ -48,4 +55,7 @@
 
     /// <summary>Whether the player is marked present; only then "mark absent" is offered.</summary>
     [Parameter] public bool IsPresent { get; set; }
+
+    /// <summary>Round robin: nobody can be absent, and a player who stops loses their remaining games by forfeit.</summary>
+    [Parameter] public bool IsRoundRobin { get; set; }
 }

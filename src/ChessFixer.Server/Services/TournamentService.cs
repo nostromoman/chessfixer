@@ -309,6 +309,8 @@ public class TournamentService(
 
             var participant = tournament.Players.SingleOrDefault(p => p.PlayerId == playerId);
             if (participant is { IsActive: true }) throw new ApiException(ApiErrorCode.PlayerAlreadyInTournament);
+            // Round robin: a fixed group once round 1 has started. A player who withdrew can rejoin (they are still in the schedule).
+            if (participant is null && IsPlayerListFixed(tournament)) throw new ApiException(ApiErrorCode.PlayersFixed);
 
             if (participant is null)
                 tournament.Players.Add(new TournamentPlayer { Player = player });
@@ -333,6 +335,10 @@ public class TournamentService(
             var participant = tournament.Players.SingleOrDefault(p => p.PlayerId == playerId && p.IsActive)
                               ?? throw new ApiException(ApiErrorCode.PlayerNotInTournament);
             if (participant.IsPresent == isPresent) return;
+            // Round robin: everyone plays everyone, so nobody can skip a round. (Marking present again is allowed,
+            // for absences from before this rule.)
+            if (!isPresent && tournament.PairingSystem == PairingSystem.RoundRobin)
+                throw new ApiException(ApiErrorCode.AbsenceNotAllowed);
 
             participant.IsPresent = isPresent;
             await RefreshPendingRoundAsync(tournament);
@@ -340,7 +346,8 @@ public class TournamentService(
 
     /// <summary>
     /// A player without games (or absences) is removed completely; a player with games stays in the standings
-    /// but is no longer paired.
+    /// but no longer plays. In a round robin they stay in the schedule and lose their remaining games by forfeit
+    /// (see <see cref="PairPendingRoundAsync"/>).
     /// </summary>
     public Task<TournamentDto> RemovePlayerAsync(int id, int playerId) =>
         MutateAsync(id, async tournament =>
@@ -400,7 +407,7 @@ public class TournamentService(
     private static void SkipRepeatMeetings(Tournament tournament, Round round)
     {
         var meetings = Meetings(tournament);
-        var repeats = round.Games.Where(g => TimesMet(meetings, round, g) >= 2).ToList();
+        var repeats = round.Games.Where(g => g.Result == GameResult.NotPlayed && TimesMet(meetings, round, g) >= 2).ToList();
         if (repeats.Count == 0) return;
 
         var number = round.Games.Max(g => g.Number);
@@ -690,6 +697,7 @@ public class TournamentService(
     /// <summary>
     /// Players can join or withdraw at any time, also during a round: a late joiner waits for the next
     /// round; a player who withdraws keeps their current game, which still needs a result.
+    /// In a round robin no new players can join once round 1 has started (<see cref="IsPlayerListFixed"/>).
     /// </summary>
     private static void EnsurePlayersCanChange(Tournament tournament)
     {
@@ -736,13 +744,30 @@ public class TournamentService(
         await db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Pairs the next round and stores it as the pending round. In a round robin, players who withdrew stay in the
+    /// schedule so it does not shift for the others: their games are forfeited right away (the opponent wins, no
+    /// board), and their byes and games against each other are left out.
+    /// </summary>
     private async Task<Round?> PairPendingRoundAsync(Tournament tournament, bool throwOnError)
     {
         var activePlayers = tournament.Players.Where(p => p is { IsActive: true, IsPresent: true }).ToList();
+        var withdrawn = tournament.PairingSystem == PairingSystem.RoundRobin
+            ? tournament.Players.Where(p => !p.IsActive).Select(p => p.Id).ToHashSet()
+            : [];
         var absentPlayers = tournament.Players.Where(p => p is { IsActive: true, IsPresent: false })
             .OrderBy(p => p.Player.Name).ToList();
+        var paired = activePlayers.Concat(tournament.Players.Where(p => withdrawn.Contains(p.Id))).ToList();
+
+        // Only withdrawn players left: nothing to play.
+        if (activePlayers.Count < 2 && withdrawn.Count > 0)
+        {
+            if (throwOnError) throw new ApiException(ApiErrorCode.NotEnoughPlayers);
+            return null;
+        }
+
         var input = new PairingInput(
-            activePlayers.Select(p => new PairingPlayer(p.Id, p.Player.Rating)).ToList(),
+            paired.Select(p => new PairingPlayer(p.Id, p.Player.Rating)).ToList(),
             PlayedGames(tournament),
             ScoringOf(tournament));
 
@@ -757,22 +782,33 @@ public class TournamentService(
             return null;
         }
 
-        var participants = activePlayers.ToDictionary(p => p.Id);
+        var participants = paired.ToDictionary(p => p.Id);
         var round = new Round { Number = StartedRounds(tournament).Count() + 1 };
-        round.Games.AddRange(pairings.Select(p => new Game
+        var games = new List<Game>();
+        var forfeits = new List<Game>();
+        foreach (var p in pairings)
         {
-            Number = p.Board,
-            White = participants[p.WhiteId],
-            Black = p.BlackId is { } blackId ? participants[blackId] : null,
-            Result = p.IsBye ? GameResult.Bye : GameResult.NotPlayed
-        }));
-        // The absent players get a line without opponent and board, after the games.
-        round.Games.AddRange(absentPlayers.Select((p, i) => new Game
-        {
-            Number = pairings.Count + i + 1,
-            White = p,
-            Result = GameResult.Absent
-        }));
+            var whiteGone = withdrawn.Contains(p.WhiteId);
+            var blackGone = p.BlackId is { } id && withdrawn.Contains(id);
+            if (whiteGone && (p.IsBye || blackGone)) continue;
+            if (blackGone && p.IsBye) continue;
+
+            var game = new Game
+            {
+                White = participants[p.WhiteId],
+                Black = p.BlackId is { } blackId ? participants[blackId] : null,
+                Result = p.IsBye ? GameResult.Bye
+                    : whiteGone ? GameResult.BlackWinsByForfeit
+                    : blackGone ? GameResult.WhiteWinsByForfeit
+                    : GameResult.NotPlayed
+            };
+            (whiteGone || blackGone ? forfeits : games).Add(game);
+        }
+        // The forfeits after the real games; then the absent players, with a line without opponent and board.
+        games.AddRange(forfeits);
+        games.AddRange(absentPlayers.Select(p => new Game { White = p, Result = GameResult.Absent }));
+        for (var i = 0; i < games.Count; i++) games[i].Number = i + 1;
+        round.Games.AddRange(games);
         AssignBoards(round, tournament.Boards);
         tournament.Rounds.Add(round);
         await db.SaveChangesAsync();
@@ -812,6 +848,10 @@ public class TournamentService(
 
     /// <summary>After round 1 the pairing system and the points are fixed.</summary>
     private static bool IsSettingsLocked(Tournament tournament) => StartedRounds(tournament).Any();
+
+    /// <summary>Round robin is for a fixed group: once round 1 has started, no new players can join.</summary>
+    private static bool IsPlayerListFixed(Tournament tournament) =>
+        tournament.PairingSystem == PairingSystem.RoundRobin && IsSettingsLocked(tournament);
 
     private static List<PlayedGame> PlayedGames(Tournament tournament) =>
         StartedRounds(tournament)

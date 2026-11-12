@@ -5,7 +5,8 @@ namespace ChessFixer.Core.Pairing;
 /// the circle method, seeded by registration order. Colors are decided per round from each player's
 /// color history, so they alternate as much as possible.
 /// After the last round of the cycle the schedule simply starts again (everyone meets everyone a second time, etc.).
-/// Players cannot change after round 1; the server enforces that.
+/// The player list is fixed after round 1 (the server enforces that): a player who withdraws stays in the schedule
+/// and the server turns their games into forfeits. A forfeit therefore counts as a meeting here (unlike Swiss).
 /// </summary>
 public sealed class RoundRobinPairing : IPairingStrategy
 {
@@ -21,7 +22,7 @@ public sealed class RoundRobinPairing : IPairingStrategy
         var slots = Slots(input.Players);
 
         int TimesMet((int? A, int? B) pair) =>
-            pair is { A: { } a, B: { } b } ? history[a].TimesMet.GetValueOrDefault(b) : 0;
+            pair is { A: { } a, B: { } b } ? history[a].TimesPaired.GetValueOrDefault(b) : 0;
         int ByesOf((int? A, int? B) pair) =>
             pair.A is null ? history[pair.B!.Value].ByeCount : pair.B is null ? history[pair.A.Value].ByeCount : 0;
         bool IsNew((int? A, int? B) pair) => pair.A is not null && pair.B is not null && TimesMet(pair) == 0;

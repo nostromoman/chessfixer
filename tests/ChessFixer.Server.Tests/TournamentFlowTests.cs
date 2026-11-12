@@ -392,19 +392,26 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task RoundRobin_PlayerCanJoinBetweenRounds_AndContinuesAfterAllRounds()
+    public async Task RoundRobin_FixedGroup_NoLateJoinersOrAbsence_ContinuesAfterAllRounds()
     {
         var id = await CreateTournamentAsync(PairingSystem.RoundRobin);
-        await AddNewPlayersAsync(id, 3);
+        var players = await AddNewPlayersAsync(id, 4);
+
+        // Nobody can be marked absent, also not before round 1.
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false)),
+            HttpStatusCode.Conflict, ApiErrorCode.AbsenceNotAllowed);
+
         var tournament = await StartRoundAsync(id);
         await FinishActiveRoundAsync(id);
 
-        // A late joiner is welcome between rounds.
+        // A late joiner is refused once round 1 has started.
         var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
-        var response = await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id));
-        response.EnsureSuccessStatusCode();
+        await AssertErrorAsync(
+            await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id)),
+            HttpStatusCode.Conflict, ApiErrorCode.PlayersFixed);
 
-        for (var round = 2; round <= 4; round++)
+        for (var round = 2; round <= 3; round++)
         {
             await StartRoundAsync(id);
             await FinishActiveRoundAsync(id);
@@ -412,12 +419,54 @@ public class TournamentFlowTests : ApiTestBase
 
         tournament = await GetTournamentAsync(id);
         Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
-        Assert.Equal(4, tournament.RoundsStarted);
+        Assert.Equal(3, tournament.RoundsStarted);
 
         // A next round can still be started (the schedule starts again).
         tournament = await StartRoundAsync(id);
         Assert.Equal(TournamentState.RoundActive, tournament.State);
-        Assert.Equal(5, tournament.RoundsStarted);
+        Assert.Equal(4, tournament.RoundsStarted);
+    }
+
+    [Fact]
+    public async Task RoundRobin_WithdrawnPlayer_LosesRemainingGamesByForfeit_AndCanRejoin()
+    {
+        var id = await CreateTournamentAsync(PairingSystem.RoundRobin);
+        var players = await AddNewPlayersAsync(id, 4);
+        await StartRoundAsync(id);
+        await FinishActiveRoundAsync(id, GameResult.Draw);
+
+        var leaver = players[0];
+        (await Client.DeleteAsync($"api/tournaments/{id}/players/{leaver}")).EnsureSuccessStatusCode();
+
+        for (var round = 2; round <= 3; round++)
+        {
+            await StartRoundAsync(id);
+            var games = (await GetRoundsAsync(id)).Single(r => r.Number == round).Games;
+            var forfeit = Assert.Single(games, g => g.White.PlayerId == leaver || g.Black?.PlayerId == leaver);
+            Assert.Null(forfeit.Board);
+            Assert.Equal(forfeit.White.PlayerId == leaver ? GameResult.BlackWinsByForfeit : GameResult.WhiteWinsByForfeit,
+                forfeit.Result);
+            if (games.Any(g => g.Result == GameResult.NotPlayed)) await FinishActiveRoundAsync(id, GameResult.Draw);
+        }
+
+        // Everyone met everyone exactly once: 6 pairs over 3 rounds, the leader's 2 as forfeits.
+        var pairs = (await GetRoundsAsync(id)).Where(r => r.IsStarted).SelectMany(r => r.Games)
+            .Where(g => g.Black is not null)
+            .Select(g => (Math.Min(g.White.PlayerId, g.Black!.PlayerId), Math.Max(g.White.PlayerId, g.Black.PlayerId)))
+            .ToList();
+        Assert.Equal(6, pairs.Distinct().Count());
+        Assert.Equal(6, pairs.Count);
+
+        // The leaver keeps the ½ point of round 1; the forfeits give them nothing.
+        var standing = Assert.Single(await GetStandingsAsync(id), s => s.PlayerId == leaver);
+        Assert.Equal(0.5, standing.Points);
+        Assert.False(standing.IsActive);
+
+        // A player who withdrew can rejoin: they are still in the schedule.
+        (await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(leaver))).EnsureSuccessStatusCode();
+        await StartRoundAsync(id);
+        var round4 = (await GetRoundsAsync(id)).Single(r => r.Number == 4).Games;
+        Assert.Contains(round4, g => (g.White.PlayerId == leaver || g.Black?.PlayerId == leaver) && g.Result == GameResult.NotPlayed);
     }
 
     [Fact]

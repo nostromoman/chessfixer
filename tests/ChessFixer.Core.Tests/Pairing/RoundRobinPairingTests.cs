@@ -1,4 +1,5 @@
 using ChessFixer.Core.Pairing;
+using ChessFixer.Shared.Enums;
 
 namespace ChessFixer.Core.Tests.Pairing;
 
@@ -117,6 +118,24 @@ public class RoundRobinPairingTests
 
         var remaining = sim.Meetings().Where(m => m.A != 3 && m.B != 3).Distinct().Count();
         Assert.Equal(10, remaining);
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void Forfeits_CountAsScheduledGames_SoTheScheduleDoesNotRepeatThem(int playerCount)
+    {
+        // Player 1 withdrew before the first round: all their games are forfeits (as the server does).
+        var sim = Simulator(playerCount);
+        for (var round = 0; round < RoundRobinPairing.TotalRounds(playerCount); round++)
+            sim.PlayRound(p => p.WhiteId == 1 ? GameResult.BlackWinsByForfeit
+                : p.BlackId == 1 ? GameResult.WhiteWinsByForfeit
+                : GameResult.Draw);
+
+        var meetings = sim.Meetings().ToList();
+        Assert.Equal(playerCount * (playerCount - 1) / 2, meetings.Count);
+        Assert.Equal(meetings.Count, meetings.Distinct().Count());
     }
 
     [Fact]

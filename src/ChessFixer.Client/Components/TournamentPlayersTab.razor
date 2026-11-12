@@ -11,7 +11,7 @@
         <MudAutocomplete @ref="_search" T="PlayerDto" Placeholder="@L["SearchOrNewPlayer"]" Variant="Variant.Outlined"
                          Margin="Margin.Dense" SearchFunc="SearchAsync" ToStringFunc="@(p => p?.Name)"
                          ValueChanged="OnPickedAsync" TextChanged="t => _searchText = t"
-                         Disabled="@(!CanChangePlayers)" ResetValueOnEmptyText="true" CoerceText="false"
+                         Disabled="@(!CanAddPlayers)" ResetValueOnEmptyText="true" CoerceText="false"
                          Clearable="true" AdornmentIcon="@Icons.Material.Filled.Search">
             <ItemTemplate Context="player">
                 @if (player.Id == NewPlayerId)
@@ -41,7 +41,7 @@
     </div>
     <MudTooltip Text="@(LockReason ?? L["AddPlayer"])">
         <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="@L["AddPlayer"]"
-                Disabled="@(!CanChangePlayers || _adding || string.IsNullOrWhiteSpace(_searchText))" OnClick="AddTypedAsync" />
+                Disabled="@(!CanAddPlayers || _adding || string.IsNullOrWhiteSpace(_searchText))" OnClick="AddTypedAsync" />
     </MudTooltip>
 </div>
 
@@ -82,10 +82,11 @@ else
                     <td>
                         @if (player.IsActive)
                         {
-                            <MudTooltip Text="@(PresenceLocked ? L["PresenceLockedInRound"] : L["Present"])">
+                            var noAbsence = IsRoundRobin && player.IsPresent;
+                            <MudTooltip Text="@(PresenceLocked ? L["PresenceLockedInRound"] : noAbsence ? L["PresenceRoundRobin"] : L["Present"])">
                                 <MudCheckBox T="bool" Value="player.IsPresent" ValueChanged="v => SetPresenceAsync(player, v)"
                                              Color="Color.Primary" Dense="true" Size="Size.Small" aria-label="@L["Present"]"
-                                             Disabled="@(!CanChangePlayers || Disabled || PresenceLocked)" />
+                                             Disabled="@(!CanChangePlayers || Disabled || PresenceLocked || noAbsence)" />
                             </MudTooltip>
                         }
                     </td>
@@ -159,8 +160,16 @@ else
     private string? LockReason => Tournament.State switch
     {
         TournamentState.Closed => L["PlayersLockedClosed"].Value,
+        _ when PlayerListFixed => L["PlayersLockedRoundRobin"].Value,
         _ => null
     };
+
+    private bool IsRoundRobin => Tournament.Settings.PairingSystem == PairingSystem.RoundRobin;
+
+    /// <summary>Round robin is for a fixed group: no new players once round 1 has started (withdrawn players can rejoin).</summary>
+    private bool PlayerListFixed => IsRoundRobin && Tournament.SettingsLocked;
+
+    private bool CanAddPlayers => CanChangePlayers && !PlayerListFixed;
 
     private PlayerStatus StatusOf(TournamentPlayerDto player)
     {
@@ -279,7 +288,7 @@ else
     /// <summary>Runs one add action at a time (ignores a second Enter or click meanwhile) and clears the search field.</summary>
     private async Task AddAsync(Func<Task> action, string? successMessage)
     {
-        if (_adding || !CanChangePlayers) return;
+        if (_adding || !CanAddPlayers) return;
         _adding = true;
         try
         {
@@ -311,7 +320,8 @@ else
             {
                 { d => d.Name, player.Name },
                 { d => d.GameCount, gameCount },
-                { d => d.IsPresent, player.IsPresent && !PresenceLocked }
+                { d => d.IsPresent, player.IsPresent && !PresenceLocked },
+                { d => d.IsRoundRobin, IsRoundRobin }
             },
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
 
