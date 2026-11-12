@@ -17,6 +17,48 @@ namespace ChessFixer.Server.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
+            modelBuilder.Entity("ChessFixer.Server.Data.ActivityChange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntityKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("EntryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Properties")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryId");
+
+                    b.ToTable("ActivityChanges");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.ActivityLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -51,6 +93,9 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("RevertOfId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("StatusCode")
                         .HasColumnType("INTEGER");
 
@@ -69,6 +114,8 @@ namespace ChessFixer.Server.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("At");
+
+                    b.HasIndex("RevertOfId");
 
                     b.HasIndex("UserId", "At");
 
@@ -622,6 +669,15 @@ namespace ChessFixer.Server.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.ActivityChange", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.ActivityLogEntry", null)
+                        .WithMany("Changes")
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.AppSettings", b =>
                 {
                     b.HasOne("ChessFixer.Server.Data.WritingStyle", null)
@@ -735,6 +791,11 @@ namespace ChessFixer.Server.Data.Migrations
                         .HasForeignKey("ChessFixer.Server.Data.TournamentReport", "TournamentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ChessFixer.Server.Data.ActivityLogEntry", b =>
+                {
+                    b.Navigation("Changes");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>

@@ -41,7 +41,11 @@ public class WritingStyleService(ChessFixerDbContext db)
     /// <summary>Reports written with this style keep their copy of it.</summary>
     public async Task DeleteAsync(int id)
     {
-        db.WritingStyles.Remove(await FindAsync(id));
+        var style = await FindAsync(id);
+        // The database would do this as well, but explicitly the activity log sees it (and a revert can restore it).
+        foreach (var settings in await db.AppSettings.Where(s => s.DefaultWritingStyleId == id).ToListAsync())
+            settings.DefaultWritingStyleId = null;
+        db.WritingStyles.Remove(style);
         await db.SaveChangesAsync();
     }
 

@@ -48,5 +48,10 @@ public enum ApiErrorCode
     NoValidPairing,
     AiNotConfigured,
     ReportNotAvailable,
-    UserNameTaken
+    UserNameTaken,
+    /// <summary>The action cannot be reverted (not supported, failed, or nothing to revert).</summary>
+    NotRevertible,
+    AlreadyReverted,
+    /// <summary>What the action changed has been changed again since; reverting would undo that as well.</summary>
+    ChangedSinceAction
 }

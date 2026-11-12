@@ -2,6 +2,8 @@
 @attribute [Authorize(Roles = nameof(UserRole.Admin))]
 @using System.Globalization
 @inject TournamentApi Api
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
 @inject IStringLocalizer<Strings> L
 
 @* Beheer > Activiteit (system administrator only): per user a summary, below it the activity log, newest first. *@
@@ -85,6 +87,7 @@
             <MudTh>@L["ActivityDetails"]</MudTh>
             <MudTh>@L["ActivityResult"]</MudTh>
             <MudTh>@L["ActivityIpAddress"]</MudTh>
+            <MudTh Style="width: 1%"></MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="@L["ActivityWhen"]" Style="white-space: nowrap">
@@ -117,6 +120,14 @@
                         @L[$"ActivityKind_{context.Kind}"]
                     </MudChip>
                 }
+                @if (context.RevertedBy is { } revert)
+                {
+                    <MudTooltip Text="@L["ActivityRevertedBy", revert.DisplayName ?? revert.UserName, revert.At.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)]">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Undo" Class="my-0 ml-1">
+                            @L["ActivityReverted"]
+                        </MudChip>
+                    </MudTooltip>
+                }
             </MudTd>
             <MudTd DataLabel="@L["ActivityDetails"]">
                 @if (context.TournamentId is { } tournamentId)
@@ -126,6 +137,16 @@
                 else if (context.Path is { } path)
                 {
                     <span class="mud-text-secondary">@path</span>
+                }
+                @if (context.Changes.Count > 0)
+                {
+                    <div>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Class="activity-toggle"
+                                   EndIcon="@(_expanded.Contains(context.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                   OnClick="() => Toggle(context.Id)">
+                            @L["ActivityChangesCount", context.Changes.Count]
+                        </MudButton>
+                    </div>
                 }
             </MudTd>
             <MudTd DataLabel="@L["ActivityResult"]" Style="white-space: nowrap">
@@ -137,7 +158,26 @@
             <MudTd DataLabel="@L["ActivityIpAddress"]">
                 <span title="@context.UserAgent">@context.IpAddress</span>
             </MudTd>
+            <MudTd>
+                @if (context.CanRevert)
+                {
+                    <MudTooltip Text="@L["ActivityRevert"]">
+                        <MudIconButton Icon="@Icons.Material.Filled.Undo" Size="Size.Small" Color="Color.Warning" Disabled="_busy"
+                                       aria-label="@L["ActivityRevert"]" OnClick="() => RevertAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
         </RowTemplate>
+        <ChildRowContent>
+            @if (_expanded.Contains(context.Id) && context.Changes.Count > 0)
+            {
+                <MudTr>
+                    <td colspan="7" class="activity-changes-cell">
+                        <ActivityChangeList Changes="context.Changes" />
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
         <NoRecordsContent>
             <MudText Typo="Typo.body2">@L["ActivityEmpty"]</MudText>
         </NoRecordsContent>
@@ -155,6 +195,45 @@
     private List<ActivityUserDto>? _users;
     private int? _userId;
     private bool _problemsOnly;
+    private bool _busy;
+
+    /// <summary>Entries whose changes are shown.</summary>
+    private readonly HashSet<long> _expanded = [];
+
+    private void Toggle(long id)
+    {
+        if (!_expanded.Remove(id)) _expanded.Add(id);
+    }
+
+    /// <summary>After a confirmation: reverts the action; the revert itself appears in the log as well.</summary>
+    private async Task RevertAsync(ActivityLogEntryDto entry)
+    {
+        var text = L["ActivityRevertText", ActionText(entry), entry.DisplayName ?? entry.UserName,
+            entry.At.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)];
+        var confirmed = await Dialogs.ShowMessageBoxAsync(L["ActivityRevertTitle"], text,
+            yesText: L["ActivityRevert"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        _busy = true;
+        try
+        {
+            await Api.RevertActivityAsync(entry.Id);
+            Snackbar.Add(L["ActivityRevertDone"], Severity.Success);
+            await RefreshAsync();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
 
     protected override Task OnInitializedAsync() => LoadUsersAsync();
 

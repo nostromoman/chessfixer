@@ -1,0 +1,111 @@
+@using System.Globalization
+@inject IStringLocalizer<Strings> L
+
+@* What an action changed in the database: per row (player, game, ...) the fields with their value before and after. *@
+<div class="activity-changes">
+    @foreach (var change in Changes)
+    {
+        <div class="activity-change">
+            <div class="activity-change-head">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="KindColor(change.Kind)" Class="ma-0">
+                    @L[$"ActivityChangeKind_{change.Kind}"]
+                </MudChip>
+                <b>@EntityName(change.EntityType)</b>
+                @if (change.Label is { Length: > 0 } label)
+                {
+                    <span>@label</span>
+                }
+                <span class="mud-text-secondary">#@change.EntityKey</span>
+            </div>
+            @if (change.Properties.Count > 0)
+            {
+                <table class="activity-change-table">
+                    <thead>
+                        <tr>
+                            <th>@L["ActivityField"]</th>
+                            @if (change.Kind != ActivityChangeKind.Added)
+                            {
+                                <th>@L["ActivityBefore"]</th>
+                            }
+                            @if (change.Kind != ActivityChangeKind.Deleted)
+                            {
+                                <th>@L["ActivityAfter"]</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var property in change.Properties)
+                        {
+                            <tr>
+                                <td class="activity-field">@FieldName(change.EntityType, property.Name)</td>
+                                @if (change.Kind != ActivityChangeKind.Added)
+                                {
+                                    <td class="@(change.Kind == ActivityChangeKind.Modified ? "activity-before" : null)">@Value(property, property.Before)</td>
+                                }
+                                @if (change.Kind != ActivityChangeKind.Deleted)
+                                {
+                                    <td class="activity-after">@Value(property, property.After)</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ActivityChangeDto> Changes { get; set; } = [];
+
+    private static Color KindColor(ActivityChangeKind kind) => kind switch
+    {
+        ActivityChangeKind.Added => Color.Success,
+        ActivityChangeKind.Deleted => Color.Error,
+        _ => Color.Info
+    };
+
+    private string EntityName(string entity) => Text($"Entity_{entity}") ?? entity;
+
+    /// <summary>A field name per entity ("Field_Game_Result"), else a general one ("Field_Result"), else the property name.</summary>
+    private string FieldName(string entity, string property) =>
+        Text($"Field_{entity}_{property}") ?? Text($"Field_{property}") ?? property;
+
+    private RenderFragment Value(ActivityPropertyChangeDto property, string? value) => __builder =>
+    {
+        if (property.IsMasked)
+        {
+            <span class="mud-text-secondary">@L["ActivityMasked"]</span>
+            return;
+        }
+        if (value is null or "")
+        {
+            <span class="mud-text-secondary activity-empty">@L["ActivityNoValue"]</span>
+            return;
+        }
+        <span class="activity-value">@Format(property.Name, value)</span>
+    };
+
+    /// <summary>Yes/no, local dates and times, and enum values by their Dutch text where there is one.</summary>
+    private string Format(string property, string value)
+    {
+        if (value == "true") return L["Yes"];
+        if (value == "false") return L["No"];
+        if (value.Length > 10 && value[10] == 'T'
+            && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at))
+            return at.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+        if (value.Length == 10 && DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            return date.ToString("d", CultureInfo.CurrentCulture);
+
+        var prefix = property switch
+        {
+            "Result" => "Result_",
+            "PairingSystem" => "PairingSystem_",
+            "Reason" => "RatingReason_",
+            _ => null
+        };
+        return prefix is not null && Text(prefix + value) is { } text ? text : value;
+    }
+
+    private string? Text(string key) => L[key] is { ResourceNotFound: false } text ? text.Value : null;
+}

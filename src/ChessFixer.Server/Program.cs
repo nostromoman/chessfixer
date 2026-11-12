@@ -4,6 +4,7 @@ using ChessFixer.Server.Data;
 using ChessFixer.Server.Errors;
 using ChessFixer.Server.Hubs;
 using ChessFixer.Server.Services;
+using ChessFixer.Server.Services.Activity;
 using ChessFixer.Server.Services.Ai;
 using ChessFixer.Server.Services.Auth;
 using ChessFixer.Server.Services.Clubs;
@@ -98,8 +99,11 @@ builder.Services.AddScoped<RatingLogService>();
 builder.Services.AddSingleton<ActivityLog>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<ReportWorker>();
-builder.Services.AddDbContext<ChessFixerDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("ChessFixer")));
+builder.Services.AddSingleton<ChangeCapture>();
+builder.Services.AddScoped<ActivityRevertService>();
+builder.Services.AddDbContext<ChessFixerDbContext>((services, options) => options
+    .UseSqlite(builder.Configuration.GetConnectionString("ChessFixer"))
+    .AddInterceptors(services.GetRequiredService<ChangeCapture>()));
 
 var app = builder.Build();
 

@@ -25,6 +25,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
     public DbSet<RatingLogEntry> RatingLog => Set<RatingLogEntry>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<ActivityLogEntry> ActivityLog => Set<ActivityLogEntry>();
+    public DbSet<ActivityChange> ActivityChanges => Set<ActivityChange>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -36,6 +37,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         StoreAsText<UserRole>();
         StoreAsText<RatingChangeReason>();
         StoreAsText<ActivityKind>();
+        StoreAsText<ActivityChangeKind>();
 
         // All times are UTC. SQLite does not keep DateTimeKind, so mark the values as UTC again when reading.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcConverter>();
@@ -189,6 +191,16 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             entry.Property(e => e.Path).HasMaxLength(300);
             entry.Property(e => e.IpAddress).HasMaxLength(50);
             entry.Property(e => e.UserAgent).HasMaxLength(300);
+            entry.HasIndex(e => e.RevertOfId);
+            // The changes go with the entry (also when old entries are cleaned up at startup).
+            entry.HasMany(e => e.Changes).WithOne().HasForeignKey(c => c.EntryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ActivityChange>(change =>
+        {
+            change.Property(c => c.EntityType).HasMaxLength(50);
+            change.Property(c => c.EntityKey).HasMaxLength(50);
+            change.Property(c => c.Label).HasMaxLength(200);
         });
     }
 

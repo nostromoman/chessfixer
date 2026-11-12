@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using ChessFixer.Server.Data;
+using ChessFixer.Server.Services.Activity;
 using ChessFixer.Shared.Dtos;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +13,7 @@ namespace ChessFixer.Server.Controllers;
 [ApiController]
 [Route("api/activity")]
 [Authorize(Roles = nameof(UserRole.Admin))]
-public partial class ActivityController(ChessFixerDbContext db) : ControllerBase
+public partial class ActivityController(ChessFixerDbContext db, ActivityRevertService reverts) : ControllerBase
 {
     public const int MaxPageSize = 200;
 
@@ -30,7 +31,17 @@ public partial class ActivityController(ChessFixerDbContext db) : ControllerBase
         var entries = await query
             .OrderByDescending(e => e.At).ThenByDescending(e => e.Id)
             .Skip(Math.Max(0, skip)).Take(Math.Clamp(take, 1, MaxPageSize))
+            .Include(e => e.Changes)
+            .AsSplitQuery()
             .ToListAsync();
+
+        // Which of these entries were reverted, and by whom.
+        var ids = entries.Select(e => (long?)e.Id).ToList();
+        var reverts = await db.ActivityLog
+            .Where(e => ids.Contains(e.RevertOfId))
+            .Select(e => new { RevertOfId = e.RevertOfId!.Value, Revert = new ActivityRevertDto(e.Id, e.At, e.UserName, e.DisplayName) })
+            .ToListAsync();
+        var revertedBy = reverts.GroupBy(r => r.RevertOfId).ToDictionary(g => g.Key, g => g.First().Revert);
 
         // Show the tournament an action was about by its title (as long as it exists).
         var tournamentIds = entries.Select(e => TournamentIdOf(e.Path)).OfType<int>().Distinct().ToList();
@@ -39,9 +50,20 @@ public partial class ActivityController(ChessFixerDbContext db) : ControllerBase
         return new ActivityLogPageDto(total, entries.Select(e =>
         {
             int? tournamentId = TournamentIdOf(e.Path) is { } tid && titles.ContainsKey(tid) ? tid : null;
+            var changes = ActivityRevertService.ToDtos(e.Changes);
+            var reverted = revertedBy.GetValueOrDefault(e.Id);
             return new ActivityLogEntryDto(e.Id, e.At, e.UserId, e.UserName, e.DisplayName, e.Kind, e.Action, e.Method,
-                e.Path, e.StatusCode, e.IpAddress, e.UserAgent, tournamentId, tournamentId is { } t ? titles[t] : null);
+                e.Path, e.StatusCode, e.IpAddress, e.UserAgent, tournamentId, tournamentId is { } t ? titles[t] : null,
+                changes, ActivityRevertService.IsRevertible(e, changes, reverted is not null), reverted, e.RevertOfId);
         }).ToList());
+    }
+
+    /// <summary>Reverts what the action of the entry changed, when that has not been changed again since.</summary>
+    [HttpPost("{id:long}/revert")]
+    public async Task<IActionResult> Revert(long id)
+    {
+        await reverts.RevertAsync(id);
+        return NoContent();
     }
 
     /// <summary>All accounts with a summary of their activity; tournament leaders first, then by name.</summary>

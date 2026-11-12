@@ -313,4 +313,37 @@ public class ActivityLogEntry
 
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
+
+    /// <summary>For a revert by the administrator: the entry whose changes were reverted.</summary>
+    public long? RevertOfId { get; set; }
+
+    /// <summary>For a successful action: what it changed in the database, in the order it was saved.</summary>
+    public List<ActivityChange> Changes { get; set; } = [];
+}
+
+/// <summary>
+/// One row that an action added, changed or deleted, with the values before and after (see ChangeCapture).
+/// Secrets (password hashes, the API key) and photos are never stored: only that they changed.
+/// </summary>
+public class ActivityChange
+{
+    public long Id { get; set; }
+    public long EntryId { get; set; }
+
+    /// <summary>Order within the entry.</summary>
+    public int Sequence { get; set; }
+
+    /// <summary>The entity class, e.g. "Player", "Game".</summary>
+    public required string EntityType { get; set; }
+
+    /// <summary>The primary key, as text.</summary>
+    public required string EntityKey { get; set; }
+
+    /// <summary>A readable name of the row (the player's name, the tournament title, ...), when known.</summary>
+    public string? Label { get; set; }
+
+    public ActivityChangeKind Kind { get; set; }
+
+    /// <summary>The changed properties with their values before and after, as JSON (see ActivityPropertyChange).</summary>
+    public string Properties { get; set; } = "[]";
 }

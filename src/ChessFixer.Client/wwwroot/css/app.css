@@ -982,6 +982,81 @@ html, body {
     font-size: 1rem;
 }
 
+/* Activity log: what an action changed, per row with the values before and after. */
+.activity-toggle {
+    margin-left: -6px;
+    text-transform: none;
+}
+
+.activity-changes-cell {
+    padding: 4px 16px 12px 16px !important;
+    background: var(--mud-palette-background-gray);
+}
+
+.activity-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.activity-change {
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: var(--mud-palette-surface);
+}
+
+.activity-change-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.activity-change-table {
+    width: 100%;
+    margin-top: 6px;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.activity-change-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--mud-palette-text-secondary);
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+    padding: 2px 8px 2px 0;
+}
+
+.activity-change-table td {
+    padding: 2px 8px 2px 0;
+    vertical-align: top;
+}
+
+.activity-field {
+    white-space: nowrap;
+    color: var(--mud-palette-text-secondary);
+    width: 1%;
+}
+
+.activity-value {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.activity-before .activity-value {
+    color: var(--mud-palette-error);
+    text-decoration: line-through;
+}
+
+.activity-after .activity-value {
+    color: var(--mud-palette-success);
+}
+
+.activity-empty {
+    font-style: italic;
+}
+
 /* ---------- Phones (MudBlazor breakpoint xs); at the end, so it overrides the rules above ---------- */
 @media (max-width: 599.98px) {
     .hide-xs {

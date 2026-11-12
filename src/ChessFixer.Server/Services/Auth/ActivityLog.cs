@@ -1,4 +1,5 @@
 using ChessFixer.Server.Data;
+using ChessFixer.Server.Services.Activity;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Mvc.Controllers;
 
@@ -23,10 +24,14 @@ public class ActivityLog(IServiceScopeFactory scopes, TimeProvider time, ILogger
             Kind = kind
         });
 
-    /// <summary>A change through the API, with the status code of the answer.</summary>
+    /// <summary>Set by a revert, so its entry refers to the entry it reverted.</summary>
+    public const string RevertOfItemsKey = "ChessFixer.RevertOf";
+
+    /// <summary>A change through the API, with the status code of the answer and (when it succeeded) what it changed.</summary>
     public Task LogActionAsync(HttpContext http, int statusCode)
     {
         var action = http.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
+        var changes = statusCode < 400 ? ChangeCapture.Of(http) : [];
         return SaveAsync(http, new ActivityLogEntry
         {
             UserId = UserSession.GetUserId(http.User),
@@ -35,7 +40,9 @@ public class ActivityLog(IServiceScopeFactory scopes, TimeProvider time, ILogger
             Action = action is null ? null : $"{action.ControllerName}.{action.ActionName}",
             Method = http.Request.Method,
             Path = Truncate(http.Request.Path.Value, 300),
-            StatusCode = statusCode
+            StatusCode = statusCode,
+            RevertOfId = statusCode < 400 && http.Items.TryGetValue(RevertOfItemsKey, out var revertOf) ? revertOf as long? : null,
+            Changes = changes.Select((change, i) => change.ToEntity(i)).ToList()
         });
     }
 

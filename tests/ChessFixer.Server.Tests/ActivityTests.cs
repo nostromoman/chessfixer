@@ -103,4 +103,82 @@ public class ActivityTests : ApiTestBase
         var users = await ReadAsync<List<ActivityUserDto>>(await admin.GetAsync("api/activity/users"));
         Assert.DoesNotContain(users, u => u.Id == leaderId);
     }
+
+    [Fact]
+    public async Task PlayerUpdate_ShowsBeforeAndAfter_AndCanBeReverted()
+    {
+        var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Jan", "Jansen", 1500, City: "Delft"));
+        await PutAsync<PlayerDto>($"api/players/{player.Id}", new UpdatePlayerRequest("Jan", "Jansen", 1620, City: "Leiden"));
+
+        using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
+        var update = (await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity"))).Entries
+            .Single(e => e.Action == "Players.Update");
+        var change = update.Changes.Single(c => c.EntityType == "Player");
+        Assert.Equal((ActivityChangeKind.Modified, player.Id.ToString(), "Jan Jansen"), (change.Kind, change.EntityKey, change.Label));
+        Assert.Equal(
+            [new ActivityPropertyChangeDto("City", "Delft", "Leiden"), new ActivityPropertyChangeDto("Rating", "1500", "1620")],
+            change.Properties.OrderBy(p => p.Name).ToList());
+        Assert.True(update.CanRevert);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsync($"api/activity/{update.Id}/revert", null)).StatusCode);
+
+        var reverted = (await GetAsync<List<PlayerDto>>("api/players")).Single(p => p.Id == player.Id);
+        Assert.Equal((1500, "Delft"), (reverted.Rating, reverted.City));
+
+        var log = (await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity"))).Entries;
+        var revert = log.Single(e => e.Action == "Activity.Revert");
+        Assert.Equal(update.Id, revert.RevertOfId);
+        Assert.Contains(revert.Changes, c => c.EntityType == "Player" && c.Kind == ActivityChangeKind.Modified);
+        var original = log.Single(e => e.Id == update.Id);
+        Assert.Equal(revert.Id, original.RevertedBy?.EntryId);
+        Assert.False(original.CanRevert);
+
+        await AssertErrorAsync(await admin.PostAsync($"api/activity/{update.Id}/revert", null),
+            HttpStatusCode.Conflict, ApiErrorCode.AlreadyReverted);
+    }
+
+    [Fact]
+    public async Task Revert_IsRefused_WhenChangedAgainSince()
+    {
+        var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Jan", "Jansen", 1500));
+        await PutAsync<PlayerDto>($"api/players/{player.Id}", new UpdatePlayerRequest("Jan", "Jansen", 1600));
+        await PutAsync<PlayerDto>($"api/players/{player.Id}", new UpdatePlayerRequest("Jan", "Jansen", 1700));
+
+        using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
+        var first = (await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity"))).Entries
+            .Last(e => e.Action == "Players.Update");
+
+        await AssertErrorAsync(await admin.PostAsync($"api/activity/{first.Id}/revert", null),
+            HttpStatusCode.Conflict, ApiErrorCode.ChangedSinceAction);
+        Assert.Equal(1700, (await GetAsync<List<PlayerDto>>("api/players")).Single(p => p.Id == player.Id).Rating);
+    }
+
+    [Fact]
+    public async Task Result_CanBeReverted()
+    {
+        var tournamentId = await CreateTournamentAsync();
+        await AddNewPlayersAsync(tournamentId, 2);
+        await StartRoundAsync(tournamentId);
+        var game = (await GetRoundsAsync(tournamentId)).Single(r => r.IsStarted).Games.Single();
+        await SetResultAsync(tournamentId, game.Id, GameResult.Draw);
+
+        using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
+        var entry = (await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity"))).Entries
+            .Single(e => e.Action == "Tournaments.SetResult");
+        var change = entry.Changes.Single(c => c.EntityType == "Game" && c.Kind == ActivityChangeKind.Modified);
+        Assert.Contains(new ActivityPropertyChangeDto("Result", "NotPlayed", "Draw"), change.Properties);
+        Assert.True(entry.CanRevert);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsync($"api/activity/{entry.Id}/revert", null)).StatusCode);
+        var after = (await GetRoundsAsync(tournamentId)).Single(r => r.IsStarted).Games.Single();
+        Assert.Equal(GameResult.NotPlayed, after.Result);
+    }
+
+    [Fact]
+    public async Task OnlyTheAdministrator_CanRevert()
+    {
+        var player = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Jan", "Jansen", 1500));
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client.PostAsync("api/activity/1/revert", null)).StatusCode);
+        Assert.Equal(1500, (await GetAsync<List<PlayerDto>>("api/players")).Single(p => p.Id == player.Id).Rating);
+    }
 }

@@ -51,7 +51,10 @@ public class ClubService(ChessFixerDbContext db)
     /// <summary>Guest players of the club keep playing, without a club.</summary>
     public async Task DeleteAsync(int id)
     {
-        db.Clubs.Remove(await FindAsync(id));
+        var club = await FindAsync(id);
+        // The database would do this as well, but explicitly the activity log sees it (and a revert can restore it).
+        foreach (var player in await db.Players.Where(p => p.ClubId == id).ToListAsync()) player.ClubId = null;
+        db.Clubs.Remove(club);
         await db.SaveChangesAsync();
     }
 

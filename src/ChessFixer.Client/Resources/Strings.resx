@@ -498,7 +498,7 @@
 
   <data name="Administration" xml:space="preserve"><value>Beheer</value></data>
   <data name="ActivityLog" xml:space="preserve"><value>Activiteit</value></data>
-  <data name="ActivityIntro" xml:space="preserve"><value>Wie er heeft ingelogd en wat er is gedaan: inloggen (ook mislukte pogingen), uitloggen en alle wijzigingen, ook als die geweigerd werden of mislukten. Alleen zichtbaar voor de systeembeheerder. Activiteit ouder dan een jaar wordt verwijderd.</value></data>
+  <data name="ActivityIntro" xml:space="preserve"><value>Wie er heeft ingelogd en wat er is gedaan: inloggen (ook mislukte pogingen), uitloggen en alle wijzigingen, ook als die geweigerd werden of mislukten. Klap bij een wijziging uit wat er precies veranderd is (voor en na); waar mogelijk kun je een wijziging terugdraaien. Alleen zichtbaar voor de systeembeheerder. Activiteit ouder dan een jaar wordt verwijderd.</value></data>
   <data name="ActivityUsers" xml:space="preserve"><value>Gebruikers</value></data>
   <data name="ActivityUsersHint" xml:space="preserve"><value>Klik op een gebruiker om alleen de activiteit van die gebruiker te zien.</value></data>
   <data name="ActivityLastLogin" xml:space="preserve"><value>Laatst ingelogd</value></data>
@@ -528,6 +528,109 @@
   <data name="ActivityKind_Logout" xml:space="preserve"><value>Uitgelogd</value></data>
   <data name="ActivityKind_PasswordChanged" xml:space="preserve"><value>Wachtwoord gewijzigd</value></data>
   <data name="ActivityKind_Action" xml:space="preserve"><value>Wijziging</value></data>
+  <data name="ActivityAction_Activity_Revert" xml:space="preserve"><value>Wijziging teruggedraaid</value></data>
+  <data name="ActivityChangesCount" xml:space="preserve"><value>{0} wijziging(en)</value></data>
+  <data name="ActivityField" xml:space="preserve"><value>Veld</value></data>
+  <data name="ActivityBefore" xml:space="preserve"><value>Voor</value></data>
+  <data name="ActivityAfter" xml:space="preserve"><value>Na</value></data>
+  <data name="ActivityNoValue" xml:space="preserve"><value>leeg</value></data>
+  <data name="ActivityMasked" xml:space="preserve"><value>gewijzigd (niet bewaard)</value></data>
+  <data name="ActivityRevert" xml:space="preserve"><value>Terugdraaien</value></data>
+  <data name="ActivityRevertTitle" xml:space="preserve"><value>Wijziging terugdraaien?</value></data>
+  <data name="ActivityRevertText" xml:space="preserve"><value>"{0}" door {1} op {2} wordt teruggedraaid. Het terugdraaien komt zelf ook in het logboek.</value></data>
+  <data name="ActivityRevertDone" xml:space="preserve"><value>De wijziging is teruggedraaid.</value></data>
+  <data name="ActivityReverted" xml:space="preserve"><value>Teruggedraaid</value></data>
+  <data name="ActivityRevertedBy" xml:space="preserve"><value>Teruggedraaid door {0} op {1}</value></data>
+  <data name="ActivityChangeKind_Added" xml:space="preserve"><value>Toegevoegd</value></data>
+  <data name="ActivityChangeKind_Modified" xml:space="preserve"><value>Gewijzigd</value></data>
+  <data name="ActivityChangeKind_Deleted" xml:space="preserve"><value>Verwijderd</value></data>
+  <data name="Entity_Player" xml:space="preserve"><value>Speler</value></data>
+  <data name="Entity_PlayerPhoto" xml:space="preserve"><value>Foto</value></data>
+  <data name="Entity_Tournament" xml:space="preserve"><value>Toernooi</value></data>
+  <data name="Entity_TournamentPlayer" xml:space="preserve"><value>Deelnemer</value></data>
+  <data name="Entity_TournamentReport" xml:space="preserve"><value>Verslag</value></data>
+  <data name="Entity_Round" xml:space="preserve"><value>Ronde</value></data>
+  <data name="Entity_Game" xml:space="preserve"><value>Partij</value></data>
+  <data name="Entity_Club" xml:space="preserve"><value>Club</value></data>
+  <data name="Entity_WritingStyle" xml:space="preserve"><value>Schrijfstijl</value></data>
+  <data name="Entity_AppSettings" xml:space="preserve"><value>Instellingen</value></data>
+  <data name="Entity_AppUser" xml:space="preserve"><value>Gebruiker</value></data>
+  <data name="Entity_RatingLogEntry" xml:space="preserve"><value>Ratinglogboek</value></data>
+  <data name="Field_FirstName" xml:space="preserve"><value>Voornaam</value></data>
+  <data name="Field_LastName" xml:space="preserve"><value>Achternaam</value></data>
+  <data name="Field_Rating" xml:space="preserve"><value>Rating</value></data>
+  <data name="Field_BirthDate" xml:space="preserve"><value>Geboortedatum</value></data>
+  <data name="Field_City" xml:space="preserve"><value>Woonplaats</value></data>
+  <data name="Field_IsGuest" xml:space="preserve"><value>Gastspeler</value></data>
+  <data name="Field_ClubId" xml:space="preserve"><value>Club (nr)</value></data>
+  <data name="Field_PhotoVersion" xml:space="preserve"><value>Fotoversie</value></data>
+  <data name="Field_IsDeleted" xml:space="preserve"><value>Verwijderd</value></data>
+  <data name="Field_Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="Field_Location" xml:space="preserve"><value>Locatie</value></data>
+  <data name="Field_Description" xml:space="preserve"><value>Omschrijving</value></data>
+  <data name="Field_PairingSystem" xml:space="preserve"><value>Indelingssysteem</value></data>
+  <data name="Field_GameTimeMinutes" xml:space="preserve"><value>Bedenktijd (min)</value></data>
+  <data name="Field_IncrementSeconds" xml:space="preserve"><value>Increment (sec)</value></data>
+  <data name="Field_PointsForWin" xml:space="preserve"><value>Punten winst</value></data>
+  <data name="Field_PointsForDraw" xml:space="preserve"><value>Punten remise</value></data>
+  <data name="Field_PointsForLoss" xml:space="preserve"><value>Punten verlies</value></data>
+  <data name="Field_PointsForBye" xml:space="preserve"><value>Punten bye</value></data>
+  <data name="Field_IsRated" xml:space="preserve"><value>Telt voor rating</value></data>
+  <data name="Field_Boards" xml:space="preserve"><value>Borden</value></data>
+  <data name="Field_ClosedAt" xml:space="preserve"><value>Afgesloten op</value></data>
+  <data name="Field_TournamentId" xml:space="preserve"><value>Toernooi (nr)</value></data>
+  <data name="Field_PlayerId" xml:space="preserve"><value>Speler (nr)</value></data>
+  <data name="Field_IsActive" xml:space="preserve"><value>Doet mee</value></data>
+  <data name="Field_Number" xml:space="preserve"><value>Nummer</value></data>
+  <data name="Field_StartedAt" xml:space="preserve"><value>Gestart op</value></data>
+  <data name="Field_RoundId" xml:space="preserve"><value>Ronde (nr)</value></data>
+  <data name="Field_Board" xml:space="preserve"><value>Bord</value></data>
+  <data name="Field_WhiteId" xml:space="preserve"><value>Wit (deelnemer nr)</value></data>
+  <data name="Field_BlackId" xml:space="preserve"><value>Zwart (deelnemer nr)</value></data>
+  <data name="Field_Result" xml:space="preserve"><value>Uitslag</value></data>
+  <data name="Field_WhiteRatingBefore" xml:space="preserve"><value>Rating wit vooraf</value></data>
+  <data name="Field_BlackRatingBefore" xml:space="preserve"><value>Rating zwart vooraf</value></data>
+  <data name="Field_WhiteRatingChange" xml:space="preserve"><value>Mutatie wit</value></data>
+  <data name="Field_BlackRatingChange" xml:space="preserve"><value>Mutatie zwart</value></data>
+  <data name="Field_WhiteK" xml:space="preserve"><value>K wit</value></data>
+  <data name="Field_BlackK" xml:space="preserve"><value>K zwart</value></data>
+  <data name="Field_RatedAt" xml:space="preserve"><value>Rating verwerkt op</value></data>
+  <data name="Field_Name" xml:space="preserve"><value>Naam</value></data>
+  <data name="Field_IsOwnClub" xml:space="preserve"><value>Eigen club</value></data>
+  <data name="Field_UserName" xml:space="preserve"><value>Gebruikersnaam</value></data>
+  <data name="Field_DisplayName" xml:space="preserve"><value>Naam</value></data>
+  <data name="Field_PasswordHash" xml:space="preserve"><value>Wachtwoord</value></data>
+  <data name="Field_SecurityStamp" xml:space="preserve"><value>Sessies</value></data>
+  <data name="Field_Role" xml:space="preserve"><value>Rol</value></data>
+  <data name="Field_RatingBefore" xml:space="preserve"><value>Rating voor</value></data>
+  <data name="Field_RatingAfter" xml:space="preserve"><value>Rating na</value></data>
+  <data name="Field_Reason" xml:space="preserve"><value>Reden</value></data>
+  <data name="Field_At" xml:space="preserve"><value>Tijdstip</value></data>
+  <data name="Field_ChangedBy" xml:space="preserve"><value>Door</value></data>
+  <data name="Field_TournamentTitle" xml:space="preserve"><value>Toernooi</value></data>
+  <data name="Field_Round" xml:space="preserve"><value>Ronde</value></data>
+  <data name="Field_Games" xml:space="preserve"><value>Partijen</value></data>
+  <data name="Field_OpponentId" xml:space="preserve"><value>Tegenstander (nr)</value></data>
+  <data name="Field_OpponentRating" xml:space="preserve"><value>Rating tegenstander</value></data>
+  <data name="Field_IsWhite" xml:space="preserve"><value>Met wit</value></data>
+  <data name="Field_ContentType" xml:space="preserve"><value>Bestandstype</value></data>
+  <data name="Field_Data" xml:space="preserve"><value>Foto</value></data>
+  <data name="Field_Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Field_AiProvider" xml:space="preserve"><value>AI-aanbieder</value></data>
+  <data name="Field_OllamaUrl" xml:space="preserve"><value>Ollama-adres</value></data>
+  <data name="Field_OllamaModel" xml:space="preserve"><value>Ollama-model</value></data>
+  <data name="Field_ClaudeApiKey" xml:space="preserve"><value>Claude API-sleutel</value></data>
+  <data name="Field_ClaudeModel" xml:space="preserve"><value>Claude-model</value></data>
+  <data name="Field_ReportSystemPrompt" xml:space="preserve"><value>Systeemprompt verslag</value></data>
+  <data name="Field_ReportUpsetRatingDifference" xml:space="preserve"><value>Ratingverschil opvallende uitslag</value></data>
+  <data name="Field_DefaultWritingStyleId" xml:space="preserve"><value>Standaard schrijfstijl (nr)</value></data>
+  <data name="Field_Events" xml:space="preserve"><value>Gebeurtenissen</value></data>
+  <data name="Field_WritingStyleId" xml:space="preserve"><value>Schrijfstijl (nr)</value></data>
+  <data name="Field_WritingStyleName" xml:space="preserve"><value>Schrijfstijl</value></data>
+  <data name="Field_WritingStyleDescription" xml:space="preserve"><value>Beschrijving schrijfstijl</value></data>
+  <data name="Error_NotRevertible" xml:space="preserve"><value>Deze wijziging kan niet worden teruggedraaid.</value></data>
+  <data name="Error_AlreadyReverted" xml:space="preserve"><value>Deze wijziging is al teruggedraaid.</value></data>
+  <data name="Error_ChangedSinceAction" xml:space="preserve"><value>Dit is daarna nog een keer gewijzigd; terugdraaien zou die latere wijziging ook ongedaan maken. Draai eerst de latere wijziging terug.</value></data>
   <data name="ActivityAction_Clubs_Create" xml:space="preserve"><value>Club aanmaken</value></data>
   <data name="ActivityAction_Clubs_Update" xml:space="preserve"><value>Club wijzigen</value></data>
   <data name="ActivityAction_Clubs_Delete" xml:space="preserve"><value>Club verwijderen</value></data>

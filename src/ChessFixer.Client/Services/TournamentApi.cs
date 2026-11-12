@@ -187,6 +187,10 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<List<ActivityUserDto>> GetActivityUsersAsync() =>
         SendAsync<List<ActivityUserDto>>(HttpMethod.Get, "api/activity/users");
 
+    /// <summary>Reverts what the action of the log entry changed.</summary>
+    public Task RevertActivityAsync(long entryId) =>
+        SendCoreAsync(HttpMethod.Post, $"api/activity/{entryId}/revert");
+
     // ----- Plumbing -----
 
     private async Task<T> SendAsync<T>(HttpMethod method, string url, object? body = null)
