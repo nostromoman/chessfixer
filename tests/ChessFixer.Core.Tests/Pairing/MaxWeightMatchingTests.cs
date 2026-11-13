@@ -18,7 +18,7 @@ public class MaxWeightMatchingTests
 
     [Fact]
     public void TwoLightEdgesBeatOneHeavy() =>
-        Assert.Equal([1, 0, 3, 2], MaxWeightMatching.Find(4, [E(0, 1, 5), E(1, 2, 11), E(2, 3, 5)]));
+        Assert.Equal([1, 0, 3, 2], MaxWeightMatching.Find(4, [E(0, 1, 6), E(1, 2, 11), E(2, 3, 6)]));
 
     [Fact]
     public void MaxCardinality_TakesMoreEdgesEvenIfLighter() =>

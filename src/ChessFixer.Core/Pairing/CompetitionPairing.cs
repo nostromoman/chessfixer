@@ -57,8 +57,10 @@ public sealed class CompetitionPairing(
             .Select(i => (present[i], present[mate[i]]))
             .ToList();
 
-        // The first round of the fixed schedule that is just as good, if any.
-        var fixedRound = FixedScheduleRounds(present.ToHashSet(), schedule)
+        // The first round of the fixed schedule that is just as good, if any. It only uses pairs of the current cycle
+        // (who met least often), so the return games follow after everyone has played everyone once.
+        var cycle = candidates.Min(c => schedule.PlayedBetween(c.A, c.B));
+        var fixedRound = FixedScheduleRounds(present.ToHashSet(), schedule, cycle)
             .FirstOrDefault(r => r.Count == best.Count && weights.Major(r) == weights.Major(best));
         var pairs = fixedRound ?? best;
 
@@ -67,9 +69,9 @@ public sealed class CompetitionPairing(
 
     /// <summary>
     /// The rounds of the circle method over all participants, each restricted to the pairs that are both present
-    /// and still have a game to play.
+    /// and have played each other <paramref name="cycle"/> times (so they still have a game to play).
     /// </summary>
-    private IEnumerable<List<(int, int)>> FixedScheduleRounds(HashSet<int> present, CompetitionSchedule schedule)
+    private IEnumerable<List<(int, int)>> FixedScheduleRounds(HashSet<int> present, CompetitionSchedule schedule, int cycle)
     {
         var slots = participants.Cast<int?>().ToList();
         if (slots.Count % 2 == 1) slots.Add(null);
@@ -83,7 +85,7 @@ public sealed class CompetitionPairing(
                 var a = slots[(round + i) % (n - 1)];
                 var b = i == 0 ? slots[n - 1] : slots[(round + n - 1 - i) % (n - 1)];
                 if (a is { } x && b is { } y && present.Contains(x) && present.Contains(y)
-                    && schedule.RemainingBetween(x, y) > 0)
+                    && schedule.PlayedBetween(x, y) == cycle)
                     pairs.Add((x, y));
             }
             yield return pairs;
