@@ -18,6 +18,25 @@ public record AnalysedGameSummaryDto(
     int Moves,
     AnalysisSummaryDto Analysis);
 
+/// <summary>A game of one player (the Partijen tab of the player drawer), with the analysis when moves were added.</summary>
+/// <param name="IsWhite">The player had White.</param>
+/// <param name="CanHavePgn">Played over the board (won, lost or drawn): moves can be added.</param>
+/// <param name="Analysis">Status None when there are no moves or no analysis yet.</param>
+public record PlayerAnalysedGameDto(
+    int GameId,
+    int TournamentId,
+    string TournamentTitle,
+    int Round,
+    bool IsCatchUp,
+    DateTime? Date,
+    bool IsWhite,
+    GamePlayerDto White,
+    GamePlayerDto Black,
+    GameResult Result,
+    bool HasPgn,
+    bool CanHavePgn,
+    AnalysisSummaryDto Analysis);
+
 /// <param name="Status">None when there is no analysis of the current moves.</param>
 /// <param name="WhiteAccuracy">0–100; only when the analysis is done.</param>
 public record AnalysisSummaryDto(

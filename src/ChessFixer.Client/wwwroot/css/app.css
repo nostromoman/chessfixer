@@ -1668,3 +1668,10 @@ button.schedule-slot {
     pointer-events: none;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
+
+/* Partijen tab of the player drawer: counts of inaccuracies/mistakes/blunders next to the accuracy. */
+.player-games-counts {
+    display: inline-flex;
+    gap: 6px;
+    font-size: 0.85rem;
+}

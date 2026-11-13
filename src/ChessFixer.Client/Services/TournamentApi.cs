@@ -95,6 +95,9 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<List<AnalysedGameSummaryDto>> GetAnalysedGamesAsync() =>
         SendAsync<List<AnalysedGameSummaryDto>>(HttpMethod.Get, "api/games");
 
+    public Task<List<PlayerAnalysedGameDto>> GetPlayerGamesAsync(int playerId) =>
+        SendAsync<List<PlayerAnalysedGameDto>>(HttpMethod.Get, $"api/players/{playerId}/games");
+
     public Task<GameAnalysisDto> GetGameAnalysisAsync(int gameId) =>
         SendAsync<GameAnalysisDto>(HttpMethod.Get, $"api/games/{gameId}");
 

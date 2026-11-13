@@ -14,6 +14,10 @@ public class GamesController(GameAnalysisService service) : ControllerBase
     [HttpGet]
     public Task<List<AnalysedGameSummaryDto>> GetAll() => service.GetAllAsync();
 
+    /// <summary>All games of a player against an opponent, newest first, with the analysis where there are moves.</summary>
+    [HttpGet("~/api/players/{playerId:int}/games")]
+    public Task<List<PlayerAnalysedGameDto>> GetPlayerGames(int playerId) => service.GetPlayerGamesAsync(playerId);
+
     /// <summary>The moves of a game with the analysis per move.</summary>
     [HttpGet("{gameId:int}")]
     public Task<GameAnalysisDto> Get(int gameId) => service.GetAsync(gameId);

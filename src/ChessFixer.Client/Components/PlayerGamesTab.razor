@@ -1,0 +1,181 @@
+@implements IDisposable
+@inject TournamentApi Api
+@inject TournamentHubClient Hub
+@inject NavigationManager Navigation
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* The games of one player in the player drawer, newest first. A game with moves (PGN) shows the player's accuracy
+   and mistakes from the Stockfish analysis, and opens the analysis page when clicked. The notation button adds
+   or changes the moves of a game played over the board. *@
+@if (_failed)
+{
+    <MudAlert Severity="Severity.Error" Dense="true">@L["StatsLoadFailed"]</MudAlert>
+}
+else if (_games is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_games.Count == 0)
+{
+    <MudText Typo="Typo.body2">@L["NoResultsYet"]</MudText>
+}
+else
+{
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["PlayerGamesIntro"]</MudText>
+    <MudSimpleTable Dense="true" Hover="true" Elevation="0" Class="player-games">
+        <thead>
+            <tr>
+                <th class="hide-xs">@L["Date"]</th>
+                <th>@L["StatsTournament"]</th>
+                <th>@L["StatsColor"]</th>
+                <th>@L["StatsOpponent"]</th>
+                <th>@L["Result"]</th>
+                <th>@L["Accuracy"]</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var game in _games)
+            {
+                var opponent = game.IsWhite ? game.Black : game.White;
+                <tr class="@(game.HasPgn ? "cursor-pointer" : "")" @onclick="() => Open(game)">
+                    <td class="hide-xs" style="white-space: nowrap">@(game.Date?.ToLocalTime().ToString("d MMM yyyy") ?? "")</td>
+                    <td>
+                        @game.TournamentTitle
+                        <span class="mud-text-secondary">· @(game.IsCatchUp ? L["CatchUp"] : L["Round", game.Round])</span>
+                    </td>
+                    <td>@(game.IsWhite ? L["White"] : L["Black"])</td>
+                    <td>
+                        <PlayerName Name="@opponent.Name" IsDeleted="opponent.IsDeleted" />
+                        @if (opponent.IsGuest)
+                        {
+                            <GuestChip ClubName="@opponent.ClubName" />
+                        }
+                    </td>
+                    <td style="white-space: nowrap">
+                        <span class="@Display.OutcomeClass(game.Result, game.IsWhite)">@L[$"Result_{game.Result}"]</span>
+                    </td>
+                    <td style="white-space: nowrap">@AnalysisCell(game)</td>
+                    <td style="text-align: right" @onclick:stopPropagation="true">
+                        @if (game.CanHavePgn || game.HasPgn)
+                        {
+                            <MudTooltip Text="@(game.HasPgn ? L["PgnEdit"] : L["PgnAdd"])">
+                                <MudIconButton Icon="@(game.HasPgn ? Icons.Material.Filled.Description : Icons.Material.Outlined.NoteAdd)"
+                                               Color="@(game.HasPgn ? Color.Primary : Color.Default)" Size="Size.Small"
+                                               aria-label="PGN" Disabled="_busy"
+                                               OnClick="() => EditPgnAsync(game)" />
+                            </MudTooltip>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    [Parameter, EditorRequired] public int PlayerId { get; set; }
+
+    private List<PlayerAnalysedGameDto>? _games;
+    private bool _failed;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Hub.GameAnalysisChanged += OnGameAnalysisChangedAsync;
+        Hub.EnsureStarted();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _games = await Api.GetPlayerGamesAsync(PlayerId);
+            _failed = false;
+        }
+        catch (Exception)
+        {
+            _failed = _games is null;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Progress and results of the analysis of one of this player's games.</summary>
+    private Task OnGameAnalysisChangedAsync(int gameId) =>
+        _games?.Any(g => g.GameId == gameId) == true ? ReloadAsync() : Task.CompletedTask;
+
+    private void Open(PlayerAnalysedGameDto game)
+    {
+        if (game.HasPgn) Navigation.NavigateTo($"games/{game.GameId}");
+    }
+
+    private async Task EditPgnAsync(PlayerAnalysedGameDto game)
+    {
+        _busy = true;
+        try
+        {
+            var pgn = game.HasPgn ? (await Api.GetPgnAsync(game.TournamentId, game.GameId)).Pgn : null;
+            var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
+                new DialogParameters<PgnDialog>
+                {
+                    { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.HasPgn) },
+                    { d => d.Pgn, pgn },
+                    { d => d.TournamentTitle, game.TournamentTitle }
+                },
+                new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+            if (await dialog.Result is not { Canceled: false, Data: string text }) return;
+
+            await Api.SetPgnAsync(game.TournamentId, game.GameId, text);
+            Snackbar.Add(text.Length == 0 ? L["PgnRemoved"] : L["PgnSaved"], Severity.Success);
+            await ReloadAsync();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>The player's own accuracy and blunders; the state while Stockfish is busy.</summary>
+    private RenderFragment AnalysisCell(PlayerAnalysedGameDto game) => __builder =>
+    {
+        var analysis = game.Analysis;
+        switch (analysis.Status)
+        {
+            case AnalysisStatus.Done:
+                var accuracy = game.IsWhite ? analysis.WhiteAccuracy : analysis.BlackAccuracy;
+                var counts = game.IsWhite ? analysis.White : analysis.Black;
+                <b>@Display.Percentage(accuracy)</b>
+                @if (counts is { } c && c.Inaccuracies + c.Mistakes + c.Blunders > 0)
+                {
+                    <span class="ms-2 player-games-counts" title="@L["PlayerGamesCountsHelp", c.Inaccuracies, c.Mistakes, c.Blunders]">
+                        @if (c.Inaccuracies > 0) { <span>@c.Inaccuracies<span class="move-quality inaccuracy">?!</span></span> }
+                        @if (c.Mistakes > 0) { <span>@c.Mistakes<span class="move-quality mistake">?</span></span> }
+                        @if (c.Blunders > 0) { <span>@c.Blunders<span class="move-quality blunder">??</span></span> }
+                    </span>
+                }
+                break;
+            case AnalysisStatus.Pending:
+                <span class="mud-text-secondary">@L["AnalysisPendingShort"]</span>
+                break;
+            case AnalysisStatus.Running:
+                <span class="mud-text-secondary">@L["AnalysisRunningShort", analysis.PositionsDone, analysis.PositionsTotal]</span>
+                break;
+            case AnalysisStatus.Failed:
+                <span class="mud-error-text">@L["AnalysisFailed"]</span>
+                break;
+        }
+    };
+
+    public void Dispose() => Hub.GameAnalysisChanged -= OnGameAnalysisChangedAsync;
+}

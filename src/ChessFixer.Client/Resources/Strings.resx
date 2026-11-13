@@ -848,4 +848,9 @@
   <data name="EvalGraphTitle" xml:space="preserve"><value>Verloop van de partij</value></data>
   <data name="EvalGraphLabel" xml:space="preserve"><value>Winstkans van wit per zet</value></data>
   <data name="EvalGraphHelp" xml:space="preserve"><value>Winstkans van wit na elke zet: boven de middellijn staat wit beter, eronder zwart. Klik in de grafiek om naar die zet te gaan; de bolletjes zijn onnauwkeurigheden, fouten en blunders.</value></data>
+  <data name="PlayerTabGames" xml:space="preserve"><value>Partijen</value></data>
+  <data name="PlayerGamesIntro" xml:space="preserve"><value>Alle partijen van deze speler, de nieuwste bovenaan. Voeg met het notatie-icoon de zetten (PGN) toe; Stockfish analyseert ze dan. Klik op een partij met zetten om de analyse te bekijken.</value></data>
+  <data name="PlayerGamesCountsHelp" xml:space="preserve"><value>{0} onnauwkeurigheden, {1} fouten, {2} blunders</value></data>
+  <data name="AnalysisPendingShort" xml:space="preserve"><value>wacht op analyse</value></data>
+  <data name="AnalysisRunningShort" xml:space="preserve"><value>analyse {0}/{1}</value></data>
 </root>

@@ -135,6 +135,36 @@ public class GameAnalysisTests : ApiTestBase
     }
 
     [Fact]
+    public async Task PlayerGames_ListsGamesWithTheAnalysis()
+    {
+        var id = await PlayedGameAsync();
+        var game = Assert.Single((await GetRoundsAsync(id))[0].Games);
+        var whiteId = game.White.PlayerId;
+        var blackId = game.Black!.PlayerId;
+
+        var listed = Assert.Single(await GetAsync<List<PlayerAnalysedGameDto>>($"api/players/{blackId}/games"));
+        Assert.Equal(game.Id, listed.GameId);
+        Assert.False(listed.IsWhite);
+        Assert.Equal(whiteId, listed.White.PlayerId);
+        Assert.Equal(GameResult.WhiteWins, listed.Result);
+        Assert.True(listed.CanHavePgn);
+        Assert.False(listed.HasPgn);
+        Assert.Equal(AnalysisStatus.None, listed.Analysis.Status);
+
+        await ReadAsync<TournamentDto>(await Client.PutAsJsonAsync($"api/tournaments/{id}/games/{game.Id}/pgn",
+            new SetPgnRequest("1. e4 d5 2. Qg4 Bxg4 0-1")));
+        await WaitForAnalysisAsync(game.Id);
+
+        listed = Assert.Single(await GetAsync<List<PlayerAnalysedGameDto>>($"api/players/{whiteId}/games"));
+        Assert.True(listed.IsWhite);
+        Assert.True(listed.HasPgn);
+        Assert.Equal(AnalysisStatus.Done, listed.Analysis.Status);
+        Assert.Equal(1, listed.Analysis.White!.Blunders);
+
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, (await Client.GetAsync("api/players/99999/games")).StatusCode);
+    }
+
+    [Fact]
     public async Task ChangedMoves_AreAnalysedAgain_RemovedMoves_RemoveTheGameFromTheList()
     {
         var id = await PlayedGameAsync();

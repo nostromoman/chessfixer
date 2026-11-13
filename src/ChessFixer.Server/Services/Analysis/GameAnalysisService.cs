@@ -68,6 +68,40 @@ public class GameAnalysisService(
             .ToList();
     }
 
+    /// <summary>
+    /// All games the player played against an opponent (with a result, forfeits included), newest first, with the
+    /// analysis of the games that have moves.
+    /// </summary>
+    public async Task<List<PlayerAnalysedGameDto>> GetPlayerGamesAsync(int playerId)
+    {
+        if (!await db.Players.AnyAsync(p => p.Id == playerId)) throw new ApiException(ApiErrorCode.PlayerNotFound);
+
+        var clubNames = await db.Clubs.ToDictionaryAsync(c => c.Id, c => c.Name);
+        var games = await db.Games
+            .Where(g => g.BlackId != null && g.Result != GameResult.NotPlayed && g.Round.StartedAt != null
+                        && (g.White.PlayerId == playerId || g.Black!.PlayerId == playerId))
+            .Include(g => g.Round).ThenInclude(r => r.Tournament)
+            .Include(g => g.White).ThenInclude(p => p.Player)
+            .Include(g => g.Black!).ThenInclude(p => p.Player)
+            .Include(g => g.Analysis)
+            .AsSplitQuery()
+            .ToListAsync();
+
+        GamePlayerDto WithClub(TournamentPlayer p) => new(p.PlayerId, p.Player.Name, p.Player.IsDeleted, p.Player.IsGuest,
+            p.Player is { IsGuest: true, ClubId: { } clubId } ? clubNames.GetValueOrDefault(clubId) : null);
+
+        return games
+            .Select(g => new PlayerAnalysedGameDto(
+                g.Id, g.Round.TournamentId, g.Round.Tournament.Title, g.Round.Number, g.IsCatchUp, DateOf(g),
+                g.White.PlayerId == playerId, WithClub(g.White), WithClub(g.Black!), g.Result,
+                g.Pgn is not null,
+                g.Result is GameResult.WhiteWins or GameResult.Draw or GameResult.BlackWins,
+                g.Pgn is null ? new AnalysisSummaryDto(AnalysisStatus.None) : Build(g).Analysis))
+            .OrderByDescending(g => g.Date)
+            .ThenByDescending(g => g.GameId)
+            .ToList();
+    }
+
     public async Task<GameAnalysisDto> GetAsync(int gameId)
     {
         var game = await GamesWithMoves().SingleOrDefaultAsync(g => g.Id == gameId)

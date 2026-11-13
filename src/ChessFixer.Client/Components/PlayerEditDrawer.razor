@@ -53,6 +53,9 @@
                 <MudTabPanel Text="@L["PlayerTabRating"]" Icon="@Icons.Material.Outlined.ShowChart">
                     <PlayerRatingTab PlayerId="_editing.Id!.Value" />
                 </MudTabPanel>
+                <MudTabPanel Text="@L["PlayerTabGames"]" Icon="@Icons.Material.Outlined.QueryStats">
+                    <PlayerGamesTab PlayerId="_editing.Id!.Value" />
+                </MudTabPanel>
             </MudTabs>
         }
     }
