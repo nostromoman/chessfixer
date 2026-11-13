@@ -76,7 +76,8 @@
   <data name="PointsForBye" xml:space="preserve"><value>Punten voor een bye</value></data>
   <data name="PointsForAbsence" xml:space="preserve"><value>Punten bij afwezigheid</value></data>
   <data name="PointsForAbsenceHelp" xml:space="preserve"><value>Voor een ronde waarin een speler niet meedoet. Meestal 0.</value></data>
-  <data name="SettingsLockedInfo" xml:space="preserve"><value>Indelingssysteem, punten en rating liggen vast omdat ronde 1 al gestart is.</value></data>
+  <data name="SettingsRules" xml:space="preserve"><value>Spelregels</value></data>
+  <data name="SettingsLockedInfo" xml:space="preserve"><value>Ronde 1 is gestart: de spelregels liggen vast. Alleen titel, locatie, omschrijving en aantal borden kunnen nog worden aangepast.</value></data>
   <data name="Boards" xml:space="preserve"><value>Borden</value></data>
   <data name="BoardsHelp" xml:space="preserve"><value>Speelplaatsen voor de volgende ronde</value></data>
   <data name="SettingsRoundActiveInfo" xml:space="preserve"><value>Tijdens een ronde kunnen de instellingen niet gewijzigd worden. Dat kan weer zodra alle uitslagen binnen zijn.</value></data>
@@ -101,6 +102,10 @@
   <data name="SearchOrNewPlayer" xml:space="preserve"><value>Zoek of typ een nieuwe naam</value></data>
   <data name="NewPlayerOption" xml:space="preserve"><value>"{0}" toevoegen als nieuwe speler</value></data>
   <data name="NoMatchingPlayers" xml:space="preserve"><value>Geen spelers gevonden. Maak hieronder een nieuwe speler aan.</value></data>
+  <data name="UnsavedChangesTitle" xml:space="preserve"><value>Niet opgeslagen wijzigingen</value></data>
+  <data name="UnsavedPlayerChangesText" xml:space="preserve"><value>Er zijn wijzigingen aan deze speler die nog niet zijn opgeslagen. Wat wil je doen?</value></data>
+  <data name="DiscardChanges" xml:space="preserve"><value>Niet opslaan</value></data>
+  <data name="KeepEditing" xml:space="preserve"><value>Verder bewerken</value></data>
   <data name="NewPlayer" xml:space="preserve"><value>Nieuwe speler</value></data>
   <data name="Name" xml:space="preserve"><value>Naam</value></data>
   <data name="Rating" xml:space="preserve"><value>Rating</value></data>
@@ -173,6 +178,8 @@
   <data name="RatingChartLabel" xml:space="preserve"><value>Grafiek van het ratingverloop, van {0} naar {1}</value></data>
   <data name="RatingChange" xml:space="preserve"><value>+/-</value></data>
   <data name="RatingAfter" xml:space="preserve"><value>Nieuwe rating</value></data>
+  <data name="RatingChartEmpty" xml:space="preserve"><value>Nog geen ratingwijzigingen. De grafiek verschijnt zodra de speler een partij heeft gespeeld die meetelt voor de rating.</value></data>
+  <data name="RatingProjected" xml:space="preserve"><value>Verwacht</value></data>
   <data name="RatingStart" xml:space="preserve"><value>Start</value></data>
   <data name="Date" xml:space="preserve"><value>Datum</value></data>
   <data name="DeletedSuffix" xml:space="preserve"><value>verwijderd</value></data>
@@ -273,7 +280,7 @@
   <data name="Error_InvalidRating" xml:space="preserve"><value>Ongeldige rating (0 tot 4000).</value></data>
   <data name="Error_TournamentClosed" xml:space="preserve"><value>Dit toernooi is afgesloten.</value></data>
   <data name="Error_RoundInProgress" xml:space="preserve"><value>Er is een ronde bezig. Wacht tot alle uitslagen zijn ingevoerd.</value></data>
-  <data name="Error_SettingsLocked" xml:space="preserve"><value>Het indelingssysteem en de punten kunnen niet meer gewijzigd worden nadat ronde 1 is gestart.</value></data>
+  <data name="Error_SettingsLocked" xml:space="preserve"><value>De spelregels kunnen niet meer gewijzigd worden nadat ronde 1 is gestart; alleen titel, locatie, omschrijving en borden.</value></data>
   <data name="Error_PlayerAlreadyInTournament" xml:space="preserve"><value>Deze speler doet al mee.</value></data>
   <data name="Error_PlayerNotInTournament" xml:space="preserve"><value>Deze speler doet niet mee.</value></data>
   <data name="Error_PlayerInActiveGame" xml:space="preserve"><value>Deze speler is nog bezig met een partij en kan pas uit het toernooi stappen als de uitslag bekend is.</value></data>

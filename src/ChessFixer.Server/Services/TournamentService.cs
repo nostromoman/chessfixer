@@ -284,13 +284,8 @@ public class TournamentService(
             // Settings can change between rounds, not during a round or after closing.
             EnsureBetweenRounds(tournament);
 
-            // Once round 1 has started, only the title, location, description, time control and boards can change.
-            var onlyFreeSettingsChanged = settings with
-            {
-                GameTimeMinutes = current.GameTimeMinutes,
-                IncrementSeconds = current.IncrementSeconds,
-                Boards = current.Boards
-            } == current;
+            // Once round 1 has started, only the title, location, description and boards can change.
+            var onlyFreeSettingsChanged = settings with { Boards = current.Boards } == current;
             if (IsSettingsLocked(tournament) && !onlyFreeSettingsChanged)
                 throw new ApiException(ApiErrorCode.SettingsLocked);
 

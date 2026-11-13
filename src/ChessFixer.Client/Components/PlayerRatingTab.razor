@@ -2,7 +2,8 @@
 @inject TournamentApi Api
 @inject IStringLocalizer<Strings> L
 
-@* Rating of one player in the player drawer: the current rating, a line chart of every rating change, and every
+@* Rating of one player in the player drawer: the current rating, a line chart of every rating change (plus, dashed,
+   the expected rating after the running tournament), and every
    rated tournament (a card) with each game and its change. The ratings change when a tournament is closed; the games of a
    running tournament show what they would give if it were closed now. *@
 @if (_failed)
@@ -29,10 +30,14 @@ else
         }
     </div>
 
-    @if (_rating.Timeline.Count > 1)
+    <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">@L["RatingHistory"]</MudText>
+    @if (Points().Count > 1)
     {
-        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">@L["RatingHistory"]</MudText>
         @RatingChart
+    }
+    else
+    {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["RatingChartEmpty"]</MudText>
     }
 
     @if (_rating.Tournaments.Count == 0)
@@ -165,13 +170,30 @@ else
 
     private static string SignedExact(decimal change) => change > 0 ? $"+{Exact(change)}" : Exact(change);
 
-    /// <summary>The rating before the first change, then the rating after every change.</summary>
-    private List<int> Points() =>
-        [_rating!.Timeline[0].RatingBefore, .. _rating.Timeline.Select(h => h.RatingAfter)];
+    /// <summary>A point of the chart: the start, a rating change, or the expected rating after the running tournament.</summary>
+    private sealed record ChartPoint(int Rating, RatingPointDto? Change = null, RatingTournamentDto? Projected = null);
+
+    /// <summary>
+    /// The rating before the first change (or the current rating when there were none), then the rating after every
+    /// change, then the expected rating if the running tournament were closed now.
+    /// </summary>
+    private List<ChartPoint> Points()
+    {
+        var timeline = _rating!.Timeline;
+        List<ChartPoint> points = timeline.Count > 0
+            ? [new(timeline[0].RatingBefore), .. timeline.Select(t => new ChartPoint(t.RatingAfter, t))]
+            : [new(_rating.Rating)];
+        if (_rating.Tournaments.FirstOrDefault(t => !t.IsProcessed) is { } running && running.Games.Any(g => g.CountsForRating))
+            points.Add(new ChartPoint(_rating.Rating + running.Change, Projected: running));
+        return points;
+    }
 
     private RenderFragment RatingChart => __builder =>
     {
-        var points = Points();
+        var chartPoints = Points();
+        var points = chartPoints.Select(p => p.Rating).ToList();
+        var projected = chartPoints[^1].Projected is not null;
+        var actualCount = projected ? points.Count - 1 : points.Count;
         var (min, max, step) = Scale(points.Min(), points.Max());
         var plotWidth = Width - PlotLeft - PlotRight;
         var plotHeight = Height - PlotTop - PlotBottom;
@@ -179,7 +201,7 @@ else
         double Y(int rating) => PlotTop + plotHeight * (max - rating) / (max - min);
         string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
 
-        var line = string.Join(" ", points.Select((r, i) => $"{F(X(i))},{F(Y(r))}"));
+        var line = string.Join(" ", points.Take(actualCount).Select((r, i) => $"{F(X(i))},{F(Y(r))}"));
         var showMarkers = points.Count <= 40;
         var bandWidth = points.Count == 1 ? plotWidth : plotWidth / (points.Count - 1);
 
@@ -200,14 +222,25 @@ else
                     <line class="rating-chart-crosshair" x1="@F(X(hover))" x2="@F(X(hover))" y1="@F(PlotTop)" y2="@F(Height - PlotBottom)" />
                 }
 
-                <polyline class="rating-chart-line" points="@line" />
+                @if (actualCount > 1)
+                {
+                    <polyline class="rating-chart-line" points="@line" />
+                }
+                @if (projected)
+                {
+                    var last = actualCount - 1;
+                    <line class="rating-chart-line rating-chart-projected" x1="@F(X(last))" y1="@F(Y(points[last]))"
+                          x2="@F(X(points.Count - 1))" y2="@F(Y(points[^1]))" />
+                }
 
                 @for (var i = 0; i < points.Count; i++)
                 {
                     var hovered = _hover == i;
-                    if (showMarkers || hovered)
+                    var isProjected = projected && i == points.Count - 1;
+                    if (showMarkers || hovered || isProjected)
                     {
-                        <circle class="rating-chart-marker" cx="@F(X(i))" cy="@F(Y(points[i]))" r="@(hovered ? "6" : "4")" />
+                        <circle class="@(isProjected ? "rating-chart-marker rating-chart-marker-projected" : "rating-chart-marker")"
+                                cx="@F(X(i))" cy="@F(Y(points[i]))" r="@(hovered ? "6" : "4")" />
                     }
                 }
 
@@ -224,7 +257,7 @@ else
                 {
                     <g>
                         <text class="rating-chart-axis" x="@F(X(points.Count - 1))" y="@F(Height - 6)" text-anchor="end">
-                            @_rating!.Timeline[^1].At.ToLocalTime().ToString("d", CultureInfo.CurrentCulture)
+                            @(projected ? L["RatingProjected"].Value : _rating!.Timeline[^1].At.ToLocalTime().ToString("d", CultureInfo.CurrentCulture))
                         </text>
                     </g>
                 }
@@ -236,13 +269,20 @@ else
                 <div class="rating-chart-tooltip" style="left: @F(left)%; top: @F(Y(points[shown]) / Height * 100)%;
                          transform: translate(@(left > 60 ? "calc(-100% - 12px)" : "12px"), -50%)">
                     <div class="rating-chart-tooltip-value">@points[shown]</div>
-                    @if (shown == 0)
+                    @if (chartPoints[shown].Projected is { } running)
+                    {
+                        <div>
+                            <span class="@ChangeClass(running.Change)">@SignedChange(running.Change)</span>
+                            · @L["RatingExpected"]
+                        </div>
+                        <div class="mud-text-secondary">@running.Title</div>
+                    }
+                    else if (chartPoints[shown].Change is not { } change)
                     {
                         <div>@L["RatingStart"]</div>
                     }
                     else
                     {
-                        var change = _rating!.Timeline[shown - 1];
                         <div>
                             <span class="@ChangeClass(change.Change)">@SignedChange(change.Change)</span>
                             · @L[$"RatingReason_{change.Reason}"]

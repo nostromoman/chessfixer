@@ -4,15 +4,31 @@
 @inject DeviceInfo Device
 @inject IStringLocalizer<Strings> L
 
-@* Drawer from the right to create or edit a player of the central list. Open it with OpenNew or OpenEdit. *@
-<MudDrawer @bind-Open="_open" Anchor="Anchor.End" Variant="DrawerVariant.Temporary" Overlay="true"
+@* Drawer from the right to create or edit a player of the central list. Open it with OpenNew or OpenEdit.
+   The header shows the player's name. Clicking next to the drawer, Escape or the close button closes it; with unsaved
+   changes it first asks whether to save them, throw them away or keep editing. The overlay is our own (not the
+   drawer's), because the drawer's overlay closes it without asking. *@
+<MudOverlay Visible="_open" DarkBackground="true" Class="mud-overlay-drawer" OnClick="RequestCloseAsync" />
+<MudDrawer @bind-Open="_open" Anchor="Anchor.End" Variant="DrawerVariant.Temporary" Overlay="false"
            Elevation="2" Width="50vw" Class="side-drawer">
     @if (_editing is not null)
     {
-        <MudDrawerHeader Class="d-flex align-center">
-            <MudText Typo="Typo.h6">@(_editing.IsNew ? L["NewPlayer"] : L["EditPlayer"])</MudText>
+        <MudDrawerHeader Class="d-flex align-center gap-3">
+            @if (_editing.IsNew)
+            {
+                <MudText Typo="Typo.h6">@L["NewPlayer"]</MudText>
+            }
+            else
+            {
+                <PlayerAvatar FirstName="@_editing.OriginalFirstName" LastName="@_editing.OriginalLastName"
+                              PhotoUrl="@_editing.OriginalPhotoUrl" Size="Size.Medium" />
+                <div class="drawer-title">
+                    <MudText Typo="Typo.h6" Class="drawer-title-name">@_editing.OriginalName</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["EditPlayer"]</MudText>
+                </div>
+            }
             <MudSpacer />
-            <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="@L["Close"]" OnClick="Close" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" aria-label="@L["Close"]" OnClick="RequestCloseAsync" />
         </MudDrawerHeader>
 
         @if (_editing.IsNew)
@@ -138,6 +154,7 @@
     public void OpenNew()
     {
         _editing = new EditModel(null, null);
+        _editing.MarkClean();
         _open = true;
         StateHasChanged();
         _ = LoadClubsAsync();
@@ -168,6 +185,9 @@
         _tab = tab;
         _editing = new EditModel(player.Id, player.PhotoUrl)
         {
+            OriginalName = player.Name,
+            OriginalFirstName = player.FirstName,
+            OriginalLastName = player.LastName,
             IsDeleted = player.IsDeleted,
             FirstName = player.FirstName,
             LastName = player.LastName,
@@ -177,12 +197,32 @@
             ClubId = player.ClubId,
             Rating = player.Rating
         };
+        _editing.MarkClean();
         _open = true;
         StateHasChanged();
         _ = LoadClubsAsync();
     }
 
     private void Close() => _open = false;
+
+    /// <summary>
+    /// Close from outside the form (overlay, Escape, close button): with unsaved changes, first ask whether to save
+    /// them, throw them away or keep editing.
+    /// </summary>
+    private async Task RequestCloseAsync()
+    {
+        if (_editing is null || !_editing.IsDirty)
+        {
+            Close();
+            return;
+        }
+
+        var choice = await Dialogs.ShowMessageBoxAsync(
+            L["UnsavedChangesTitle"], L["UnsavedPlayerChangesText"],
+            yesText: L["Save"], noText: L["DiscardChanges"], cancelText: L["KeepEditing"]);
+        if (choice == true) await SaveAsync();
+        else if (choice == false) Close();
+    }
 
     private async Task OnPhotoSelectedAsync(IBrowserFile? file)
     {
@@ -276,7 +316,7 @@
     private async Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") await SaveAsync();
-        else if (e.Key == "Escape") Close();
+        else if (e.Key == "Escape") await RequestCloseAsync();
     }
 
     private sealed class EditModel(int? id, string? photoUrl)
@@ -284,6 +324,24 @@
         public int? Id { get; } = id;
         public bool IsNew => Id is null;
         public bool IsDeleted { get; init; }
+
+        /// <summary>The name and photo as saved, for the header (they do not change while typing).</summary>
+        public string OriginalName { get; init; } = "";
+        public string OriginalFirstName { get; init; } = "";
+        public string OriginalLastName { get; init; } = "";
+        public string? OriginalPhotoUrl { get; } = photoUrl;
+
+        private object? _clean;
+
+        /// <summary>The editable values, to see whether anything changed.</summary>
+        private object Values() => (FirstName.Trim(), LastName.Trim(), BirthDate, (City ?? "").Trim(), IsGuest,
+            IsGuest ? ClubId : null, Rating);
+
+        /// <summary>Takes the current values as the saved state.</summary>
+        public void MarkClean() => _clean = Values();
+
+        /// <summary>Something was changed that is not saved yet.</summary>
+        public bool IsDirty => NewPhoto is not null || PhotoRemoved || !Equals(Values(), _clean);
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";
         public DateTime? BirthDate { get; set; }

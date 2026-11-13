@@ -511,6 +511,17 @@ html, body {
     stroke-width: 2;
 }
 
+/* The expected rating after the running tournament: dashed line, hollow marker. */
+.rating-chart-projected {
+    stroke-dasharray: 6 5;
+    opacity: 0.7;
+}
+
+.rating-chart-marker.rating-chart-marker-projected {
+    fill: var(--mud-palette-surface);
+    stroke: var(--mud-palette-primary);
+}
+
 .rating-chart-crosshair {
     stroke: var(--mud-palette-text-secondary);
     stroke-width: 1;
@@ -592,6 +603,20 @@ html, body {
 }
 
 /* Players without a game in a round (no opponent, absent): photo and name. */
+/* Player drawer header: the name of the player, with "Speler wijzigen" below it. */
+.drawer-title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+    .drawer-title .drawer-title-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
 .player-pills {
     display: flex;
     flex-wrap: wrap;

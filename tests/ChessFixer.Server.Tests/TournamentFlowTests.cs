@@ -68,7 +68,7 @@ public class TournamentFlowTests : ApiTestBase
     }
 
     [Fact]
-    public async Task BetweenRounds_OnlyTitleTimeControlAndBoardsCanChange()
+    public async Task BetweenRounds_OnlyTitleAndBoardsCanChange()
     {
         var id = await CreateTournamentAsync();
         await AddNewPlayersAsync(id, 4);
@@ -77,9 +77,9 @@ public class TournamentFlowTests : ApiTestBase
         Assert.True(tournament.SettingsLocked);
 
         tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}", new UpdateTournamentRequest("Nieuwe titel",
-            tournament.Settings with { GameTimeMinutes = 25, IncrementSeconds = 0, Boards = 1 }));
+            tournament.Settings with { Boards = 1 }));
         Assert.Equal("Nieuwe titel", tournament.Title);
-        Assert.Equal(new[] { 25, 0, 1 }, new[] { tournament.Settings.GameTimeMinutes, tournament.Settings.IncrementSeconds, tournament.Settings.Boards });
+        Assert.Equal(1, tournament.Settings.Boards);
 
         // The pending round is re-paired with the new number of boards.
         var round2 = (await GetRoundsAsync(id))[1];
@@ -88,6 +88,10 @@ public class TournamentFlowTests : ApiTestBase
         await AssertErrorAsync(
             await Client.PutAsJsonAsync($"api/tournaments/{id}",
                 new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { PointsForWin = 3 })),
+            HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
+        await AssertErrorAsync(
+            await Client.PutAsJsonAsync($"api/tournaments/{id}",
+                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { GameTimeMinutes = 25 })),
             HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
         await AssertErrorAsync(
             await Client.PutAsJsonAsync($"api/tournaments/{id}",

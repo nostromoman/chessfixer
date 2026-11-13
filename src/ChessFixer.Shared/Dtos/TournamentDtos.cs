@@ -17,8 +17,8 @@ public record TournamentSummaryDto(
 /// <param name="OpenGames">Competition: the number of games still to play between the players in the competition
 /// (they become "not played" when it is closed). Always 0 for Swiss.</param>
 /// <param name="RoundsStarted">Number of rounds that have started (including the active one).</param>
-/// <param name="SettingsLocked">True once round 1 has started; from then on the pairing system and the points cannot change.
-/// Title, time control and boards can still change between rounds.</param>
+/// <param name="SettingsLocked">True once round 1 has started; from then on the rules cannot change.
+/// Title, location, description and boards can still change between rounds.</param>
 /// <param name="Location">Where the tournament is played; optional, used for the report.</param>
 /// <param name="Description">Free description of the tournament; optional, used for the report.</param>
 public record TournamentDto(
