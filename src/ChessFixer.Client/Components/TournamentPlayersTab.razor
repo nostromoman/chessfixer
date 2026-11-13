@@ -311,10 +311,17 @@ else
 
     /// <summary>
     /// Taking a player out of the tournament is not the same as being absent for an evening, so it is always
-    /// confirmed; the dialog also offers to mark the player absent instead.
+    /// confirmed; the dialog also offers to mark the player absent instead. Before round 1 nothing has been played
+    /// yet: the player is simply taken off the list, without asking.
     /// </summary>
     private async Task RemoveAsync(TournamentPlayerDto player)
     {
+        if (Tournament.State == TournamentState.New)
+        {
+            await Run(() => Api.RemovePlayerAsync(Tournament.Id, player.PlayerId), L["PlayerRemoved", player.Name]);
+            return;
+        }
+
         var gameCount = Rounds.Where(r => r.IsStarted).SelectMany(r => r.Games)
             .Count(g => g.Black is not null && (g.White.PlayerId == player.PlayerId || g.Black.PlayerId == player.PlayerId));
         var dialog = await Dialogs.ShowAsync<RemovePlayerDialog>(null,
