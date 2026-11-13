@@ -1,0 +1,118 @@
+@using ChessFixer.Shared.Pgn
+@inject IStringLocalizer<Strings> L
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+@* The moves of a played game in PGN (Portable Game Notation): paste them from a notation app or a scoresheet
+   typed out, and later copy, download or open them on an analysis board. Closes with the text to save
+   ("" removes the moves). *@
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Description" />
+            <MudText Typo="Typo.h6">@L["PgnTitle", Game.White.Name, Game.Black?.Name ?? "", L[$"Result_{Game.Result}"]]</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["PgnHelp"]</MudText>
+        <MudTextField T="string" @bind-Value="_text" Variant="Variant.Outlined" Lines="14"
+                      Immediate="true" MaxLength="PgnText.MaxLength" Class="pgn-text"
+                      Placeholder="@Placeholder" Error="@(ErrorText is not null)" ErrorText="@ErrorText" />
+    </DialogContent>
+    <DialogActions>
+        @if (Pgn is not null)
+        {
+            <MudButton Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => Dialog.Close(string.Empty)">
+                @L["PgnRemove"]
+            </MudButton>
+        }
+        <MudSpacer />
+        @if (IsValid)
+        {
+            <MudTooltip Text="@L["PgnCopy"]">
+                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" aria-label="@L["PgnCopy"]" OnClick="CopyAsync" />
+            </MudTooltip>
+            <MudTooltip Text="@L["PgnDownload"]">
+                <MudIconButton Icon="@Icons.Material.Filled.Download" aria-label="@L["PgnDownload"]"
+                               Href="@DownloadUrl" download="@FileName" />
+            </MudTooltip>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.OpenInNew"
+                       Href="@LichessUrl" Target="_blank" rel="noopener noreferrer">@L["PgnAnalyse"]</MudButton>
+        }
+        <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave)"
+                   OnClick="() => Dialog.Close(Normalized ?? string.Empty)">@L["Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    [Parameter, EditorRequired] public GameDto Game { get; set; } = null!;
+
+    /// <summary>The moves saved so far; null when none were added.</summary>
+    [Parameter] public string? Pgn { get; set; }
+
+    /// <summary>Used as the Event tag when the pasted text has no header tags.</summary>
+    [Parameter] public string TournamentTitle { get; set; } = "";
+
+    private string? _text;
+
+    protected override void OnInitialized() => _text = Pgn;
+
+    private const string Placeholder = "[White \"...\"]\n[Black \"...\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 ...";
+
+    private string? Normalized => PgnText.Normalize(_text);
+
+    private bool IsValid => Normalized is { } text && text.Length <= PgnText.MaxLength && PgnText.HasMoves(text);
+
+    private string? ErrorText => Normalized is null || IsValid ? null : L["PgnNoMoves"].Value;
+
+    /// <summary>Changed and either valid or emptied (which removes the moves).</summary>
+    private bool CanSave => Normalized != PgnText.Normalize(Pgn) && (Normalized is null || IsValid);
+
+    /// <summary>
+    /// The text to copy or download. Without header tags (only the moves were pasted) the players, the tournament
+    /// and the result are added, so an analysis program knows whose game it is.
+    /// </summary>
+    private string Export
+    {
+        get
+        {
+            var text = Normalized ?? "";
+            if (text.StartsWith('[')) return text + "\n";
+            var result = Game.Result switch
+            {
+                GameResult.WhiteWins => "1-0",
+                GameResult.BlackWins => "0-1",
+                GameResult.Draw => "1/2-1/2",
+                _ => "*"
+            };
+            return $"[Event \"{Tag(TournamentTitle)}\"]\n[White \"{Tag(Game.White.Name)}\"]\n" +
+                   $"[Black \"{Tag(Game.Black?.Name ?? "?")}\"]\n[Result \"{result}\"]\n\n{text}\n";
+        }
+    }
+
+    private static string Tag(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    private string FileName =>
+        string.Concat($"{Game.White.Name} - {Game.Black?.Name}.pgn".Split(Path.GetInvalidFileNameChars()));
+
+    private string DownloadUrl => "data:application/x-chess-pgn;charset=utf-8," + Uri.EscapeDataString(Export);
+
+    /// <summary>The Lichess analysis board replays the moves (without comments and variations).</summary>
+    private string LichessUrl => "https://lichess.org/analysis/pgn/" + Uri.EscapeDataString(PgnText.MoveText(Normalized ?? ""));
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Export);
+            Snackbar.Add(L["PgnCopied"], Severity.Success);
+        }
+        catch (JSException)
+        {
+            Snackbar.Add(L["Error_Unknown"], Severity.Error);
+        }
+    }
+}

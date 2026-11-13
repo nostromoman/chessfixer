@@ -63,6 +63,9 @@ else if (Tournament.State == TournamentState.New)
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback<(GameDto Game, GameResult Result)> OnResult { get; set; }
 
+    /// <summary>Add or view the moves (PGN) of a played game.</summary>
+    [Parameter] public EventCallback<GameDto> OnPgn { get; set; }
+
     /// <summary>The leader finished the report wizard for a round.</summary>
     [Parameter] public EventCallback<(int Round, GenerateReportRequest Request)> OnGenerateReport { get; set; }
 
@@ -297,7 +300,7 @@ else if (Tournament.State == TournamentState.New)
                 <GameCard @key="game.Id" Game="game" IsStarted="isStarted" Editable="editable" Disabled="Disabled"
                           QueuePosition="@(queued ? index + 1 : null)" Players="Players"
                           Leaving="_leaving.Contains(game.Id)" Entering="_entering.Contains(game.Id)"
-                          OnResult="result => SetResultAsync(game, result)" />
+                          OnResult="result => SetResultAsync(game, result)" OnPgn="() => OnPgn.InvokeAsync(game)" />
             }
         </div>;
 }

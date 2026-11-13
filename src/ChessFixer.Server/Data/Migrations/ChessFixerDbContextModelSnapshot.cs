@@ -303,6 +303,10 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<int>("Number")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Pgn")
+                        .HasMaxLength(20000)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("PlayedAt")
                         .HasColumnType("TEXT");
 

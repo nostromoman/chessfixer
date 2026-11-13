@@ -178,7 +178,8 @@ else
             </MudTabPanel>
             <MudTabPanel Text="@L["Rounds"]" Icon="@Icons.Material.Filled.GridOn">
                 <TournamentMatchesTab Tournament="Tournament" Rounds="_rounds" Players="_players"
-                                      Disabled="IsBusy" OnResult="SetResultAsync" OnGenerateReport="GenerateRoundReportAsync" />
+                                      Disabled="IsBusy" OnResult="SetResultAsync" OnPgn="PgnAsync"
+                                      OnGenerateReport="GenerateRoundReportAsync" />
             </MudTabPanel>
             <MudTabPanel Text="@L["Standings"]" Icon="@Icons.Material.Filled.EmojiEvents">
                 <div class="standings-centered">
@@ -447,6 +448,36 @@ else
         if (await dialog.Result is not { Canceled: false, Data: CatchUpGameRequest request }) return;
 
         await RunAsync(() => Api.AddCatchUpGameAsync(Id, request), L["CatchUpSaved"]);
+    }
+
+    /// <summary>Shows the moves (PGN) of a played game, to paste, change, copy or analyse them.</summary>
+    private async Task PgnAsync(GameDto game)
+    {
+        string? pgn = null;
+        if (game.HasPgn)
+        {
+            try
+            {
+                pgn = (await Api.GetPgnAsync(Id, game.Id)).Pgn;
+            }
+            catch (Exception e) when (e is ApiClientException or HttpRequestException)
+            {
+                Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+                return;
+            }
+        }
+
+        var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
+            new DialogParameters<PgnDialog>
+            {
+                { d => d.Game, game },
+                { d => d.Pgn, pgn },
+                { d => d.TournamentTitle, Tournament!.Title }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is not { Canceled: false, Data: string text }) return;
+
+        await RunAsync(() => Api.SetPgnAsync(Id, game.Id, text), text.Length == 0 ? L["PgnRemoved"] : L["PgnSaved"]);
     }
 
     private Task GenerateReportAsync(GenerateReportRequest request) =>

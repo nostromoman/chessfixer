@@ -116,8 +116,9 @@ public record RoundDto(int Number, bool IsStarted, IReadOnlyList<GameDto> Games,
 /// <param name="PlayedAt">When a catch-up game was entered (UTC).</param>
 /// <param name="TimesMetBefore">How often the two players met in earlier rounds of this tournament (forfeits not
 /// counted, as in the pairing). 2 or more: this game is (at least) their third meeting.</param>
+/// <param name="HasPgn">The moves of the game were added as PGN (fetched separately: games/{id}/pgn).</param>
 public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GamePlayerDto? Black, GameResult Result,
-    int TimesMetBefore = 0, bool IsCatchUp = false, DateTime? PlayedAt = null);
+    int TimesMetBefore = 0, bool IsCatchUp = false, DateTime? PlayedAt = null, bool HasPgn = false);
 
 /// <param name="IsDeleted">The player has been deleted from the player list.</param>
 /// <param name="IsGuest">A guest player; only filled where the UI shows it (the player statistics).</param>
@@ -125,6 +126,12 @@ public record GameDto(int Id, int Number, int? Board, GamePlayerDto White, GameP
 public record GamePlayerDto(int PlayerId, string Name, bool IsDeleted = false, bool IsGuest = false, string? ClubName = null);
 
 public record SetResultRequest(GameResult Result);
+
+/// <param name="Pgn">The moves of the game in Portable Game Notation; null when none were added.</param>
+public record GamePgnDto(string? Pgn);
+
+/// <param name="Pgn">The moves in Portable Game Notation; empty or null removes them.</param>
+public record SetPgnRequest(string? Pgn);
 
 /// <param name="Buchholz">Swiss tie-break; not used in a competition.</param>
 /// <param name="Remaining">Competition: games still to play (against players still in the competition).</param>

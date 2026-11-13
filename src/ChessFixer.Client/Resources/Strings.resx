@@ -792,4 +792,18 @@
   <data name="ResetDatabaseConfirmText" xml:space="preserve"><value>Alle toernooien, spelers, clubs en ratings worden verwijderd en vervangen door testgegevens. Dit is bedoeld om de applicatie uit te proberen, niet voor echte clubgegevens.</value></data>
   <data name="ResetDatabaseDone" xml:space="preserve"><value>De database is gereset: {0} spelers en {1} clubs. Back-up: {2}</value></data>
   <data name="ActivityAction_Development_Reset" xml:space="preserve"><value>Database resetten</value></data>
+  <data name="PgnAdd" xml:space="preserve"><value>Zetten toevoegen (PGN)</value></data>
+  <data name="PgnView" xml:space="preserve"><value>Zetten bekijken (PGN)</value></data>
+  <data name="PgnTitle" xml:space="preserve"><value>{0} – {1} ({2})</value></data>
+  <data name="PgnHelp" xml:space="preserve"><value>Plak hier de notatie van de partij in PGN (Portable Game Notation), bijvoorbeeld uit een notatie-app of overgetypt van het notatieformulier. Zo kan de partij later geanalyseerd worden.</value></data>
+  <data name="PgnNoMoves" xml:space="preserve"><value>Geen zetten gevonden: de notatie moet met zet 1 beginnen, bijvoorbeeld “1. e4 e5”.</value></data>
+  <data name="PgnRemove" xml:space="preserve"><value>Verwijderen</value></data>
+  <data name="PgnCopy" xml:space="preserve"><value>Kopiëren</value></data>
+  <data name="PgnCopied" xml:space="preserve"><value>De PGN is gekopieerd.</value></data>
+  <data name="PgnDownload" xml:space="preserve"><value>Downloaden als .pgn</value></data>
+  <data name="PgnAnalyse" xml:space="preserve"><value>Analyseren op Lichess</value></data>
+  <data name="PgnSaved" xml:space="preserve"><value>De zetten zijn opgeslagen.</value></data>
+  <data name="PgnRemoved" xml:space="preserve"><value>De zetten zijn verwijderd.</value></data>
+  <data name="Error_InvalidPgn" xml:space="preserve"><value>Geen geldige PGN: er staan geen zetten in, of de tekst is te lang.</value></data>
+  <data name="Error_PgnNotAllowed" xml:space="preserve"><value>Alleen bij een gespeelde partij (gewonnen, verloren of remise) kunnen zetten worden toegevoegd.</value></data>
 </root>

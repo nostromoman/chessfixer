@@ -214,6 +214,10 @@ public class Game
     /// <summary>When a catch-up game was entered; null for the games of a round.</summary>
     public DateTime? PlayedAt { get; set; }
 
+    /// <summary>The moves of the game in Portable Game Notation, added afterwards for analysis; null when none.
+    /// Only for a game played over the board (won, lost or drawn).</summary>
+    public string? Pgn { get; set; }
+
     // ----- Rating: filled in when a rated tournament is closed, for the games that count for the rating -----
 
     /// <summary>The ratings the game was calculated with: the ratings of the players before the tournament.

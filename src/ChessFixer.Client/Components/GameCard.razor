@@ -28,6 +28,14 @@
         {
             <span class="game-card-live">@L["Status_Playing"]</span>
         }
+        @if (CanHavePgn && OnPgn.HasDelegate)
+        {
+            <MudTooltip Text="@(Game.HasPgn ? L["PgnView"] : L["PgnAdd"])" Class="game-card-pgn">
+                <MudIconButton Icon="@(Game.HasPgn ? Icons.Material.Filled.Description : Icons.Material.Outlined.NoteAdd)"
+                               Color="@(Game.HasPgn ? Color.Primary : Color.Default)" Size="Size.Small"
+                               Disabled="Disabled" aria-label="PGN" OnClick="() => OnPgn.InvokeAsync()" />
+            </MudTooltip>
+        }
     </div>
 
     <div class="game-card-body">
@@ -85,6 +93,15 @@
     [Parameter] public bool Entering { get; set; }
 
     [Parameter] public EventCallback<GameResult> OnResult { get; set; }
+
+    /// <summary>Add or view the moves (PGN) of the game.</summary>
+    [Parameter] public EventCallback OnPgn { get; set; }
+
+    /// <summary>Played over the board (won, lost or drawn): the moves can be added. Kept visible when they were
+    /// added before the result was changed, so they can still be seen or removed.</summary>
+    private bool CanHavePgn =>
+        IsStarted && Game.Black is not null
+        && (Game.HasPgn || Game.Result is GameResult.WhiteWins or GameResult.Draw or GameResult.BlackWins);
 
     /// <summary>Started, on a board and no result yet.</summary>
     private bool IsPlaying => IsStarted && Game.Board is not null && Game.Result == GameResult.NotPlayed;

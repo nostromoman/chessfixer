@@ -86,6 +86,15 @@ public class TournamentsController(TournamentService service) : ControllerBase
     public Task<TournamentDto> SetResult(int id, int gameId, SetResultRequest request) =>
         service.SetResultAsync(id, gameId, request.Result);
 
+    /// <summary>The moves of a played game in Portable Game Notation (Pgn null when none were added).</summary>
+    [HttpGet("{id:int}/games/{gameId:int}/pgn")]
+    public Task<GamePgnDto> GetPgn(int id, int gameId) => service.GetPgnAsync(id, gameId);
+
+    /// <summary>Adds, replaces or (with an empty text) removes the moves of a played game; also after closing.</summary>
+    [HttpPut("{id:int}/games/{gameId:int}/pgn")]
+    public Task<TournamentDto> SetPgn(int id, int gameId, SetPgnRequest request) =>
+        service.SetPgnAsync(id, gameId, request.Pgn);
+
     /// <summary>Competition: everyone against everyone, with the games played and still to play.</summary>
     [HttpGet("{id:int}/schedule")]
     public Task<CompetitionScheduleDto> GetSchedule(int id) => service.GetScheduleAsync(id);

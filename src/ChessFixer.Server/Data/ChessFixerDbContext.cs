@@ -1,6 +1,7 @@
 using ChessFixer.Server.Services.Clubs;
 using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Enums;
+using ChessFixer.Shared.Pgn;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -153,6 +154,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         modelBuilder.Entity<Game>(game =>
         {
             game.HasIndex(g => new { g.RoundId, g.Number }).IsUnique();
+            game.Property(g => g.Pgn).HasMaxLength(PgnText.MaxLength);
             game.HasOne(g => g.White).WithMany().HasForeignKey(g => g.WhiteId).OnDelete(DeleteBehavior.Restrict);
             game.HasOne(g => g.Black).WithMany().HasForeignKey(g => g.BlackId).OnDelete(DeleteBehavior.Restrict);
             game.ToTable(t =>

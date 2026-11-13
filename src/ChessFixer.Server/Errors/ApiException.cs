@@ -18,7 +18,7 @@ public sealed class ApiException(ApiErrorCode code) : Exception(code.ToString())
             or ApiErrorCode.InvalidPhoto or ApiErrorCode.InvalidRating
             or ApiErrorCode.UserNameRequired or ApiErrorCode.DisplayNameRequired or ApiErrorCode.PasswordTooShort
             or ApiErrorCode.CurrentPasswordIncorrect or ApiErrorCode.WritingStyleNameRequired
-            or ApiErrorCode.ClubNameRequired
+            or ApiErrorCode.ClubNameRequired or ApiErrorCode.InvalidPgn
             => StatusCodes.Status400BadRequest,
         ApiErrorCode.InvalidCredentials => StatusCodes.Status401Unauthorized,
         ApiErrorCode.TooManyLoginAttempts => StatusCodes.Status429TooManyRequests,

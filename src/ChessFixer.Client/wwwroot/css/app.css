@@ -1344,3 +1344,13 @@ button.schedule-slot {
     color: var(--mud-palette-text-secondary);
     font-weight: normal;
 }
+
+/* PGN button on a game card: always at the right of the top row. */
+.game-card-pgn {
+    margin-left: auto;
+}
+
+.pgn-text textarea {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.9rem;
+}

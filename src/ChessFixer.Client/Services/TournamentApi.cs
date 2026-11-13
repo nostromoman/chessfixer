@@ -83,6 +83,13 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<TournamentDto> SetResultAsync(int id, int gameId, GameResult result) =>
         SendAsync<TournamentDto>(HttpMethod.Put, $"api/tournaments/{id}/games/{gameId}/result", new SetResultRequest(result));
 
+    public Task<GamePgnDto> GetPgnAsync(int id, int gameId) =>
+        SendAsync<GamePgnDto>(HttpMethod.Get, $"api/tournaments/{id}/games/{gameId}/pgn");
+
+    /// <summary>Adds or replaces the moves of a played game; an empty text removes them.</summary>
+    public Task<TournamentDto> SetPgnAsync(int id, int gameId, string? pgn) =>
+        SendAsync<TournamentDto>(HttpMethod.Put, $"api/tournaments/{id}/games/{gameId}/pgn", new SetPgnRequest(pgn));
+
     public Task<List<StandingDto>> GetStandingsAsync(int id) =>
         SendAsync<List<StandingDto>>(HttpMethod.Get, $"api/tournaments/{id}/standings");
 

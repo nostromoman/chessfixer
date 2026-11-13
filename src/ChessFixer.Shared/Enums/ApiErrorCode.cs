@@ -65,5 +65,9 @@ public enum ApiErrorCode
     NotRevertible,
     AlreadyReverted,
     /// <summary>What the action changed has been changed again since; reverting would undo that as well.</summary>
-    ChangedSinceAction
+    ChangedSinceAction,
+    /// <summary>PGN: the text contains no moves, or is too long.</summary>
+    InvalidPgn,
+    /// <summary>PGN: only a game that was played over the board (won, lost or drawn) can have moves.</summary>
+    PgnNotAllowed
 }

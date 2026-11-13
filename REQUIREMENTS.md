@@ -112,6 +112,7 @@ There are two pairing systems.
 ### 5.4 Results
 - Possible results: White wins, Draw, Black wins, Forfeit (white or black wins by forfeit).
 - Results can be corrected until the next round has started. A catch-up game (5.8) can be corrected until the tournament is closed.
+- **Moves (PGN)**: the moves of a game played over the board (won, lost or drawn; not a forfeit or bye) can be added afterwards in Portable Game Notation, for later analysis: via the notation icon on the game card in the Rounds tab (filled when moves were added), in any round and also after the tournament is closed, since they do not count for anything. The text is stored as pasted (trimmed); it must contain moves (starting with move 1) and is at most 20,000 characters. The dialog can copy the PGN, download it as a `.pgn` file (when only moves were pasted, the Event, White, Black and Result tags are added) and open the moves on the Lichess analysis board. Emptying the text removes the moves.
 
 ### 5.5 Standings
 - Score according to the tournament's scoring settings.

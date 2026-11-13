@@ -11,6 +11,7 @@ using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Dtos;
 using ChessFixer.Shared.Enums;
 using ChessFixer.Shared.Hubs;
+using ChessFixer.Shared.Pgn;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -114,7 +115,8 @@ public class TournamentService(
                     g.Result,
                     TimesMetBefore(r, g),
                     g.IsCatchUp,
-                    g.PlayedAt)).ToList(),
+                    g.PlayedAt,
+                    g.Pgn != null)).ToList(),
                 r.StartedAt,
                 reports.GetValueOrDefault(r.Id, noReport)))
             .ToList();
@@ -608,6 +610,38 @@ public class TournamentService(
                 await RefreshPendingRoundAsync(tournament);
             else
                 await RemovePendingRoundAsync(tournament);
+        });
+
+    public async Task<GamePgnDto> GetPgnAsync(int id, int gameId)
+    {
+        var game = await db.Games
+                       .Where(g => g.Id == gameId && g.Round.TournamentId == id)
+                       .Select(g => new { g.Pgn })
+                       .SingleOrDefaultAsync()
+                   ?? throw new ApiException(ApiErrorCode.GameNotFound);
+        return new GamePgnDto(game.Pgn);
+    }
+
+    /// <summary>
+    /// Adds the moves of a game for later analysis, replaces them, or removes them (empty text). Only a game played
+    /// over the board can have moves; it does not matter for the standings, so it is also allowed after closing.
+    /// </summary>
+    public Task<TournamentDto> SetPgnAsync(int id, int gameId, string? pgn) =>
+        MutateAsync(id, tournament =>
+        {
+            var game = tournament.Rounds.SelectMany(r => r.Games).SingleOrDefault(g => g.Id == gameId)
+                       ?? throw new ApiException(ApiErrorCode.GameNotFound);
+
+            var text = PgnText.Normalize(pgn);
+            if (text is not null)
+            {
+                if (game.Result is not (GameResult.WhiteWins or GameResult.Draw or GameResult.BlackWins))
+                    throw new ApiException(ApiErrorCode.PgnNotAllowed);
+                if (text.Length > PgnText.MaxLength || !PgnText.HasMoves(text)) throw new ApiException(ApiErrorCode.InvalidPgn);
+            }
+
+            game.Pgn = text;
+            return Task.CompletedTask;
         });
 
     /// <summary>
