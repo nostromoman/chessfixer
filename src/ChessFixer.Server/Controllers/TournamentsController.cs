@@ -98,7 +98,7 @@ public class TournamentsController(TournamentService service) : ControllerBase
 
     /// <summary>
     /// Reads the moves from a photo of the handwritten scoresheet (body: the image, JPEG/PNG/GIF/WebP, max 5 MB)
-    /// with Claude and returns them as PGN to check. Nothing is saved.
+    /// with Claude and returns them as PGN to check. The photo is kept (also when reading fails); the PGN is not saved.
     /// </summary>
     [HttpPost("{id:int}/games/{gameId:int}/scoresheet")]
     [RequestSizeLimit(ScoresheetService.MaxImageBytes + 1024)]
@@ -107,7 +107,7 @@ public class TournamentsController(TournamentService service) : ControllerBase
     {
         using var buffer = new MemoryStream();
         await Request.Body.CopyToAsync(buffer, cancellationToken);
-        return await scoresheets.ReadAsync(id, gameId, buffer.ToArray(), Request.ContentType, cancellationToken);
+        return await scoresheets.ReadAsync(id, gameId, buffer.ToArray(), Request.ContentType, User, cancellationToken);
     }
 
     /// <summary>Competition: everyone against everyone, with the games played and still to play.</summary>

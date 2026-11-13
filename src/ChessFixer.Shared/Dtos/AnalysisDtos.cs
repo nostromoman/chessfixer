@@ -2,7 +2,7 @@ using ChessFixer.Shared.Enums;
 
 namespace ChessFixer.Shared.Dtos;
 
-/// <summary>A game with moves (PGN), for the list of games.</summary>
+/// <summary>A game with moves (PGN) or photos of its scoresheet, for the list of games.</summary>
 /// <param name="Date">When the game was played: the start of its round, or when a catch-up game was entered.</param>
 /// <param name="Moves">Number of moves (full moves) that could be read.</param>
 public record AnalysedGameSummaryDto(
@@ -16,7 +16,8 @@ public record AnalysedGameSummaryDto(
     GamePlayerDto Black,
     GameResult Result,
     int Moves,
-    AnalysisSummaryDto Analysis);
+    AnalysisSummaryDto Analysis,
+    int Scoresheets = 0);
 
 /// <summary>A game of one player (the Partijen tab of the player drawer), with the analysis when moves were added.</summary>
 /// <param name="IsWhite">The player had White.</param>
@@ -35,7 +36,8 @@ public record PlayerAnalysedGameDto(
     GameResult Result,
     bool HasPgn,
     bool CanHavePgn,
-    AnalysisSummaryDto Analysis);
+    AnalysisSummaryDto Analysis,
+    int Scoresheets = 0);
 
 /// <param name="Status">None when there is no analysis of the current moves.</param>
 /// <param name="WhiteAccuracy">0–100; only when the analysis is done.</param>
@@ -51,6 +53,8 @@ public record AnalysisSummaryDto(
 public record MoveQualityCountDto(int Inaccuracies, int Mistakes, int Blunders);
 
 /// <summary>A game with its moves and the engine analysis, for the analysis page.</summary>
+/// <param name="Pgn">Null when the game has only photos of its scoresheet, no moves (yet).</param>
+/// <param name="Scoresheets">The photos of the handwritten scoresheet, oldest first.</param>
 /// <param name="StartFen">The position before the first move.</param>
 /// <param name="StartEvaluation">The evaluation of the start position, with the best first move.</param>
 /// <param name="MoveError">The move where reading the PGN stopped (a typo or an illegal move); null when all moves were read.</param>
@@ -64,7 +68,7 @@ public record GameAnalysisDto(
     GamePlayerDto White,
     GamePlayerDto Black,
     GameResult Result,
-    string Pgn,
+    string? Pgn,
     string StartFen,
     IReadOnlyList<PlyDto> Plies,
     PgnMoveErrorDto? MoveError,
@@ -73,7 +77,8 @@ public record GameAnalysisDto(
     string? Engine,
     int? Depth,
     DateTime? AnalysedAt,
-    string? AnalysisError);
+    string? AnalysisError,
+    IReadOnlyList<ScoresheetPhotoDto>? Scoresheets = null);
 
 /// <summary>One half-move with the position after it and, once analysed, how good it was.</summary>
 /// <param name="Fen">The position after the move.</param>
@@ -118,7 +123,14 @@ public record ScoresheetResultDto(
     IReadOnlyList<ScoresheetUncertainMoveDto> Uncertain,
     ScoresheetStopDto? Stop,
     string Remarks,
-    string Model);
+    string Model,
+    int ScoresheetId);
+
+/// <summary>A photo of the handwritten scoresheet of a game, kept for the records (the image: GET
+/// api/games/{GameId}/scoresheets/{Id}/image).</summary>
+/// <param name="UploadedBy">Display name of the user who uploaded it.</param>
+/// <param name="Bytes">Size of the image.</param>
+public record ScoresheetPhotoDto(int Id, int GameId, DateTime UploadedAt, string? UploadedBy, int Bytes);
 
 public record ScoresheetUncertainMoveDto(int MoveNumber, bool White, string San, string ReadAs);
 

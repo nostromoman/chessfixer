@@ -18,12 +18,20 @@
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["PgnHelp"]</MudText>
         @if (TournamentId > 0)
         {
-            <div class="d-flex align-center flex-wrap gap-2 mb-3">
+            <div class="d-flex align-center flex-wrap gap-2 mb-1">
                 <InputFile id="@_fileInputId" OnChange="ReadScoresheetAsync" accept="image/*" hidden disabled="@_reading" />
                 <MudButton HtmlTag="label" for="@_fileInputId" Variant="Variant.Outlined" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_reading">@L["ScoresheetButton"]</MudButton>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="flex: 1; min-width: 200px">@L["ScoresheetHelp"]</MudText>
+                <InputFile id="@_storeInputId" OnChange="StoreScoresheetAsync" accept="image/*" hidden disabled="@_reading" />
+                <MudButton HtmlTag="label" for="@_storeInputId" Variant="Variant.Text"
+                           StartIcon="@Icons.Material.Outlined.AddAPhoto" Disabled="_reading">@L["ScoresheetUploadOnly"]</MudButton>
             </div>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">@L["ScoresheetHelp"]</MudText>
+            @if (_photos is { Count: > 0 })
+            {
+                <MudText Typo="Typo.caption" Class="d-block mb-1">@L["ScoresheetPhotosKept", _photos.Count]</MudText>
+                <ScoresheetPhotos Photos="_photos" Compact="true" />
+            }
         }
         @if (_reading)
         {
@@ -108,16 +116,37 @@
     private const long MaxUploadBytes = 5 * 1024 * 1024;
 
     private readonly string _fileInputId = $"scoresheet-{Guid.NewGuid():N}";
+    private readonly string _storeInputId = $"scoresheet-store-{Guid.NewGuid():N}";
     private string? _text;
     private bool _reading;
     private ScoresheetResultDto? _scoresheet;
+
+    /// <summary>The photos of this game's scoresheet that are kept; null while loading (or without a tournament).</summary>
+    private List<ScoresheetPhotoDto>? _photos;
 
     private static string MoveLabel(int number, bool white) => white ? $"{number}." : $"{number}...";
 
     private string UncertainList(ScoresheetResultDto sheet) =>
         string.Join(", ", sheet.Uncertain.Select(u => L["ScoresheetUncertainMove", $"{MoveLabel(u.MoveNumber, u.White)} {u.San}", u.ReadAs].Value));
 
-    protected override void OnInitialized() => _text = Pgn;
+    protected override async Task OnInitializedAsync()
+    {
+        _text = Pgn;
+        await LoadPhotosAsync();
+    }
+
+    private async Task LoadPhotosAsync()
+    {
+        if (TournamentId <= 0) return;
+        try
+        {
+            _photos = await Api.GetScoresheetsAsync(Game.Id);
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            // Not essential: the dialog works without the photos.
+        }
+    }
 
     private const string Placeholder = "[White \"...\"]\n[Black \"...\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 ...";
 
@@ -166,7 +195,16 @@
     /// A photo of the scoresheet was chosen (or taken): scale it down in the browser, let Claude read it and put
     /// the moves in the text field to check. Nothing is saved until Save.
     /// </summary>
-    private async Task ReadScoresheetAsync(InputFileChangeEventArgs e)
+    private Task ReadScoresheetAsync(InputFileChangeEventArgs e) => UploadPhotoAsync(e, read: true);
+
+    /// <summary>A photo to keep with the game without reading it (e.g. when the handwriting is too hard to read).</summary>
+    private Task StoreScoresheetAsync(InputFileChangeEventArgs e) => UploadPhotoAsync(e, read: false);
+
+    /// <summary>
+    /// The photo is scaled down in the browser and uploaded. The server always keeps it with the game (also when
+    /// reading fails); when reading, the moves are put in the text field to check. The PGN is saved only with Save.
+    /// </summary>
+    private async Task UploadPhotoAsync(InputFileChangeEventArgs e, bool read)
     {
         _reading = true;
         _scoresheet = null;
@@ -178,13 +216,24 @@
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
 
-            _scoresheet = await Api.ReadScoresheetAsync(TournamentId, Game.Id, buffer.ToArray(), "image/jpeg");
-            _text = _scoresheet.Pgn;
+            if (read)
+            {
+                _scoresheet = await Api.ReadScoresheetAsync(TournamentId, Game.Id, buffer.ToArray(), "image/jpeg");
+                _text = _scoresheet.Pgn;
+            }
+            else
+            {
+                await Api.UploadScoresheetAsync(Game.Id, buffer.ToArray(), "image/jpeg");
+                Snackbar.Add(L["ScoresheetStored"], Severity.Success);
+            }
         }
         catch (ApiClientException ex)
         {
             var message = ex.Code is { } code ? L[$"Error_{code}"].Value : L["Error_Unknown"].Value;
-            Snackbar.Add(ex.Detail is null ? message : $"{message} {ex.Detail}", Severity.Error);
+            if (ex.Detail is not null) message += " " + ex.Detail;
+            // These come after the photo was stored.
+            if (ex.Code is ApiErrorCode.ScoresheetNeedsClaude or ApiErrorCode.ScoresheetFailed) message += " " + L["ScoresheetStoredAnyway"];
+            Snackbar.Add(message, Severity.Error);
         }
         catch (IOException)
         {
@@ -202,6 +251,7 @@
         {
             _reading = false;
         }
+        await LoadPhotosAsync();
     }
 
     private async Task CopyAsync()

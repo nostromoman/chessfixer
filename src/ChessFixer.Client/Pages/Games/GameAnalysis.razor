@@ -32,9 +32,14 @@ else
         </MudText>
         <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">@L[$"Result_{game.Result}"]</MudChip>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="EditPgnAsync" Disabled="_busy">@L["PgnEdit"]</MudButton>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="AnalyseAsync"
-                   Disabled="@(_busy || game.Analysis.Status is AnalysisStatus.Pending or AnalysisStatus.Running)">@L["AnalyseAgain"]</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="EditPgnAsync" Disabled="_busy">
+            @(game.Pgn is null ? L["PgnAddMoves"] : L["PgnEdit"])
+        </MudButton>
+        @if (game.Pgn is not null)
+        {
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="AnalyseAsync"
+                       Disabled="@(_busy || game.Analysis.Status is AnalysisStatus.Pending or AnalysisStatus.Running)">@L["AnalyseAgain"]</MudButton>
+        }
     </div>
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
         <MudLink Href="@($"tournament/{game.TournamentId}")">@game.TournamentTitle</MudLink>
@@ -51,6 +56,8 @@ else
 
     @StatusAlert(game)
 
+    @if (game.Pgn is not null)
+    {
     <div class="analysis-layout" tabindex="0" @onkeydown="OnKeyDown">
         <div class="analysis-board-column">
             <div class="analysis-board-row">
@@ -131,6 +138,16 @@ else
             <MudText Typo="Typo.subtitle2" Class="mb-2">@L["EvalGraphTitle"]</MudText>
             <EvalGraph Plies="game.Plies" Current="_ply" OnSelect="Go" />
             <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["EvalGraphHelp"]</MudText>
+        </MudPaper>
+    }
+    }
+
+    @if (game.Scoresheets is { Count: > 0 } photos)
+    {
+        <MudPaper Class="pa-3 mt-4" Elevation="1">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">@L["ScoresheetPhotos"]</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2">@L["ScoresheetPhotosHelp"]</MudText>
+            <ScoresheetPhotos Photos="photos" CanDelete="true" OnDeleted="PhotoDeletedAsync" />
         </MudPaper>
     }
 }
@@ -233,14 +250,18 @@ else
         var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
             new DialogParameters<PgnDialog>
             {
-                { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: true) },
+                { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.Pgn is not null) },
                 { d => d.Pgn, game.Pgn },
                 { d => d.TournamentTitle, game.TournamentTitle },
                 { d => d.TournamentId, game.TournamentId },
                 { d => d.ShowAnalysisLink, false }
             },
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
-        if (await dialog.Result is not { Canceled: false, Data: string text }) return;
+        if (await dialog.Result is not { Canceled: false, Data: string text })
+        {
+            await ReloadAsync(); // photos may have been added in the dialog
+            return;
+        }
 
         _busy = true;
         try
@@ -249,7 +270,8 @@ else
             if (text.Length == 0)
             {
                 Snackbar.Add(L["PgnRemoved"], Severity.Success);
-                Navigation.NavigateTo("games");
+                await ReloadAsync();
+                if (_notFound) Navigation.NavigateTo("games"); // no moves and no photos: no longer in the list
                 return;
             }
             Snackbar.Add(L["PgnSaved"], Severity.Success);
@@ -270,8 +292,20 @@ else
         }
     }
 
+    private async Task PhotoDeletedAsync(ScoresheetPhotoDto photo)
+    {
+        Snackbar.Add(L["ScoresheetDeleted"], Severity.Success);
+        await ReloadAsync();
+        if (_notFound) Navigation.NavigateTo("games"); // the last photo of a game without moves
+    }
+
     private RenderFragment StatusAlert(GameAnalysisDto game) => __builder =>
     {
+        if (game.Pgn is null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3">@L["NoMovesYet"]</MudAlert>
+            return;
+        }
         if (game.MoveError is { } error)
         {
             <MudAlert Severity="Severity.Warning" Class="mb-3">

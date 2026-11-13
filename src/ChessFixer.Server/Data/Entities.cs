@@ -221,6 +221,9 @@ public class Game
     /// <summary>The engine analysis of <see cref="Pgn"/>; null when there are no moves.</summary>
     public GameAnalysis? Analysis { get; set; }
 
+    /// <summary>Photos of the handwritten scoresheet, kept for the records.</summary>
+    public List<GameScoresheet> Scoresheets { get; set; } = [];
+
     // ----- Rating: filled in when a rated tournament is closed, for the games that count for the rating -----
 
     /// <summary>The ratings the game was calculated with: the ratings of the players before the tournament.
@@ -273,6 +276,26 @@ public class GameAnalysis
     public string? Error { get; set; }
     public DateTime RequestedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
+}
+
+/// <summary>
+/// A photo of the handwritten scoresheet of a game, kept for the records: every photo that is uploaded (to be read
+/// by Claude or only to be kept) is stored, also when reading it fails. The browser scales it down first (about
+/// 2000 px, JPEG), so a photo is typically a few hundred kB.
+/// </summary>
+public class GameScoresheet
+{
+    public int Id { get; set; }
+    public int GameId { get; set; }
+    public Game Game { get; set; } = null!;
+
+    public required byte[] Data { get; set; }
+    public required string ContentType { get; set; }
+
+    public DateTime UploadedAt { get; set; }
+
+    /// <summary>Display name of the user who uploaded it, as it was then.</summary>
+    public string? UploadedBy { get; set; }
 }
 
 /// <summary>Application-wide settings; there is exactly one row (Id 1).</summary>

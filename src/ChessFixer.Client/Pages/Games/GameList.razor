@@ -54,7 +54,14 @@
                     @context.TournamentTitle
                     <span class="mud-text-secondary">· @(context.IsCatchUp ? L["CatchUp"] : L["Round", context.Round])</span>
                 </MudTd>
-                <MudTd Class="hide-xs" Style="text-align: right">@context.Moves</MudTd>
+                <MudTd Class="hide-xs" Style="text-align: right; white-space: nowrap">
+                    @(context.Moves > 0 ? context.Moves.ToString() : "–")
+                    @if (context.Scoresheets > 0)
+                    {
+                        <MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" Size="Size.Small" Class="ms-1" Style="vertical-align: middle"
+                                 Title="@L["ScoresheetCount", context.Scoresheets]" />
+                    }
+                </MudTd>
                 <MudTd Style="white-space: nowrap">@AnalysisCell(context.Analysis)</MudTd>
             </RowTemplate>
         </MudTable>

@@ -407,6 +407,38 @@ namespace ChessFixer.Server.Data.Migrations
                     b.ToTable("GameAnalyses");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.GameScoresheet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UploadedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.ToTable("GameScoresheets");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>
                 {
                     b.Property<int>("Id")
@@ -875,6 +907,17 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Navigation("Game");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.GameScoresheet", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.Game", "Game")
+                        .WithMany("Scoresheets")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>
                 {
                     b.HasOne("ChessFixer.Server.Data.Club", "Club")
@@ -975,6 +1018,8 @@ namespace ChessFixer.Server.Data.Migrations
             modelBuilder.Entity("ChessFixer.Server.Data.Game", b =>
                 {
                     b.Navigation("Analysis");
+
+                    b.Navigation("Scoresheets");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>

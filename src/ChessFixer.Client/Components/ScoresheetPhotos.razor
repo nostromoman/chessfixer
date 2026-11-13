@@ -1,0 +1,69 @@
+@inject TournamentApi Api
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* The kept photos of a game's handwritten scoresheet as thumbnails. A click opens the photo full size in a new tab
+   (where it can be zoomed); with CanDelete each photo has a delete button (after confirmation). *@
+<div class="scoresheet-photos @(Compact ? "compact" : "")">
+    @foreach (var photo in Photos)
+    {
+        var url = TournamentApi.ScoresheetImageUrl(photo.GameId, photo.Id);
+        <div class="scoresheet-photo">
+            <a href="@url" target="_blank" rel="noopener" title="@L["ScoresheetOpen"]">
+                <img src="@url" alt="@L["ScoresheetPhotos"]" loading="lazy" />
+            </a>
+            @if (!Compact)
+            {
+                <div class="scoresheet-photo-info">
+                    <span>@Uploaded(photo)</span>
+                    @if (CanDelete)
+                    {
+                        <MudTooltip Text="@L["ScoresheetDelete"]">
+                            <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" aria-label="@L["ScoresheetDelete"]"
+                                           OnClick="() => DeleteAsync(photo)" />
+                        </MudTooltip>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ScoresheetPhotoDto> Photos { get; set; } = [];
+
+    /// <summary>Small thumbnails without date and buttons (in the PGN dialog).</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    [Parameter] public bool CanDelete { get; set; }
+
+    [Parameter] public EventCallback<ScoresheetPhotoDto> OnDeleted { get; set; }
+
+    private string Uploaded(ScoresheetPhotoDto photo)
+    {
+        var when = photo.UploadedAt.ToLocalTime().ToString("d MMM yyyy HH:mm");
+        return photo.UploadedBy is { } by ? L["ScoresheetUploadedBy", when, by] : when;
+    }
+
+    private async Task DeleteAsync(ScoresheetPhotoDto photo)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(L["ScoresheetDelete"], L["ScoresheetDeleteConfirm"],
+            yesText: L["ScoresheetDelete"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        try
+        {
+            await Api.DeleteScoresheetAsync(photo.GameId, photo.Id);
+            await OnDeleted.InvokeAsync(photo);
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+    }
+}

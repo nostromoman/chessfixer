@@ -75,5 +75,7 @@ public enum ApiErrorCode
     /// <summary>Scoresheet photo: reading it needs Claude as AI provider (Settings, AI).</summary>
     ScoresheetNeedsClaude,
     /// <summary>Scoresheet photo: Claude could not read it (the detail says why), or found no moves.</summary>
-    ScoresheetFailed
+    ScoresheetFailed,
+    /// <summary>The scoresheet photo does not exist (any more).</summary>
+    ScoresheetNotFound
 }

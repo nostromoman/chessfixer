@@ -107,7 +107,26 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<GameAnalysisDto> AnalyseGameAsync(int gameId) =>
         SendAsync<GameAnalysisDto>(HttpMethod.Post, $"api/games/{gameId}/analyse");
 
-    /// <summary>Reads the moves from a photo of the handwritten scoresheet (Claude); nothing is saved.</summary>
+    public Task<List<ScoresheetPhotoDto>> GetScoresheetsAsync(int gameId) =>
+        SendAsync<List<ScoresheetPhotoDto>>(HttpMethod.Get, $"api/games/{gameId}/scoresheets");
+
+    /// <summary>Keeps a photo of the scoresheet without reading it.</summary>
+    public Task<ScoresheetPhotoDto> UploadScoresheetAsync(int gameId, byte[] image, string contentType)
+    {
+        var content = new ByteArrayContent(image);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        return SendAsync<ScoresheetPhotoDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheets", content);
+    }
+
+    public async Task DeleteScoresheetAsync(int gameId, int photoId)
+    {
+        using var _ = await SendCoreAsync(HttpMethod.Delete, $"api/games/{gameId}/scoresheets/{photoId}");
+    }
+
+    /// <summary>The URL of a scoresheet photo, for an img or a link.</summary>
+    public static string ScoresheetImageUrl(int gameId, int photoId) => $"api/games/{gameId}/scoresheets/{photoId}/image";
+
+    /// <summary>Reads the moves from a photo of the handwritten scoresheet (Claude); the photo is kept, the PGN is not saved.</summary>
     public Task<ScoresheetResultDto> ReadScoresheetAsync(int id, int gameId, byte[] image, string contentType)
     {
         var content = new ByteArrayContent(image);

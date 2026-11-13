@@ -809,7 +809,7 @@
   <data name="ActivityAction_Tournaments_SetPgn" xml:space="preserve"><value>Zetten (PGN) opslaan</value></data>
   <data name="ActivityAction_Games_Analyse" xml:space="preserve"><value>Partij opnieuw analyseren</value></data>
   <data name="Games" xml:space="preserve"><value>Partijen</value></data>
-  <data name="GamesIntro" xml:space="preserve"><value>De partijen waarvan de zetten (PGN) zijn toegevoegd, met de analyse door Stockfish. Klik op een partij om de analyse te bekijken.</value></data>
+  <data name="GamesIntro" xml:space="preserve"><value>De partijen waarvan de zetten (PGN) of een foto van het notatieformulier zijn toegevoegd, met de analyse door Stockfish. Klik op een partij om de analyse en de foto’s te bekijken.</value></data>
   <data name="GamesEmpty" xml:space="preserve"><value>Er zijn nog geen partijen met zetten. Voeg de zetten toe via het notatie-icoon op een gespeelde partij in de Rondes-tab van een toernooi.</value></data>
   <data name="GamesSearch" xml:space="preserve"><value>Zoek speler of toernooi</value></data>
   <data name="GamesMoves" xml:space="preserve"><value>Zetten</value></data>
@@ -853,8 +853,8 @@
   <data name="PlayerGamesCountsHelp" xml:space="preserve"><value>{0} onnauwkeurigheden, {1} fouten, {2} blunders</value></data>
   <data name="AnalysisPendingShort" xml:space="preserve"><value>wacht op analyse</value></data>
   <data name="AnalysisRunningShort" xml:space="preserve"><value>analyse {0}/{1}</value></data>
-  <data name="ScoresheetButton" xml:space="preserve"><value>Foto van notatieformulier</value></data>
-  <data name="ScoresheetHelp" xml:space="preserve"><value>Maak of kies een foto van het handgeschreven notatieformulier; Claude leest de zetten en zet ze hieronder. De foto gaat naar Anthropic en wordt niet bewaard.</value></data>
+  <data name="ScoresheetButton" xml:space="preserve"><value>Foto laten lezen</value></data>
+  <data name="ScoresheetHelp" xml:space="preserve"><value>Maak of kies een foto van het handgeschreven notatieformulier. ‘Foto laten lezen’: Claude leest de zetten en zet ze hieronder (de foto gaat daarvoor naar Anthropic). ‘Foto alleen bewaren’: alleen bewaren, bijvoorbeeld om de zetten later zelf over te typen. De foto wordt altijd bij de partij bewaard, ook als het lezen niet lukt.</value></data>
   <data name="ScoresheetReading" xml:space="preserve"><value>Claude leest het notatieformulier en de zetten worden op het bord gecontroleerd… Dit kan een minuut duren.</value></data>
   <data name="ScoresheetRead" xml:space="preserve"><value>{0} zetten gelezen ({1}). Controleer ze met het notatieformulier voordat je opslaat.</value></data>
   <data name="ScoresheetUncertain" xml:space="preserve"><value>Onzeker gelezen, controleer:</value></data>
@@ -865,4 +865,21 @@
   <data name="Error_ScoresheetNeedsClaude" xml:space="preserve"><value>Een foto lezen kan alleen met Claude als AI. Stel dat in bij Instellingen → AI.</value></data>
   <data name="Error_ScoresheetFailed" xml:space="preserve"><value>De foto kon niet gelezen worden.</value></data>
   <data name="ActivityAction_Tournaments_ReadScoresheet" xml:space="preserve"><value>Notatieformulier laten lezen</value></data>
+  <data name="ScoresheetUploadOnly" xml:space="preserve"><value>Foto alleen bewaren</value></data>
+  <data name="ScoresheetStored" xml:space="preserve"><value>De foto van het notatieformulier is bewaard.</value></data>
+  <data name="ScoresheetStoredAnyway" xml:space="preserve"><value>De foto is wel bewaard.</value></data>
+  <data name="ScoresheetPhotos" xml:space="preserve"><value>Notatieformulier</value></data>
+  <data name="ScoresheetPhotosKept" xml:space="preserve"><value>Bewaarde foto’s van het notatieformulier ({0}); klik om groot te bekijken:</value></data>
+  <data name="ScoresheetPhotosHelp" xml:space="preserve"><value>De bewaarde foto’s van het handgeschreven notatieformulier. Klik op een foto om hem groot te openen (in een nieuw tabblad, daar kun je inzoomen).</value></data>
+  <data name="ScoresheetOpen" xml:space="preserve"><value>Foto groot openen</value></data>
+  <data name="ScoresheetUploadedBy" xml:space="preserve"><value>{0} door {1}</value></data>
+  <data name="ScoresheetDelete" xml:space="preserve"><value>Foto verwijderen</value></data>
+  <data name="ScoresheetDeleteConfirm" xml:space="preserve"><value>Deze foto van het notatieformulier verwijderen? Dit kan niet ongedaan worden gemaakt.</value></data>
+  <data name="ScoresheetDeleted" xml:space="preserve"><value>De foto is verwijderd.</value></data>
+  <data name="ScoresheetCount" xml:space="preserve"><value>{0} foto(’s) van het notatieformulier</value></data>
+  <data name="NoMovesYet" xml:space="preserve"><value>Van deze partij zijn nog geen zetten ingevoerd, alleen foto’s van het notatieformulier (hieronder). Kies ‘Zetten toevoegen’ om ze over te typen of de foto te laten lezen.</value></data>
+  <data name="PgnAddMoves" xml:space="preserve"><value>Zetten toevoegen</value></data>
+  <data name="Error_ScoresheetNotFound" xml:space="preserve"><value>Deze foto bestaat niet (meer).</value></data>
+  <data name="ActivityAction_Games_UploadScoresheet" xml:space="preserve"><value>Foto van notatieformulier bewaren</value></data>
+  <data name="ActivityAction_Games_DeleteScoresheet" xml:space="preserve"><value>Foto van notatieformulier verwijderen</value></data>
 </root>

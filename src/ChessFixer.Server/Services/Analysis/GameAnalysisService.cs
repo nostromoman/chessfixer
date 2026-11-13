@@ -42,26 +42,36 @@ public class GameAnalysisService(
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Games with moves, or with photos of the scoresheet (whose moves may not be typed in yet).</summary>
     private IQueryable<Game> GamesWithMoves() =>
         db.Games
-            .Where(g => g.Pgn != null && g.BlackId != null)
+            .Where(g => g.BlackId != null && (g.Pgn != null || g.Scoresheets.Any()))
             .Include(g => g.Round).ThenInclude(r => r.Tournament)
             .Include(g => g.White).ThenInclude(p => p.Player)
             .Include(g => g.Black!).ThenInclude(p => p.Player)
             .Include(g => g.Analysis)
             .AsSplitQuery();
 
-    /// <summary>All games with moves, newest first.</summary>
+    /// <summary>The number of scoresheet photos per game (games without photos are left out).</summary>
+    private async Task<Dictionary<int, int>> PhotoCountsAsync(IReadOnlyCollection<int> gameIds) =>
+        await db.GameScoresheets
+            .Where(s => gameIds.Contains(s.GameId))
+            .GroupBy(s => s.GameId)
+            .Select(g => new { GameId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.GameId, g => g.Count);
+
+    /// <summary>All games with moves or scoresheet photos, newest first.</summary>
     public async Task<List<AnalysedGameSummaryDto>> GetAllAsync()
     {
         var games = await GamesWithMoves().ToListAsync();
+        var photos = await PhotoCountsAsync(games.Select(g => g.Id).ToList());
         return games
             .Select(g =>
             {
                 var report = Build(g);
                 return new AnalysedGameSummaryDto(g.Id, g.Round.TournamentId, g.Round.Tournament.Title, g.Round.Number,
                     g.IsCatchUp, DateOf(g), Player(g.White), Player(g.Black!), g.Result,
-                    (report.Plies.Count + 1) / 2, report.Analysis);
+                    (report.Plies.Count + 1) / 2, report.Analysis, photos.GetValueOrDefault(g.Id));
             })
             .OrderByDescending(g => g.Date)
             .ThenByDescending(g => g.GameId)
@@ -87,6 +97,8 @@ public class GameAnalysisService(
             .AsSplitQuery()
             .ToListAsync();
 
+        var photos = await PhotoCountsAsync(games.Select(g => g.Id).ToList());
+
         GamePlayerDto WithClub(TournamentPlayer p) => new(p.PlayerId, p.Player.Name, p.Player.IsDeleted, p.Player.IsGuest,
             p.Player is { IsGuest: true, ClubId: { } clubId } ? clubNames.GetValueOrDefault(clubId) : null);
 
@@ -96,7 +108,8 @@ public class GameAnalysisService(
                 g.White.PlayerId == playerId, WithClub(g.White), WithClub(g.Black!), g.Result,
                 g.Pgn is not null,
                 g.Result is GameResult.WhiteWins or GameResult.Draw or GameResult.BlackWins,
-                g.Pgn is null ? new AnalysisSummaryDto(AnalysisStatus.None) : Build(g).Analysis))
+                g.Pgn is null ? new AnalysisSummaryDto(AnalysisStatus.None) : Build(g).Analysis,
+                photos.GetValueOrDefault(g.Id)))
             .OrderByDescending(g => g.Date)
             .ThenByDescending(g => g.GameId)
             .ToList();
@@ -106,7 +119,12 @@ public class GameAnalysisService(
     {
         var game = await GamesWithMoves().SingleOrDefaultAsync(g => g.Id == gameId)
                    ?? throw new ApiException(ApiErrorCode.GameNotFound);
-        return Build(game);
+        var photos = await db.GameScoresheets
+            .Where(s => s.GameId == gameId)
+            .OrderBy(s => s.Id)
+            .Select(s => new ScoresheetPhotoDto(s.Id, s.GameId, s.UploadedAt, s.UploadedBy, s.Data.Length))
+            .ToListAsync();
+        return Build(game) with { Scoresheets = photos };
     }
 
     /// <summary>
@@ -151,7 +169,7 @@ public class GameAnalysisService(
     /// <summary>The moves replayed, joined with the engine evaluations when the analysis of these moves is done.</summary>
     private static GameAnalysisDto Build(Game game)
     {
-        var parsed = PgnGame.Parse(game.Pgn!);
+        var parsed = PgnGame.Parse(game.Pgn ?? ""); // no moves yet: only photos of the scoresheet
         var analysis = game.Analysis is { } a && a.Pgn == game.Pgn ? a : null;
         var positions = analysis is { Status: AnalysisStatus.Done, Positions: { } json }
             ? JsonSerializer.Deserialize<List<AnalysedPosition>>(json, Json)
@@ -206,7 +224,7 @@ public class GameAnalysisService(
         var start = positions?[0];
         return new GameAnalysisDto(
             game.Id, game.Round.TournamentId, game.Round.Tournament.Title, game.Round.Number, game.IsCatchUp, DateOf(game),
-            Player(game.White), Player(game.Black!), game.Result, game.Pgn!, parsed.StartFen, plies,
+            Player(game.White), Player(game.Black!), game.Result, game.Pgn, parsed.StartFen, plies,
             parsed.Error is { } e ? new PgnMoveErrorDto(e.MoveNumber, e.White, e.Text) : null,
             summary,
             start is null ? null : ToDto(start.Evaluation, Position.FromFen(parsed.StartFen).WhiteToMove),

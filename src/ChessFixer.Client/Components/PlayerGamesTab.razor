@@ -40,7 +40,7 @@ else
             @foreach (var game in _games)
             {
                 var opponent = game.IsWhite ? game.Black : game.White;
-                <tr class="@(game.HasPgn ? "cursor-pointer" : "")" @onclick="() => Open(game)">
+                <tr class="@(CanOpen(game) ? "cursor-pointer" : "")" @onclick="() => Open(game)">
                     <td class="hide-xs" style="white-space: nowrap">@(game.Date?.ToLocalTime().ToString("d MMM yyyy") ?? "")</td>
                     <td>
                         @game.TournamentTitle
@@ -57,7 +57,14 @@ else
                     <td style="white-space: nowrap">
                         <span class="@Display.OutcomeClass(game.Result, game.IsWhite)">@L[$"Result_{game.Result}"]</span>
                     </td>
-                    <td style="white-space: nowrap">@AnalysisCell(game)</td>
+                    <td style="white-space: nowrap">
+                        @AnalysisCell(game)
+                        @if (game.Scoresheets > 0)
+                        {
+                            <MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" Size="Size.Small" Class="ms-1" Style="vertical-align: middle"
+                                     Title="@L["ScoresheetCount", game.Scoresheets]" />
+                        }
+                    </td>
                     <td style="text-align: right" @onclick:stopPropagation="true">
                         @if (game.CanHavePgn || game.HasPgn)
                         {
@@ -107,9 +114,12 @@ else
     private Task OnGameAnalysisChangedAsync(int gameId) =>
         _games?.Any(g => g.GameId == gameId) == true ? ReloadAsync() : Task.CompletedTask;
 
+    /// <summary>A game with moves or scoresheet photos has an analysis page.</summary>
+    private static bool CanOpen(PlayerAnalysedGameDto game) => game.HasPgn || game.Scoresheets > 0;
+
     private void Open(PlayerAnalysedGameDto game)
     {
-        if (game.HasPgn) Navigation.NavigateTo($"games/{game.GameId}");
+        if (CanOpen(game)) Navigation.NavigateTo($"games/{game.GameId}");
     }
 
     private async Task EditPgnAsync(PlayerAnalysedGameDto game)
@@ -127,7 +137,11 @@ else
                     { d => d.TournamentId, game.TournamentId }
                 },
                 new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
-            if (await dialog.Result is not { Canceled: false, Data: string text }) return;
+            if (await dialog.Result is not { Canceled: false, Data: string text })
+            {
+                await ReloadAsync(); // photos may have been added in the dialog
+                return;
+            }
 
             await Api.SetPgnAsync(game.TournamentId, game.GameId, text);
             Snackbar.Add(text.Length == 0 ? L["PgnRemoved"] : L["PgnSaved"], Severity.Success);

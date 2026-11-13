@@ -139,6 +139,78 @@ public class ScoresheetTests : ApiTestBase
     }
 
     [Fact]
+    public async Task Photo_IsKept_AlsoWhenReadingIsNotPossible()
+    {
+        var (id, game) = await PlayedGameAsync();
+
+        // Ollama is the AI: reading is not possible, but the photo is kept.
+        await AssertErrorAsync(await PostPhotoAsync(id, game.Id), HttpStatusCode.Conflict, ApiErrorCode.ScoresheetNeedsClaude);
+
+        var photo = Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+        Assert.Equal(LeaderDisplayName, photo.UploadedBy);
+        Assert.Equal(Photo.Length, photo.Bytes);
+
+        var image = await Client.GetAsync($"api/games/{game.Id}/scoresheets/{photo.Id}/image");
+        Assert.Equal(HttpStatusCode.OK, image.StatusCode);
+        Assert.Equal("image/jpeg", image.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(Photo, await image.Content.ReadAsByteArrayAsync());
+
+        // A game with only a photo (no moves yet) is in the list of games and has an analysis page.
+        var listed = Assert.Single(await GetAsync<List<AnalysedGameSummaryDto>>("api/games"));
+        Assert.Equal((game.Id, 0, 1), (listed.GameId, listed.Moves, listed.Scoresheets));
+        var page = await GetAsync<GameAnalysisDto>($"api/games/{game.Id}");
+        Assert.Null(page.Pgn);
+        Assert.Empty(page.Plies);
+        Assert.Equal(AnalysisStatus.None, page.Analysis.Status);
+        Assert.Equal(photo.Id, Assert.Single(page.Scoresheets!).Id);
+        Assert.Equal(1, Assert.Single(await GetAsync<List<PlayerAnalysedGameDto>>($"api/players/{game.White.PlayerId}/games")).Scoresheets);
+    }
+
+    [Fact]
+    public async Task ReadPhoto_IsKept_UploadOnly_AndDelete()
+    {
+        await UseClaudeAsync();
+        var (id, game) = await PlayedGameAsync();
+        _reader.Moves = [W(1, "e4")];
+
+        var read = await ReadAsync<ScoresheetResultDto>(await PostPhotoAsync(id, game.Id));
+
+        var upload = new ByteArrayContent(Photo);
+        upload.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        var uploaded = await ReadAsync<ScoresheetPhotoDto>(await Client.PostAsync($"api/games/{game.Id}/scoresheets", upload));
+
+        var photos = await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets");
+        Assert.Equal([read.ScoresheetId, uploaded.Id], photos.Select(p => p.Id));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{read.ScoresheetId}")).StatusCode);
+        await AssertErrorAsync(await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{read.ScoresheetId}"),
+            HttpStatusCode.NotFound, ApiErrorCode.ScoresheetNotFound);
+        Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"api/games/{game.Id}/scoresheets/{read.ScoresheetId}/image")).StatusCode);
+
+        // The last photo removed and no moves: the game is no longer in the list.
+        await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{uploaded.Id}");
+        Assert.Empty(await GetAsync<List<AnalysedGameSummaryDto>>("api/games"));
+        Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"api/games/{game.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task NoPhotoForAForfeit_OrAnInvalidImage()
+    {
+        var (id, forfeit) = await PlayedGameAsync(GameResult.WhiteWinsByForfeit);
+        var upload = new ByteArrayContent(Photo);
+        upload.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        await AssertErrorAsync(await Client.PostAsync($"api/games/{forfeit.Id}/scoresheets", upload),
+            HttpStatusCode.Conflict, ApiErrorCode.PgnNotAllowed);
+
+        var text = new ByteArrayContent(Photo);
+        text.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        await AssertErrorAsync(await Client.PostAsync($"api/games/{forfeit.Id}/scoresheets", text),
+            HttpStatusCode.BadRequest, ApiErrorCode.InvalidScoresheetImage);
+
+        Assert.Empty(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{forfeit.Id}/scoresheets"));
+    }
+
+    [Fact]
     public async Task NoMovesFound_IsAnErrorWithDetail()
     {
         await UseClaudeAsync();

@@ -27,7 +27,8 @@ public class ChangeCapture(IHttpContextAccessor http) : SaveChangesInterceptor
         (nameof(AppUser), nameof(AppUser.PasswordHash)),
         (nameof(AppUser), nameof(AppUser.SecurityStamp)),
         (nameof(AppSettings), nameof(AppSettings.ClaudeApiKey)),
-        (nameof(PlayerPhoto), nameof(PlayerPhoto.Data))
+        (nameof(PlayerPhoto), nameof(PlayerPhoto.Data)),
+        (nameof(GameScoresheet), nameof(GameScoresheet.Data))
     ];
 
     /// <summary>Bookkeeping that is not interesting in the log.</summary>
