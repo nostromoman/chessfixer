@@ -3,7 +3,8 @@
 @* The games per round, with a row of tabs: one tab per started round, the newest on the right. Starting a round
    adds its tab and opens it. Results can only be entered (and corrected) in the most recent round; the other
    rounds show their results. Before round 1 the pairing of round 1 is shown (without tabs). Once every result of the
-   latest round is in, the provisional pairing of the next round gets its own tab on the right (not opened by itself);
+   latest round is in, the provisional pairing of the next round gets its own tab on the right. The rightmost tab is
+   opened whenever a tab is added or removed, and when the Rounds tab is opened;
    it can still change (players, boards, corrected results) until the leader starts that round.
    Each round tab has two sub tabs: the results and the round report. The results end with the player with a bye,
    the players without opponent (competition) and the absent players. Catch-up games (competition) are not part of a
@@ -79,10 +80,10 @@ else if (Tournament.State == TournamentState.New)
     /// <summary>The open sub tab (results or report); it stays the same when another round is opened.</summary>
     private int _subTab;
 
-    /// <summary>Set when the newest round tab must be opened after the next render (a tab was added or removed).</summary>
+    /// <summary>Set when the rightmost tab must be opened after the next render (a tab was added or removed).</summary>
     private bool _activateSelected;
 
-    private int? _previousStartedCount;
+    private int? _previousTabCount;
 
     /// <summary>The next round, already paired but not started.</summary>
     private RoundDto? PendingRound => Rounds.FirstOrDefault(r => !r.IsStarted);
@@ -127,20 +128,15 @@ else if (Tournament.State == TournamentState.New)
         _previousRounds = Rounds;
         StartedRounds = Rounds.Where(r => r.IsStarted).OrderBy(r => r.Number).ToList();
 
-        // A round was started (or cancelled), or this is the first data: open the newest round.
-        if (StartedRounds.Count != _previousStartedCount)
+        // A tab was added or removed (a round started or was cancelled, the provisional next round appeared or went
+        // away), or this is the first data (also when coming back to the Rounds tab): open the rightmost tab.
+        var tabCount = StartedRounds.Count + (NextRound is null ? 0 : 1);
+        if (tabCount != _previousTabCount)
         {
-            _selectedIndex = Math.Max(0, StartedRounds.Count - 1);
+            _selectedIndex = Math.Max(0, tabCount - 1);
             _activateSelected = true;
         }
-        _previousStartedCount = StartedRounds.Count;
-
-        // The provisional tab was open and is gone (e.g. a result was cleared): open the latest round.
-        if (NextRound is null && _selectedIndex >= StartedRounds.Count && StartedRounds.Count > 0)
-        {
-            _selectedIndex = StartedRounds.Count - 1;
-            _activateSelected = true;
-        }
+        _previousTabCount = tabCount;
 
         var groups = CurrentRound is null
             ? new Dictionary<int, Group>()
