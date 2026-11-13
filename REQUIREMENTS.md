@@ -157,7 +157,7 @@ There are two pairing systems.
 ## 7. Pages
 UI language: **Dutch only** for now (other languages later, so keep texts in resource files).
 
-A main menu on the left links to **Toernooien** (`/tournament`), **Spelers** (`/players`), **Clubs**, **Ratinglijst** and **Ratinglog**. For the system administrator only, a group **Beheer** follows with **Toernooileiders** (`/admin/leaders`) and **Activiteit** (`/admin/activity`); tournament leaders do not see it, and the server refuses them too. A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
+A main menu on the left links to **Toernooien** (`/tournament`), **Spelers** (`/players`), **Clubs**, **Ratinglijst** and **Ratinglog**. For the system administrator only, a group **Beheer** follows with **Toernooileiders** (`/admin/leaders`), **Activiteit** (`/admin/activity`) and **Development** (`/admin/development`); tournament leaders do not see it, and the server refuses them too. A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
 
 ### Tournament overview — `/tournament`
 Table of all tournaments with their title and state. Columns: title, type (Swiss or competition), number of active players, boards, time control (minutes + increment) and state. A + button at the top right opens a wizard in a modal to create a new tournament: 1. title; 2. tournament type (Swiss or competition, each with a short explanation; Swiss is preselected; for a competition also *Times against each other*, default 2); 3. boards (default 8), game time and increment; 4. points for a win, draw and loss, and whether the tournament counts for the rating (default yes); 5. location and description (both optional, used for the report). All of this can be changed later in the settings (type, points and rating until round 1 starts). Clicking next to the modal does not close it; only Cancel or Escape does. After creating, the tournament detail page opens. Clicking a tournament opens its detail page.
@@ -190,6 +190,9 @@ Table of the tournament leaders (name, user name) with a + button to create one 
 
 ### Beheer — Activiteit — `/admin/activity` (system administrator only)
 At the top a table of all accounts: name, user name, last login, last active, number of logins, failed logins, changes and refused or failed changes. Clicking a user filters the log below. The log (newest first, a page at a time) shows when, who, what (login, failed login, logout, password change, or the change in words), details (a link to the tournament), the result (*Gelukt*, *Geweigerd* or *Mislukt* with the status code) and the IP address (the browser as tooltip). Filters: user, and *Alleen problemen* (failed logins and refused or failed changes). A *Vernieuwen* button reloads both.
+
+### Beheer — Development — `/admin/development` (system administrator only)
+Tools for trying the application out. A button **Database resetten** (after confirmation) first makes a backup of the database file, then deletes all tournaments, players, clubs and the rating log, and seeds the database with the own club *Schaakvereniging Oisterwijk*, two other clubs and 30 players: 23 members (5 youth players, 18 adults) and 7 guest players of the other clubs. No tournaments are seeded. Kept: the accounts (system administrator and tournament leaders), the settings (AI, tournament defaults, writing styles) and the activity log.
 
 ## 8. Platform & technology
 - .NET 10. Blazor **WebAssembly** frontend using **MudBlazor**.

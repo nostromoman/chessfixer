@@ -775,4 +775,12 @@
   <data name="Error_GameNotOpen" xml:space="preserve"><value>Deze partij (met deze kleuren) staat niet meer open.</value></data>
   <data name="Error_GameInCurrentRound" xml:space="preserve"><value>Deze partij wordt in de huidige ronde gespeeld.</value></data>
   <data name="Error_CatchUpGamesInRound" xml:space="preserve"><value>Ronde 1 kan niet worden geannuleerd zolang er inhaalpartijen bij horen. Haal die eerst weg (wis hun uitslag).</value></data>
+  <data name="Development" xml:space="preserve"><value>Development</value></data>
+  <data name="ResetDatabase" xml:space="preserve"><value>Database resetten</value></data>
+  <data name="ResetDatabaseInfo" xml:space="preserve"><value>Verwijdert alle toernooien, spelers, clubs en de ratinglog, en vult de database daarna opnieuw met de club Schaakvereniging Oisterwijk, 2 andere clubs en 30 spelers (23 leden, waarvan 5 jeugdspelers, en 7 gastspelers van de andere clubs). Er worden geen toernooien aangemaakt. Vooraf wordt een back-up van het databasebestand gemaakt.</value></data>
+  <data name="ResetDatabaseKept" xml:space="preserve"><value>Blijven bewaard: de accounts (systeembeheerder en toernooileiders), de instellingen (AI, toernooi-standaarden, schrijfstijlen) en het activiteitenlog.</value></data>
+  <data name="ResetDatabaseConfirmTitle" xml:space="preserve"><value>Database resetten?</value></data>
+  <data name="ResetDatabaseConfirmText" xml:space="preserve"><value>Alle toernooien, spelers, clubs en ratings worden verwijderd en vervangen door testgegevens. Dit is bedoeld om de applicatie uit te proberen, niet voor echte clubgegevens.</value></data>
+  <data name="ResetDatabaseDone" xml:space="preserve"><value>De database is gereset: {0} spelers en {1} clubs. Back-up: {2}</value></data>
+  <data name="ActivityAction_Development_Reset" xml:space="preserve"><value>Database resetten</value></data>
 </root>

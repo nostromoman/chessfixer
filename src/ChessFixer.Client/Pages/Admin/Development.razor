@@ -1,0 +1,55 @@
+@page "/admin/development"
+@attribute [Authorize(Roles = nameof(UserRole.Admin))]
+@inject TournamentApi Api
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Beheer > Development: tools for trying the application out. Only for the system administrator (the server refuses
+   everyone else as well). *@
+<PageTitle>@L["Development"]</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@L["Development"]</MudText>
+
+<MudPaper Class="pa-4" Elevation="1" Style="max-width: 48rem">
+    <MudText Typo="Typo.h6" Class="mb-2">@L["ResetDatabase"]</MudText>
+    <MudText Typo="Typo.body2" Class="mb-2">@L["ResetDatabaseInfo"]</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L["ResetDatabaseKept"]</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.RestartAlt"
+               Disabled="_busy" OnClick="ResetAsync">@L["ResetDatabase"]</MudButton>
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mt-3" />
+    }
+</MudPaper>
+
+@code {
+    private bool _busy;
+
+    private async Task ResetAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            L["ResetDatabaseConfirmTitle"], L["ResetDatabaseConfirmText"],
+            yesText: L["ResetDatabase"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        _busy = true;
+        try
+        {
+            var result = await Api.ResetDatabaseAsync();
+            Snackbar.Add(L["ResetDatabaseDone", result.Players, result.Clubs, result.Backup ?? "-"], Severity.Success);
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

@@ -97,6 +97,7 @@ builder.Services.AddSingleton<ReportQueue>();
 builder.Services.AddScoped<TournamentReportWriter>();
 builder.Services.AddScoped<WritingStyleService>();
 builder.Services.AddScoped<ClubService>();
+builder.Services.AddScoped<ChessFixer.Server.Services.Development.DevelopmentService>();
 builder.Services.AddScoped<RatingLogService>();
 builder.Services.AddSingleton<ActivityLog>();
 builder.Services.AddHttpContextAccessor();

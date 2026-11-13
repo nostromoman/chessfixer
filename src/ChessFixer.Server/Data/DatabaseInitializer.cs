@@ -56,12 +56,23 @@ public static class DatabaseInitializer
         if (!await TableExistsAsync(db, "__EFMigrationsHistory")) return; // new database: nothing to keep
         if (!(await db.Database.GetPendingMigrationsAsync()).Any()) return;
 
-        var path = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()).DataSource;
-        if (string.IsNullOrEmpty(path) || path == ":memory:") return;
+        logger.LogInformation("Database schema will be updated; making a backup first.");
+        await BackUpAsync(db, null, logger);
+    }
 
-        var backup = $"{Path.GetFullPath(path)}.{DateTime.UtcNow:yyyyMMdd-HHmmss}.bak";
-        logger.LogInformation("Database schema will be updated; making a backup first: {Backup}", backup);
+    /// <summary>
+    /// Copies the database file next to it (database.db.20261113-120000[.reason].bak). Returns the path of the copy,
+    /// or null for an in-memory database.
+    /// </summary>
+    public static async Task<string?> BackUpAsync(ChessFixerDbContext db, string? reason, ILogger logger)
+    {
+        var path = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()).DataSource;
+        if (string.IsNullOrEmpty(path) || path == ":memory:") return null;
+
+        var backup = $"{Path.GetFullPath(path)}.{DateTime.UtcNow:yyyyMMdd-HHmmss}{(reason is null ? "" : "." + reason)}.bak";
+        logger.LogInformation("Backup of the database: {Backup}", backup);
         await db.Database.ExecuteSqlAsync($"VACUUM INTO {backup}");
+        return backup;
     }
 
     private static async Task SeedAdminAsync(ChessFixerDbContext db, IPasswordHasher<AppUser> hasher, ILogger logger)

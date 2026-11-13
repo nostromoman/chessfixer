@@ -192,6 +192,10 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task ChangePasswordAsync(string currentPassword, string newPassword) =>
         SendCoreAsync(HttpMethod.Put, "api/auth/password", new ChangePasswordRequest(currentPassword, newPassword));
 
+    /// <summary>Beheer, Development: resets the database (players and clubs seeded); only for the system administrator.</summary>
+    public Task<DevelopmentResetDto> ResetDatabaseAsync() =>
+        SendAsync<DevelopmentResetDto>(HttpMethod.Post, "api/development/reset");
+
     /// <summary>Tournament leader accounts; only for the system administrator.</summary>
     public Task<List<LeaderDto>> GetLeadersAsync() =>
         SendAsync<List<LeaderDto>>(HttpMethod.Get, "api/leaders");
