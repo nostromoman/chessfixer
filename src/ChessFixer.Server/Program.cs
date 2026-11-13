@@ -110,6 +110,10 @@ builder.Services.AddSingleton<AnalysisQueue>();
 builder.Services.AddSingleton<IChessEngineFactory, StockfishEngineFactory>();
 builder.Services.AddScoped<GameAnalysisService>();
 builder.Services.AddHostedService<AnalysisWorker>();
+
+// Reading the moves from a photo of a handwritten scoresheet (Claude).
+builder.Services.AddSingleton<IScoresheetReader, ClaudeScoresheetReader>();
+builder.Services.AddScoped<ScoresheetService>();
 builder.Services.AddSingleton<ChangeCapture>();
 builder.Services.AddScoped<ActivityRevertService>();
 builder.Services.AddDbContext<ChessFixerDbContext>((services, options) => options

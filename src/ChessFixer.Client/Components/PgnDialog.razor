@@ -2,10 +2,11 @@
 @inject IStringLocalizer<Strings> L
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
+@inject TournamentApi Api
 
 @* The moves of a played game in PGN (Portable Game Notation): paste them from a notation app or a scoresheet
-   typed out, and later copy, download or open them on an analysis board. Closes with the text to save
-   ("" removes the moves). *@
+   typed out, or read from a photo of the handwritten scoresheet (Claude), and later copy, download or open them
+   on an analysis board. Closes with the text to save ("" removes the moves). *@
 <MudDialog>
     <TitleContent>
         <div class="d-flex align-center gap-2">
@@ -15,8 +16,43 @@
     </TitleContent>
     <DialogContent>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["PgnHelp"]</MudText>
+        @if (TournamentId > 0)
+        {
+            <div class="d-flex align-center flex-wrap gap-2 mb-3">
+                <InputFile id="@_fileInputId" OnChange="ReadScoresheetAsync" accept="image/*" hidden disabled="@_reading" />
+                <MudButton HtmlTag="label" for="@_fileInputId" Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_reading">@L["ScoresheetButton"]</MudButton>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="flex: 1; min-width: 200px">@L["ScoresheetHelp"]</MudText>
+            </div>
+        }
+        @if (_reading)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Icon="@Icons.Material.Filled.HourglassTop">
+                @L["ScoresheetReading"]
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-2" />
+            </MudAlert>
+        }
+        else if (_scoresheet is { } sheet)
+        {
+            <MudAlert Severity="@(sheet.Stop is null && sheet.Uncertain.Count == 0 ? Severity.Success : Severity.Warning)"
+                      Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _scoresheet = null">
+                <div>@L["ScoresheetRead", (sheet.Moves + 1) / 2, sheet.Model]</div>
+                @if (sheet.Uncertain.Count > 0)
+                {
+                    <div class="mt-1">@L["ScoresheetUncertain"] @UncertainList(sheet)</div>
+                }
+                @if (sheet.Stop is { } stop)
+                {
+                    <div class="mt-1">@L["ScoresheetStopped", MoveLabel(stop.MoveNumber, stop.White), stop.ReadAs, stop.Unread]</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(sheet.Remarks))
+                {
+                    <div class="mt-1"><i>@sheet.Remarks</i></div>
+                }
+            </MudAlert>
+        }
         <MudTextField T="string" @bind-Value="_text" Variant="Variant.Outlined" Lines="14"
-                      Immediate="true" MaxLength="PgnText.MaxLength" Class="pgn-text"
+                      Immediate="true" MaxLength="PgnText.MaxLength" Class="pgn-text" Disabled="_reading"
                       Placeholder="@Placeholder" Error="@(ErrorText is not null)" ErrorText="@ErrorText" />
     </DialogContent>
     <DialogActions>
@@ -45,7 +81,7 @@
                        Href="@LichessUrl" Target="_blank" rel="noopener noreferrer">@L["PgnAnalyse"]</MudButton>
         }
         <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave)"
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave || _reading)"
                    OnClick="() => Dialog.Close(Normalized ?? string.Empty)">@L["Save"]</MudButton>
     </DialogActions>
 </MudDialog>
@@ -64,7 +100,22 @@
     /// <summary>Used as the Event tag when the pasted text has no header tags.</summary>
     [Parameter] public string TournamentTitle { get; set; } = "";
 
+    /// <summary>The tournament of the game; needed to read a scoresheet photo (0: no photo button).</summary>
+    [Parameter] public int TournamentId { get; set; }
+
+    /// <summary>Phone photos are scaled down to this size before uploading: plenty to read handwriting.</summary>
+    private const int MaxPhotoPixels = 2000;
+    private const long MaxUploadBytes = 5 * 1024 * 1024;
+
+    private readonly string _fileInputId = $"scoresheet-{Guid.NewGuid():N}";
     private string? _text;
+    private bool _reading;
+    private ScoresheetResultDto? _scoresheet;
+
+    private static string MoveLabel(int number, bool white) => white ? $"{number}." : $"{number}...";
+
+    private string UncertainList(ScoresheetResultDto sheet) =>
+        string.Join(", ", sheet.Uncertain.Select(u => L["ScoresheetUncertainMove", $"{MoveLabel(u.MoveNumber, u.White)} {u.San}", u.ReadAs].Value));
 
     protected override void OnInitialized() => _text = Pgn;
 
@@ -110,6 +161,48 @@
 
     /// <summary>The Lichess analysis board replays the moves (without comments and variations).</summary>
     private string LichessUrl => "https://lichess.org/analysis/pgn/" + Uri.EscapeDataString(PgnText.MoveText(Normalized ?? ""));
+
+    /// <summary>
+    /// A photo of the scoresheet was chosen (or taken): scale it down in the browser, let Claude read it and put
+    /// the moves in the text field to check. Nothing is saved until Save.
+    /// </summary>
+    private async Task ReadScoresheetAsync(InputFileChangeEventArgs e)
+    {
+        _reading = true;
+        _scoresheet = null;
+        StateHasChanged();
+        try
+        {
+            var photo = await e.File.RequestImageFileAsync("image/jpeg", MaxPhotoPixels, MaxPhotoPixels);
+            await using var stream = photo.OpenReadStream(MaxUploadBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+
+            _scoresheet = await Api.ReadScoresheetAsync(TournamentId, Game.Id, buffer.ToArray(), "image/jpeg");
+            _text = _scoresheet.Pgn;
+        }
+        catch (ApiClientException ex)
+        {
+            var message = ex.Code is { } code ? L[$"Error_{code}"].Value : L["Error_Unknown"].Value;
+            Snackbar.Add(ex.Detail is null ? message : $"{message} {ex.Detail}", Severity.Error);
+        }
+        catch (IOException)
+        {
+            Snackbar.Add(L["Error_InvalidScoresheetImage"], Severity.Error); // still too large after scaling
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        catch (TaskCanceledException)
+        {
+            Snackbar.Add(L["ScoresheetTimeout"], Severity.Error);
+        }
+        finally
+        {
+            _reading = false;
+        }
+    }
 
     private async Task CopyAsync()
     {

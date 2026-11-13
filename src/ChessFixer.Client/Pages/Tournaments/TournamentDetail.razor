@@ -472,7 +472,8 @@ else
             {
                 { d => d.Game, game },
                 { d => d.Pgn, pgn },
-                { d => d.TournamentTitle, Tournament!.Title }
+                { d => d.TournamentTitle, Tournament!.Title },
+                { d => d.TournamentId, Id }
             },
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
         if (await dialog.Result is not { Canceled: false, Data: string text }) return;

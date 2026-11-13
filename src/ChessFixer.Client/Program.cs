@@ -15,7 +15,12 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+// A longer timeout than the default 100 s: reading a scoresheet photo with Claude can take a minute or two.
+builder.Services.AddScoped(_ => new HttpClient
+{
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
+    Timeout = TimeSpan.FromMinutes(5)
+});
 builder.Services.AddScoped<TournamentApi>();
 builder.Services.AddScoped<DeviceInfo>();
 

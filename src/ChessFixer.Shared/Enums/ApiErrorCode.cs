@@ -69,5 +69,11 @@ public enum ApiErrorCode
     /// <summary>PGN: the text contains no moves, or is too long.</summary>
     InvalidPgn,
     /// <summary>PGN: only a game that was played over the board (won, lost or drawn) can have moves.</summary>
-    PgnNotAllowed
+    PgnNotAllowed,
+    /// <summary>Scoresheet photo: not a JPEG, PNG, GIF or WebP image, or too large.</summary>
+    InvalidScoresheetImage,
+    /// <summary>Scoresheet photo: reading it needs Claude as AI provider (Settings, AI).</summary>
+    ScoresheetNeedsClaude,
+    /// <summary>Scoresheet photo: Claude could not read it (the detail says why), or found no moves.</summary>
+    ScoresheetFailed
 }

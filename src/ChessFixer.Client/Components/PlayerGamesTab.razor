@@ -123,7 +123,8 @@ else
                 {
                     { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.HasPgn) },
                     { d => d.Pgn, pgn },
-                    { d => d.TournamentTitle, game.TournamentTitle }
+                    { d => d.TournamentTitle, game.TournamentTitle },
+                    { d => d.TournamentId, game.TournamentId }
                 },
                 new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
             if (await dialog.Result is not { Canceled: false, Data: string text }) return;

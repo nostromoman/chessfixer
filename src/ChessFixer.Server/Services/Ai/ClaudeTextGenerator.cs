@@ -15,10 +15,10 @@ public class ClaudeTextGenerator : IAiTextGenerator
     /// Models that support server-side refusal fallbacks (<c>fallbacks: "default"</c>): if Claude's safety
     /// classifiers decline the request, Anthropic retries it on a suitable other model in the same call.
     /// </summary>
-    private static readonly HashSet<string> ServerSideFallbackModels =
+    internal static readonly HashSet<string> ServerSideFallbackModels =
         ["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"];
 
-    private const string ServerSideFallbackBeta = "server-side-fallback-2026-07-01";
+    internal const string ServerSideFallbackBeta = "server-side-fallback-2026-07-01";
 
     public AiProvider Provider => AiProvider.Claude;
 
@@ -64,7 +64,7 @@ public class ClaudeTextGenerator : IAiTextGenerator
     }
 
     /// <summary>Calls the API and turns API errors into a Dutch message for the user.</summary>
-    private static async Task<T> CallAsync<T>(AppSettings settings, Func<AnthropicClient, Task<T>> call)
+    internal static async Task<T> CallAsync<T>(AppSettings settings, Func<AnthropicClient, Task<T>> call)
     {
         var client = new AnthropicClient { ApiKey = settings.ClaudeApiKey.Trim() };
         try

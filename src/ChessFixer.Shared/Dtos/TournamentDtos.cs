@@ -176,4 +176,5 @@ public record OpenGameDto(int PlayerA, int PlayerB, int? WhitePlayerId);
 /// <summary>Enters a game of a competition that was played outside a club evening.</summary>
 public record CatchUpGameRequest(int WhitePlayerId, int BlackPlayerId, GameResult Result);
 
-public record ApiError(ApiErrorCode Code);
+/// <param name="Detail">Extra explanation for the user (Dutch), e.g. why the AI call failed; usually null.</param>
+public record ApiError(ApiErrorCode Code, string? Detail = null);

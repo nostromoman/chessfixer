@@ -6,9 +6,12 @@ using ChessFixer.Shared.Enums;
 namespace ChessFixer.Client.Services;
 
 /// <summary>The API refused a request. <see cref="Code"/> is null when the server gave no error code.</summary>
-public sealed class ApiClientException(ApiErrorCode? code, string message) : Exception(message)
+public sealed class ApiClientException(ApiErrorCode? code, string message, string? detail = null) : Exception(message)
 {
     public ApiErrorCode? Code { get; } = code;
+
+    /// <summary>Extra explanation from the server (Dutch), e.g. why the AI call failed; usually null.</summary>
+    public string? Detail { get; } = detail;
 }
 
 /// <summary>Typed wrapper around the ChessFixer Web API.</summary>
@@ -103,6 +106,14 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
 
     public Task<GameAnalysisDto> AnalyseGameAsync(int gameId) =>
         SendAsync<GameAnalysisDto>(HttpMethod.Post, $"api/games/{gameId}/analyse");
+
+    /// <summary>Reads the moves from a photo of the handwritten scoresheet (Claude); nothing is saved.</summary>
+    public Task<ScoresheetResultDto> ReadScoresheetAsync(int id, int gameId, byte[] image, string contentType)
+    {
+        var content = new ByteArrayContent(image);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        return SendAsync<ScoresheetResultDto>(HttpMethod.Post, $"api/tournaments/{id}/games/{gameId}/scoresheet", content);
+    }
 
     public Task<List<StandingDto>> GetStandingsAsync(int id) =>
         SendAsync<List<StandingDto>>(HttpMethod.Get, $"api/tournaments/{id}/standings");
@@ -252,7 +263,7 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     }
 
     /// <summary>The body of an error answer; Code is null when the server sent no <see cref="ApiError"/>.</summary>
-    private sealed record ErrorBody(ApiErrorCode? Code);
+    private sealed record ErrorBody(ApiErrorCode? Code, string? Detail);
 
     /// <summary>Sends the request and throws <see cref="ApiClientException"/> when it fails.
     /// The body is sent as JSON, unless it is already <see cref="HttpContent"/>.
@@ -278,7 +289,7 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
             response.Dispose();
             // Not logged in (anymore): the app switches to the login page.
             if (status == HttpStatusCode.Unauthorized) auth.OnSessionEnded();
-            throw new ApiClientException(error?.Code, $"{method} {url} failed with {(int)response.StatusCode}");
+            throw new ApiClientException(error?.Code, $"{method} {url} failed with {(int)response.StatusCode}", error?.Detail);
         }
 
         return response;

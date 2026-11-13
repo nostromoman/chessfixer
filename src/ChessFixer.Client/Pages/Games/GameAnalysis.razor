@@ -236,6 +236,7 @@ else
                 { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: true) },
                 { d => d.Pgn, game.Pgn },
                 { d => d.TournamentTitle, game.TournamentTitle },
+                { d => d.TournamentId, game.TournamentId },
                 { d => d.ShowAnalysisLink, false }
             },
             new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });

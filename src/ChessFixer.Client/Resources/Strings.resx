@@ -853,4 +853,16 @@
   <data name="PlayerGamesCountsHelp" xml:space="preserve"><value>{0} onnauwkeurigheden, {1} fouten, {2} blunders</value></data>
   <data name="AnalysisPendingShort" xml:space="preserve"><value>wacht op analyse</value></data>
   <data name="AnalysisRunningShort" xml:space="preserve"><value>analyse {0}/{1}</value></data>
+  <data name="ScoresheetButton" xml:space="preserve"><value>Foto van notatieformulier</value></data>
+  <data name="ScoresheetHelp" xml:space="preserve"><value>Maak of kies een foto van het handgeschreven notatieformulier; Claude leest de zetten en zet ze hieronder. De foto gaat naar Anthropic en wordt niet bewaard.</value></data>
+  <data name="ScoresheetReading" xml:space="preserve"><value>Claude leest het notatieformulier en de zetten worden op het bord gecontroleerd… Dit kan een minuut duren.</value></data>
+  <data name="ScoresheetRead" xml:space="preserve"><value>{0} zetten gelezen ({1}). Controleer ze met het notatieformulier voordat je opslaat.</value></data>
+  <data name="ScoresheetUncertain" xml:space="preserve"><value>Onzeker gelezen, controleer:</value></data>
+  <data name="ScoresheetUncertainMove" xml:space="preserve"><value>{0} (gelezen als ‘{1}’)</value></data>
+  <data name="ScoresheetStopped" xml:space="preserve"><value>Gestopt bij zet {0}: ‘{1}’ past bij geen enkele mogelijke zet. De {2} halve zetten vanaf daar staan als commentaar onderaan; vul ze zelf aan.</value></data>
+  <data name="ScoresheetTimeout" xml:space="preserve"><value>Het lezen van de foto duurde te lang. Probeer het opnieuw, eventueel met een scherpere foto.</value></data>
+  <data name="Error_InvalidScoresheetImage" xml:space="preserve"><value>Dit is geen bruikbare foto (JPEG, PNG, GIF of WebP, maximaal 5 MB).</value></data>
+  <data name="Error_ScoresheetNeedsClaude" xml:space="preserve"><value>Een foto lezen kan alleen met Claude als AI. Stel dat in bij Instellingen → AI.</value></data>
+  <data name="Error_ScoresheetFailed" xml:space="preserve"><value>De foto kon niet gelezen worden.</value></data>
+  <data name="ActivityAction_Tournaments_ReadScoresheet" xml:space="preserve"><value>Notatieformulier laten lezen</value></data>
 </root>

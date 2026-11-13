@@ -1,4 +1,5 @@
 using ChessFixer.Server.Services;
+using ChessFixer.Server.Services.Analysis;
 using ChessFixer.Shared.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -94,6 +95,20 @@ public class TournamentsController(TournamentService service) : ControllerBase
     [HttpPut("{id:int}/games/{gameId:int}/pgn")]
     public Task<TournamentDto> SetPgn(int id, int gameId, SetPgnRequest request) =>
         service.SetPgnAsync(id, gameId, request.Pgn);
+
+    /// <summary>
+    /// Reads the moves from a photo of the handwritten scoresheet (body: the image, JPEG/PNG/GIF/WebP, max 5 MB)
+    /// with Claude and returns them as PGN to check. Nothing is saved.
+    /// </summary>
+    [HttpPost("{id:int}/games/{gameId:int}/scoresheet")]
+    [RequestSizeLimit(ScoresheetService.MaxImageBytes + 1024)]
+    public async Task<ScoresheetResultDto> ReadScoresheet(int id, int gameId, [FromServices] ScoresheetService scoresheets,
+        CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        await Request.Body.CopyToAsync(buffer, cancellationToken);
+        return await scoresheets.ReadAsync(id, gameId, buffer.ToArray(), Request.ContentType, cancellationToken);
+    }
 
     /// <summary>Competition: everyone against everyone, with the games played and still to play.</summary>
     [HttpGet("{id:int}/schedule")]

@@ -104,3 +104,23 @@ public record PlyDto(
 public record EvaluationDto(int? Centipawns, int? Mate, double WhiteWinChance);
 
 public record PgnMoveErrorDto(int MoveNumber, bool White, string Text);
+
+/// <summary>The moves read from a photo of the handwritten scoresheet, as PGN to check and save.</summary>
+/// <param name="Pgn">Tags from the app (event, players, result) and the moves that could be replayed; doubtful
+/// moves carry a comment with what was read, unread moves are in a comment at the end.</param>
+/// <param name="Moves">Number of half-moves in the PGN.</param>
+/// <param name="Uncertain">Moves that could only be read with doubt: check them on the sheet.</param>
+/// <param name="Stop">Where reading stopped (no legal move fitted what was written); null when all moves were read.</param>
+/// <param name="Remarks">Notes of the reader (Dutch), e.g. about illegible rows; may be empty.</param>
+public record ScoresheetResultDto(
+    string Pgn,
+    int Moves,
+    IReadOnlyList<ScoresheetUncertainMoveDto> Uncertain,
+    ScoresheetStopDto? Stop,
+    string Remarks,
+    string Model);
+
+public record ScoresheetUncertainMoveDto(int MoveNumber, bool White, string San, string ReadAs);
+
+/// <param name="Unread">Number of half-moves on the sheet from this move on that are not in the PGN.</param>
+public record ScoresheetStopDto(int MoveNumber, bool White, string ReadAs, int Unread);
