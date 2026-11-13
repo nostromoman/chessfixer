@@ -14,7 +14,7 @@ public class TournamentDefaultsService(ChessFixerDbContext db)
     public async Task<TournamentDefaultsDto> UpdateAsync(TournamentDefaultsDto request)
     {
         // Same rules as the settings of a tournament.
-        TournamentService.ValidateSettings(request?.ToSettings(PairingSystem.RoundRobin));
+        TournamentService.ValidateSettings(request?.ToSettings(PairingSystem.Swiss));
 
         var settings = await db.AppSettings.SingleOrDefaultAsync(s => s.Id == AppSettings.SingletonId);
         if (settings is null)

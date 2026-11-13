@@ -16,10 +16,12 @@ public record StandingRow(
     int Losses);
 
 /// <summary>
-/// Calculates the standings: points, then Buchholz, then Sonneborn-Berger.
+/// Calculates the standings: points, then Buchholz, then Sonneborn-Berger (Swiss); or points, then Sonneborn-Berger,
+/// then the number of wins (competition: when everyone plays everyone, Buchholz says little).
 /// <list type="bullet">
 /// <item>Games without a result yet are ignored, so the standings can be shown during a round.</item>
-/// <item>An absence gives the points for absence but does not count as a game (played, won, drawn or lost).</item>
+/// <item>An absence gives the points for absence but does not count as a game (played, won, drawn or lost). A round
+/// without opponent (competition) is the same, without points.</item>
 /// <item><b>Buchholz</b>: sum of the opponents' points. A bye or forfeit counts as a game against a
 /// virtual opponent with the player's own points (FIDE approach), so a bye does not hurt the tie-break.</item>
 /// <item><b>Sonneborn-Berger</b>: sum of the points of beaten opponents plus half the points of opponents
@@ -33,8 +35,10 @@ public static class StandingsCalculator
     /// <param name="playerIds">Everyone who should appear, including removed players.</param>
     /// <param name="games">All games of the tournament.</param>
     /// <param name="scoring">Points per result.</param>
+    /// <param name="system">Decides the tie-breaks.</param>
     public static IReadOnlyList<StandingRow> Calculate(
-        IEnumerable<int> playerIds, IEnumerable<PlayedGame> games, ScoringRules scoring)
+        IEnumerable<int> playerIds, IEnumerable<PlayedGame> games, ScoringRules scoring,
+        PairingSystem system = PairingSystem.Swiss)
     {
         var stats = playerIds.Distinct().ToDictionary(id => id, _ => new PlayerStats());
         var finished = games.Where(g => g.Result != GameResult.NotPlayed).ToList();
@@ -68,18 +72,19 @@ public static class StandingsCalculator
                     Draws: player.Draws,
                     Losses: player.Losses);
             })
-            .OrderByDescending(r => r.Points)
-            .ThenByDescending(r => r.Buchholz)
-            .ThenByDescending(r => r.SonnebornBerger)
-            .ThenBy(r => r.PlayerId)
             .ToList();
+
+        // The values that decide the order, most important first.
+        Func<StandingRow, double>[] tieBreaks = system == PairingSystem.Competition
+            ? [r => r.Points, r => r.SonnebornBerger, r => r.Wins]
+            : [r => r.Points, r => r.Buchholz, r => r.SonnebornBerger];
+        var ordered = rows.OrderByDescending(tieBreaks[0]);
+        foreach (var tieBreak in tieBreaks.Skip(1)) ordered = ordered.ThenByDescending(tieBreak);
+        rows = ordered.ThenBy(r => r.PlayerId).ToList();
 
         for (var i = 0; i < rows.Count; i++)
         {
-            var tiedWithPrevious = i > 0
-                && rows[i].Points == rows[i - 1].Points
-                && rows[i].Buchholz == rows[i - 1].Buchholz
-                && rows[i].SonnebornBerger == rows[i - 1].SonnebornBerger;
+            var tiedWithPrevious = i > 0 && tieBreaks.All(value => value(rows[i]) == value(rows[i - 1]));
             rows[i] = rows[i] with { Rank = tiedWithPrevious ? rows[i - 1].Rank : i + 1 };
         }
 
@@ -93,7 +98,7 @@ public static class StandingsCalculator
 
         player.Points += points;
         // Like a bye, an absence counts as an unplayed game for Buchholz (virtual opponent with the own points).
-        if (result == GameResult.Absent)
+        if (result is GameResult.Absent or GameResult.NoOpponent)
         {
             player.UnplayedGames++;
             return;

@@ -57,12 +57,16 @@ public class Tournament
     public string? Location { get; set; }
     public string? Description { get; set; }
 
-    public PairingSystem PairingSystem { get; set; } = PairingSystem.RoundRobin;
+    public PairingSystem PairingSystem { get; set; } = PairingSystem.Swiss;
+
+    /// <summary>Competition only: how many games every pair plays (1 or 2). Locked once round 1 has started.</summary>
+    public int TimesAgainstEachOther { get; set; } = 2;
     public int GameTimeMinutes { get; set; } = 15;
     public int IncrementSeconds { get; set; } = 10;
     public double PointsForWin { get; set; } = 1;
     public double PointsForDraw { get; set; } = 0.5;
     public double PointsForLoss { get; set; } = 0;
+    /// <summary>Swiss only; in a competition a player without opponent gets no points.</summary>
     public double PointsForBye { get; set; } = 1;
 
     /// <summary>Points for a round a player was absent (marked as not present). Usually 0.</summary>
@@ -194,12 +198,21 @@ public class Game
     public int WhiteId { get; set; }
     public TournamentPlayer White { get; set; } = null!;
 
-    /// <summary>Null when White has a bye or is absent (the result is then <see cref="GameResult.Bye"/> or
-    /// <see cref="GameResult.Absent"/>).</summary>
+    /// <summary>Null when White has a bye, is absent or has no opponent (the result is then <see cref="GameResult.Bye"/>,
+    /// <see cref="GameResult.Absent"/> or <see cref="GameResult.NoOpponent"/>).</summary>
     public int? BlackId { get; set; }
     public TournamentPlayer? Black { get; set; }
 
     public GameResult Result { get; set; } = GameResult.NotPlayed;
+
+    /// <summary>
+    /// Competition: a game played outside a club evening and entered afterwards. It belongs to the round that was the
+    /// latest started round when it was entered (so it counts from there on), never has a board, and always has a result.
+    /// </summary>
+    public bool IsCatchUp { get; set; }
+
+    /// <summary>When a catch-up game was entered; null for the games of a round.</summary>
+    public DateTime? PlayedAt { get; set; }
 
     // ----- Rating: filled in when a rated tournament is closed, for the games that count for the rating -----
 

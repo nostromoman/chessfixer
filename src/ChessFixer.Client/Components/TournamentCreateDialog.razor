@@ -7,7 +7,8 @@
 @* Wizard in a modal to create a tournament: title, tournament type, boards and time control,
    points and whether it counts for the rating, and (optional) location and description, which the AI uses for the report after closing.
    Closes with the created TournamentDto as result. Open it with IDialogService.ShowAsync<TournamentCreateDialog>.
-   The type starts at Swiss (round robin is for a fixed group); the other values start from the defaults in the settings (Instellingen, Toernooi).
+   The type starts at Swiss (a competition is for a season, or a small group that plays everyone); the other values
+   start from the defaults in the settings (Instellingen, Toernooi).
    Everything except the title can be changed later in the tournament settings. *@
 <MudDialog>
     <TitleContent>
@@ -41,6 +42,16 @@
                             <div>
                                 <MudText Typo="Typo.subtitle1"><b>@L[$"PairingSystem_{system}"]</b></MudText>
                                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@L[$"PairingSystemInfo_{system}"]</MudText>
+                                @if (selected && system == PairingSystem.Competition)
+                                {
+                                    @* Clicks on the choice must not bubble to the card (that would only select it again). *@
+                                    <div class="mt-2" @onclick:stopPropagation="true" @onkeyup:stopPropagation="true">
+                                        <MudRadioGroup T="int" @bind-Value="_timesAgainstEachOther">
+                                            <MudRadio T="int" Value="2" Color="Color.Primary" Dense="true">@L["TimesAgainstEachOther_2"]</MudRadio>
+                                            <MudRadio T="int" Value="1" Color="Color.Primary" Dense="true">@L["TimesAgainstEachOther_1"]</MudRadio>
+                                        </MudRadioGroup>
+                                    </div>
+                                }
                             </div>
                         </MudPaper>
                     }
@@ -115,7 +126,7 @@
     private const int TitleStep = 1, TypeStep = 2, PlayStep = 3, PointsStep = 4, DetailsStep = 5, StepCount = 5;
 
     /// <summary>Order in which the types are offered.</summary>
-    private static readonly PairingSystem[] Systems = [PairingSystem.Swiss, PairingSystem.RoundRobin];
+    private static readonly PairingSystem[] Systems = [PairingSystem.Swiss, PairingSystem.Competition];
 
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
 
@@ -125,6 +136,8 @@
     private string _title = "";
     /// <summary>Swiss is preselected: it fits most club evenings, where the group can change.</summary>
     private PairingSystem? _pairingSystem = PairingSystem.Swiss;
+    /// <summary>Competition: twice (once with each color) unless the leader chooses once.</summary>
+    private int _timesAgainstEachOther = 2;
     /// <summary>The defaults from the settings; bye and absence points are taken from here as they are.
     /// Until they are loaded (or when loading fails) the built-in defaults are used.</summary>
     private TournamentSettingsDto _defaults = TournamentSettingsDto.Default;
@@ -142,7 +155,7 @@
     {
         try
         {
-            var defaults = (await Api.GetTournamentDefaultsAsync()).ToSettings(PairingSystem.RoundRobin);
+            var defaults = (await Api.GetTournamentDefaultsAsync()).ToSettings(PairingSystem.Swiss);
             _defaults = defaults;
             if (_step >= PlayStep) return; // the leader is already filling in these values
             _boards = defaults.Boards;
@@ -209,6 +222,7 @@
             var settings = _defaults with
             {
                 PairingSystem = _pairingSystem!.Value,
+                TimesAgainstEachOther = _timesAgainstEachOther,
                 Boards = _boards,
                 GameTimeMinutes = _gameTimeMinutes,
                 IncrementSeconds = _incrementSeconds,

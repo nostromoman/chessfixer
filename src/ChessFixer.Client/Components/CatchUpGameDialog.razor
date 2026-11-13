@@ -1,0 +1,64 @@
+@inject IStringLocalizer<Strings> L
+
+@* Enters a catch-up game: an open game of a competition that was played outside a club evening. The colors are fixed
+   when the pair already played (the return game); otherwise they can be swapped. Closes with a CatchUpGameRequest. *@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["CatchUpTitle"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">@L["CatchUpIntro", RoundNumber]</MudText>
+
+        <div class="d-flex align-center gap-2 mb-4 flex-wrap">
+            <MudChip T="string" Variant="Variant.Outlined" Class="ma-0">@L["White"]: <b class="ml-1">@_white.Name</b></MudChip>
+            <MudChip T="string" Variant="Variant.Outlined" Class="ma-0">@L["Black"]: <b class="ml-1">@_black.Name</b></MudChip>
+            @if (!ColorsFixed)
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.SwapHoriz"
+                           OnClick="Swap">@L["CatchUpSwapColors"]</MudButton>
+            }
+        </div>
+
+        <MudRadioGroup T="GameResult" @bind-Value="_result">
+            @foreach (var result in Results)
+            {
+                <MudRadio T="GameResult" Value="result" Color="Color.Primary" Dense="true">@L[$"Result_{result}"]</MudRadio>
+            }
+        </MudRadioGroup>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@(_result == GameResult.NotPlayed)" OnClick="Save">@L["Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private static readonly GameResult[] Results =
+    [
+        GameResult.WhiteWins, GameResult.Draw, GameResult.BlackWins,
+        GameResult.WhiteWinsByForfeit, GameResult.BlackWinsByForfeit
+    ];
+
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    [Parameter, EditorRequired] public SchedulePlayerDto White { get; set; } = null!;
+    [Parameter, EditorRequired] public SchedulePlayerDto Black { get; set; } = null!;
+
+    /// <summary>The colors are fixed by the schedule (the pair played before with the other colors).</summary>
+    [Parameter] public bool ColorsFixed { get; set; }
+
+    /// <summary>The round the game will count from (the latest started round).</summary>
+    [Parameter] public int RoundNumber { get; set; }
+
+    private SchedulePlayerDto _white = null!;
+    private SchedulePlayerDto _black = null!;
+    private GameResult _result = GameResult.NotPlayed;
+
+    protected override void OnInitialized() => (_white, _black) = (White, Black);
+
+    private void Swap() => (_white, _black) = (_black, _white);
+
+    private void Save() =>
+        Dialog.Close(DialogResult.Ok(new CatchUpGameRequest(_white.PlayerId, _black.PlayerId, _result)));
+}

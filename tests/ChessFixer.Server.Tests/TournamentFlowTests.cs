@@ -91,7 +91,7 @@ public class TournamentFlowTests : ApiTestBase
             HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
         await AssertErrorAsync(
             await Client.PutAsJsonAsync($"api/tournaments/{id}",
-                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { PairingSystem = PairingSystem.RoundRobin })),
+                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings with { PairingSystem = PairingSystem.Competition })),
             HttpStatusCode.Conflict, ApiErrorCode.SettingsLocked);
         await AssertErrorAsync(
             await Client.PutAsJsonAsync($"api/tournaments/{id}",
@@ -420,82 +420,220 @@ public class TournamentFlowTests : ApiTestBase
         Assert.DoesNotContain(round2.Games, g => g.White.PlayerId == players[0] || g.Black?.PlayerId == players[0]);
     }
 
-    [Fact]
-    public async Task RoundRobin_FixedGroup_NoLateJoinersOrAbsence_ContinuesAfterAllRounds()
+    // ----- Competition -----
+
+    private async Task<int> CreateCompetitionAsync(int timesAgainstEachOther)
     {
-        var id = await CreateTournamentAsync(PairingSystem.RoundRobin);
+        var tournament = await PostAsync<TournamentDto>("api/tournaments", new CreateTournamentRequest("Competitie",
+            TournamentSettingsDto.Default with { PairingSystem = PairingSystem.Competition, TimesAgainstEachOther = timesAgainstEachOther }));
+        return tournament.Id;
+    }
+
+    private static List<(int, int)> PairsPlayed(IEnumerable<RoundDto> rounds) =>
+        rounds.Where(r => r.IsStarted).SelectMany(r => r.Games)
+            .Where(g => g.Black is not null)
+            .Select(g => (Math.Min(g.White.PlayerId, g.Black!.PlayerId), Math.Max(g.White.PlayerId, g.Black.PlayerId)))
+            .ToList();
+
+    [Fact]
+    public async Task Competition_OnlyPresentPlayersArePaired_AbsentPlayersCatchUpLater_UntilComplete()
+    {
+        var id = await CreateCompetitionAsync(1);
         var players = await AddNewPlayersAsync(id, 4);
+        Assert.Equal(6, (await GetTournamentAsync(id)).OpenGames);
 
-        // Nobody can be marked absent, also not before round 1.
-        await AssertErrorAsync(
-            await Client.PutAsJsonAsync($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false)),
-            HttpStatusCode.Conflict, ApiErrorCode.AbsenceNotAllowed);
+        // Round 1 without the first player: 3 present, one game and one player without opponent.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false));
+        await StartRoundAsync(id);
+        var round1 = (await GetRoundsAsync(id)).Single(r => r.Number == 1);
+        Assert.Single(round1.Games, g => g.Black is not null);
+        var noOpponent = Assert.Single(round1.Games, g => g.Result == GameResult.NoOpponent);
+        Assert.Null(noOpponent.Board);
+        Assert.Single(round1.Games, g => g.Result == GameResult.Absent && g.White.PlayerId == players[0]);
+        await FinishActiveRoundAsync(id, GameResult.Draw);
 
-        var tournament = await StartRoundAsync(id);
-        await FinishActiveRoundAsync(id);
-
-        // A late joiner is refused once round 1 has started.
+        // From now on everyone is there; a player joining late gets games against everyone.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(true));
         var late = await PostAsync<PlayerDto>("api/players", new CreatePlayerRequest("Laatkomer", null, null));
-        await AssertErrorAsync(
-            await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id)),
-            HttpStatusCode.Conflict, ApiErrorCode.PlayersFixed);
+        var tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(late.Id));
+        Assert.Equal(9, tournament.OpenGames); // 10 pairs, 1 played
 
-        for (var round = 2; round <= 3; round++)
+        for (var round = 2; round <= 20 && tournament.OpenGames > 0; round++)
         {
             await StartRoundAsync(id);
-            await FinishActiveRoundAsync(id);
+            await FinishActiveRoundAsync(id, GameResult.Draw);
+            tournament = await GetTournamentAsync(id);
         }
 
-        tournament = await GetTournamentAsync(id);
-        Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
-        Assert.Equal(3, tournament.RoundsStarted);
+        var pairs = PairsPlayed(await GetRoundsAsync(id));
+        Assert.Equal(10, pairs.Count);
+        Assert.Equal(10, pairs.Distinct().Count());
+        Assert.Equal(0, tournament.OpenGames);
+        await AssertErrorAsync(
+            await Client.PostAsync($"api/tournaments/{id}/rounds/start", null),
+            HttpStatusCode.Conflict, ApiErrorCode.CompetitionComplete);
 
-        // A next round can still be started (the schedule starts again).
-        tournament = await StartRoundAsync(id);
-        Assert.Equal(TournamentState.RoundActive, tournament.State);
-        Assert.Equal(4, tournament.RoundsStarted);
+        // Nobody scores for a round without opponent.
+        var standings = await GetStandingsAsync(id);
+        Assert.All(standings, s => Assert.Equal(0.5 * s.Played, s.Points));
+        Assert.All(standings, s => Assert.Equal(0, s.Remaining));
+        Assert.All(standings, s => Assert.Equal(50, s.Percentage));
     }
 
     [Fact]
-    public async Task RoundRobin_WithdrawnPlayer_LosesRemainingGamesByForfeit_AndCanRejoin()
+    public async Task Competition_TwiceAgainstEachOther_ReturnGameHasTheOtherColors()
     {
-        var id = await CreateTournamentAsync(PairingSystem.RoundRobin);
+        var id = await CreateCompetitionAsync(2);
+        await AddNewPlayersAsync(id, 4);
+
+        var tournament = await GetTournamentAsync(id);
+        for (var round = 1; round <= 20 && tournament.OpenGames > 0; round++)
+        {
+            await StartRoundAsync(id);
+            await FinishActiveRoundAsync(id, GameResult.Draw);
+            tournament = await GetTournamentAsync(id);
+        }
+
+        var games = (await GetRoundsAsync(id)).SelectMany(r => r.Games).Where(g => g.Black is not null).ToList();
+        Assert.Equal(12, games.Count);
+        Assert.Equal(6, (await GetRoundsAsync(id)).Count(r => r.IsStarted));
+        Assert.All(games.GroupBy(g => (Math.Min(g.White.PlayerId, g.Black!.PlayerId), Math.Max(g.White.PlayerId, g.Black.PlayerId))),
+            pair => Assert.Equal(2, pair.Select(g => g.White.PlayerId).Distinct().Count()));
+    }
+
+    [Fact]
+    public async Task Competition_CatchUpGame_CountsAndCanBeRemovedAgain()
+    {
+        var id = await CreateCompetitionAsync(2);
+        var players = await AddNewPlayersAsync(id, 3);
+
+        // Before round 1 nothing can be caught up.
+        await AssertErrorAsync(
+            await Client.PostAsJsonAsync($"api/tournaments/{id}/catch-up-games",
+                new CatchUpGameRequest(players[0], players[1], GameResult.WhiteWins)),
+            HttpStatusCode.Conflict, ApiErrorCode.GameNotOpen);
+
+        // Round 1 without the first player: the other two play.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false));
+        await StartRoundAsync(id);
+        await FinishActiveRoundAsync(id, GameResult.Draw);
+        Assert.Equal(5, (await GetTournamentAsync(id)).OpenGames);
+
+        // The first player catches up against the second, with White.
+        var tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/catch-up-games",
+            new CatchUpGameRequest(players[0], players[1], GameResult.WhiteWins));
+        Assert.Equal(4, tournament.OpenGames);
+        Assert.Equal(TournamentState.WaitingForNextRound, tournament.State);
+
+        var catchUp = Assert.Single((await GetRoundsAsync(id)).Single(r => r.Number == 1).Games, g => g.IsCatchUp);
+        Assert.Equal((players[0], players[1], GameResult.WhiteWins, (int?)null), (catchUp.White.PlayerId, catchUp.Black!.PlayerId, catchUp.Result, catchUp.Board));
+        Assert.NotNull(catchUp.PlayedAt);
+        Assert.Equal(1, (await GetStandingsAsync(id)).Single(s => s.PlayerId == players[0]).Points);
+
+        // The same game (same colors) cannot be entered twice; the return game can.
+        await AssertErrorAsync(
+            await Client.PostAsJsonAsync($"api/tournaments/{id}/catch-up-games",
+                new CatchUpGameRequest(players[0], players[1], GameResult.Draw)),
+            HttpStatusCode.Conflict, ApiErrorCode.GameNotOpen);
+
+        var schedule = await GetAsync<CompetitionScheduleDto>($"api/tournaments/{id}/schedule");
+        Assert.Equal(3, schedule.Players.Count);
+        Assert.Equal(2, schedule.Games.Count);
+        Assert.Equal(4, schedule.OpenGames.Count);
+        Assert.Contains(schedule.OpenGames, g => g.WhitePlayerId == players[1]
+                                                 && new[] { g.PlayerA, g.PlayerB }.Order().SequenceEqual(new[] { players[0], players[1] }.Order()));
+
+        // Clearing the result removes the catch-up game: it is open again.
+        tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}/games/{catchUp.Id}/result",
+            new SetResultRequest(GameResult.NotPlayed));
+        Assert.Equal(5, tournament.OpenGames);
+        Assert.DoesNotContain((await GetRoundsAsync(id)).SelectMany(r => r.Games), g => g.IsCatchUp);
+    }
+
+    [Fact]
+    public async Task Competition_CatchUpGameDuringARound_MovesToThePreviousRoundWhenTheRoundIsCancelled()
+    {
+        var id = await CreateCompetitionAsync(1);
+        var players = await AddNewPlayersAsync(id, 4);
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(false));
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[1]}/presence", new SetPresenceRequest(false));
+        await StartRoundAsync(id);
+        await FinishActiveRoundAsync(id);
+
+        // Round 2: everyone is there; the last two have played each other already.
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[0]}/presence", new SetPresenceRequest(true));
+        await PutAsync<TournamentDto>($"api/tournaments/{id}/players/{players[1]}/presence", new SetPresenceRequest(true));
+        await StartRoundAsync(id);
+        var round2 = (await GetRoundsAsync(id)).Single(r => r.Number == 2);
+        var inRound = round2.Games.First(g => g.Black is not null);
+
+        // A pair that plays in this round cannot catch up the same game.
+        await AssertErrorAsync(
+            await Client.PostAsJsonAsync($"api/tournaments/{id}/catch-up-games",
+                new CatchUpGameRequest(inRound.White.PlayerId, inRound.Black!.PlayerId, GameResult.Draw)),
+            HttpStatusCode.Conflict, ApiErrorCode.GameInCurrentRound);
+
+        var pairsInRound = round2.Games.Where(g => g.Black is not null)
+            .Select(g => (Math.Min(g.White.PlayerId, g.Black!.PlayerId), Math.Max(g.White.PlayerId, g.Black.PlayerId)))
+            .ToHashSet();
+        var open = (await GetAsync<CompetitionScheduleDto>($"api/tournaments/{id}/schedule")).OpenGames
+            .First(g => !pairsInRound.Contains((Math.Min(g.PlayerA, g.PlayerB), Math.Max(g.PlayerA, g.PlayerB))));
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/catch-up-games",
+            new CatchUpGameRequest(open.PlayerA, open.PlayerB, GameResult.Draw));
+        Assert.Single((await GetRoundsAsync(id)).Single(r => r.Number == 2).Games, g => g.IsCatchUp);
+
+        // The round is still running: its games still need results (a catch-up game does not count for that).
+        Assert.Equal(TournamentState.RoundActive, (await GetTournamentAsync(id)).State);
+
+        await PostAsync<TournamentDto>($"api/tournaments/{id}/rounds/cancel", null);
+        var rounds = await GetRoundsAsync(id);
+        Assert.Single(rounds.Single(r => r.Number == 1).Games, g => g.IsCatchUp);
+    }
+
+    [Fact]
+    public async Task Competition_WithdrawnPlayer_OpenGamesAreNotPaired_AndNotPlayedWhenClosed()
+    {
+        var id = await CreateCompetitionAsync(1);
         var players = await AddNewPlayersAsync(id, 4);
         await StartRoundAsync(id);
         await FinishActiveRoundAsync(id, GameResult.Draw);
 
         var leaver = players[0];
         (await Client.DeleteAsync($"api/tournaments/{id}/players/{leaver}")).EnsureSuccessStatusCode();
+        var tournament = await GetTournamentAsync(id);
+        // Only games between players who stay count: of their 3 pairs, 1 played in round 1.
+        Assert.Equal(2, tournament.OpenGames);
 
-        for (var round = 2; round <= 3; round++)
+        for (var round = 2; round <= 10 && tournament.OpenGames > 0; round++)
         {
             await StartRoundAsync(id);
             var games = (await GetRoundsAsync(id)).Single(r => r.Number == round).Games;
-            var forfeit = Assert.Single(games, g => g.White.PlayerId == leaver || g.Black?.PlayerId == leaver);
-            Assert.Null(forfeit.Board);
-            Assert.Equal(forfeit.White.PlayerId == leaver ? GameResult.BlackWinsByForfeit : GameResult.WhiteWinsByForfeit,
-                forfeit.Result);
-            if (games.Any(g => g.Result == GameResult.NotPlayed)) await FinishActiveRoundAsync(id, GameResult.Draw);
+            Assert.DoesNotContain(games, g => g.White.PlayerId == leaver || g.Black?.PlayerId == leaver);
+            await FinishActiveRoundAsync(id, GameResult.Draw);
+            tournament = await GetTournamentAsync(id);
         }
 
-        // Everyone met everyone exactly once: 6 pairs over 3 rounds, the leader's 2 as forfeits.
-        var pairs = (await GetRoundsAsync(id)).Where(r => r.IsStarted).SelectMany(r => r.Games)
-            .Where(g => g.Black is not null)
-            .Select(g => (Math.Min(g.White.PlayerId, g.Black!.PlayerId), Math.Max(g.White.PlayerId, g.Black.PlayerId)))
-            .ToList();
-        Assert.Equal(6, pairs.Distinct().Count());
-        Assert.Equal(6, pairs.Count);
-
-        // The leaver keeps the ½ point of round 1; the forfeits give them nothing.
         var standing = Assert.Single(await GetStandingsAsync(id), s => s.PlayerId == leaver);
         Assert.Equal(0.5, standing.Points);
         Assert.False(standing.IsActive);
 
-        // A player who withdrew can rejoin: they are still in the schedule.
-        (await Client.PostAsJsonAsync($"api/tournaments/{id}/players", new AddTournamentPlayerRequest(leaver))).EnsureSuccessStatusCode();
-        await StartRoundAsync(id);
-        var round4 = (await GetRoundsAsync(id)).Single(r => r.Number == 4).Games;
-        Assert.Contains(round4, g => (g.White.PlayerId == leaver || g.Black?.PlayerId == leaver) && g.Result == GameResult.NotPlayed);
+        tournament = await PostAsync<TournamentDto>($"api/tournaments/{id}/close", null);
+        Assert.Equal(TournamentState.Closed, tournament.State);
+        var schedule = await GetAsync<CompetitionScheduleDto>($"api/tournaments/{id}/schedule");
+        Assert.Equal(2, schedule.OpenGames.Count); // the leaver's games: not played
+    }
+
+    [Fact]
+    public async Task Swiss_HasNoScheduleOrCatchUpGames()
+    {
+        var id = await CreateTournamentAsync();
+        var players = await AddNewPlayersAsync(id, 2);
+        await AssertErrorAsync(await Client.GetAsync($"api/tournaments/{id}/schedule"),
+            HttpStatusCode.Conflict, ApiErrorCode.NotACompetition);
+        await AssertErrorAsync(
+            await Client.PostAsJsonAsync($"api/tournaments/{id}/catch-up-games",
+                new CatchUpGameRequest(players[0], players[1], GameResult.Draw)),
+            HttpStatusCode.Conflict, ApiErrorCode.NotACompetition);
     }
 
     [Fact]

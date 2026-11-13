@@ -101,6 +101,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             {
                 t.HasCheckConstraint("CK_Tournaments_Boards", "\"Boards\" >= 1");
                 t.HasCheckConstraint("CK_Tournaments_TimeControl", "\"GameTimeMinutes\" > 0 AND \"IncrementSeconds\" >= 0");
+                t.HasCheckConstraint("CK_Tournaments_TimesAgainstEachOther", "\"TimesAgainstEachOther\" BETWEEN 1 AND 2");
                 t.HasCheckConstraint("CK_Tournaments_Points",
                     "\"PointsForWin\" >= 0 AND \"PointsForDraw\" >= 0 AND \"PointsForLoss\" >= 0 AND \"PointsForBye\" >= 0 AND \"PointsForAbsence\" >= 0");
             });
@@ -157,10 +158,14 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             game.ToTable(t =>
             {
                 t.HasCheckConstraint("CK_Games_DifferentPlayers", "\"BlackId\" IS NULL OR \"BlackId\" <> \"WhiteId\"");
-                // A bye or an absence is exactly a game without Black, and it never takes a board.
+                // A bye, an absence or a round without opponent is exactly a game without Black, and it never takes a board.
                 t.HasCheckConstraint("CK_Games_Bye",
-                    "(\"BlackId\" IS NULL) = (\"Result\" IN ('Bye', 'Absent'))" +
-                    " AND (\"Result\" NOT IN ('Bye', 'Absent') OR \"Board\" IS NULL)");
+                    "(\"BlackId\" IS NULL) = (\"Result\" IN ('Bye', 'Absent', 'NoOpponent'))" +
+                    " AND (\"Result\" NOT IN ('Bye', 'Absent', 'NoOpponent') OR \"Board\" IS NULL)");
+                // A catch-up game is a real game with a result, without a board.
+                t.HasCheckConstraint("CK_Games_CatchUp",
+                    "\"IsCatchUp\" = 0 OR (\"BlackId\" IS NOT NULL AND \"Board\" IS NULL AND \"Result\" <> 'NotPlayed'" +
+                    " AND \"PlayedAt\" IS NOT NULL)");
                 // The rating columns are filled in together, or not at all.
                 t.HasCheckConstraint("CK_Games_Rating",
                     "(\"RatedAt\" IS NULL AND \"WhiteRatingBefore\" IS NULL AND \"BlackRatingBefore\" IS NULL" +

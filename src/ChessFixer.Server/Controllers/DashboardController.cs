@@ -49,7 +49,7 @@ public class DashboardController(
         var from = first.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
         var started = await db.Games
-            .Where(g => g.Result != GameResult.NotPlayed && g.Result != GameResult.Bye && g.Result != GameResult.Absent
+            .Where(g => g.Result != GameResult.NotPlayed && g.Result != GameResult.Bye && g.Result != GameResult.Absent && g.Result != GameResult.NoOpponent
                         && g.Round.StartedAt != null && g.Round.StartedAt >= from)
             .Select(g => g.Round.StartedAt!.Value)
             .ToListAsync();

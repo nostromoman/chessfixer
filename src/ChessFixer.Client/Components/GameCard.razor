@@ -11,6 +11,12 @@
         {
             <span class="game-card-board game-card-queued">@L["QueuePosition", position]</span>
         }
+        else if (Game.IsCatchUp)
+        {
+            <span class="game-card-board game-card-queued">
+                @L["CatchUp"]@(Game.PlayedAt is { } playedAt ? $" · {playedAt.ToLocalTime():d MMM}" : "")
+            </span>
+        }
         @if (Game.TimesMetBefore >= 2)
         {
             <MudTooltip Text="@L["RepeatMeetingHelp", Game.TimesMetBefore]">
@@ -52,7 +58,7 @@
         }
     </div>
 
-    @if (Editable && IsStarted && Game.Black is not null && Game.Board is not null)
+    @if (Editable && IsStarted && Game.Black is not null && (Game.Board is not null || Game.IsCatchUp))
     {
         <div class="game-card-actions">
             <GameResultCell Game="Game" Editable="true" Disabled="Disabled" ShowResult="false" OnResult="OnResult" />

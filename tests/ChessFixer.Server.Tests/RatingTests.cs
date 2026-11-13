@@ -56,9 +56,9 @@ public class RatingTests : ApiTestBase
     [Fact]
     public async Task AllGamesUseTheRatingBeforeTheTournament_AndAreRoundedOnce()
     {
-        // Round robin with four players: A (1500) beats the three others (1400), who draw among themselves.
+        // Competition with four players: A (1500) beats the three others (1400), who draw among themselves.
         var id = (await PostAsync<TournamentDto>("api/tournaments", new CreateTournamentRequest("Test",
-            TournamentSettingsDto.Default with { PairingSystem = PairingSystem.RoundRobin }))).Id;
+            TournamentSettingsDto.Default with { PairingSystem = PairingSystem.Competition, TimesAgainstEachOther = 1 }))).Id;
         var a = await AddPlayerAsync(id, "A", 1500);
         var others = new[] { await AddPlayerAsync(id, "B", 1400), await AddPlayerAsync(id, "C", 1400), await AddPlayerAsync(id, "D", 1400) };
 

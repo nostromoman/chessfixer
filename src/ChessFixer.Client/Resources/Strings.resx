@@ -42,8 +42,7 @@
   <data name="WizardChangeLater" xml:space="preserve"><value>Dit kan later nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="WizardChangeBeforeRound1" xml:space="preserve"><value>Dit kan tot de start van ronde 1 nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="TournamentType" xml:space="preserve"><value>Toernooitype</value></data>
-  <data name="PairingSystemInfo_RoundRobin" xml:space="preserve"><value>Voor een vaste groep: iedereen speelt tegen iedereen volgens een vast schema. Na de start van ronde 1 kunnen er geen spelers meer bij en doet iedereen elke ronde mee; wie stopt, verliest de resterende partijen reglementair. Heeft iedereen tegen iedereen gespeeld, dan begint het schema opnieuw.</value></data>
-  <data name="PairingSystemInfo_Swiss" xml:space="preserve"><value>Spelers met een gelijke score spelen tegen elkaar, zonder dat ze elkaar twee keer treffen. Ronde 1 wordt ingedeeld op rating. Geschikt voor clubavonden en competities: niet iedereen hoeft tegen iedereen, en spelers kunnen per ronde wel of niet meedoen of tussen de rondes in- en uitstappen.</value></data>
+  <data name="PairingSystemInfo_Swiss" xml:space="preserve"><value>Spelers met een gelijke score spelen tegen elkaar, zonder dat ze elkaar twee keer treffen. Ronde 1 wordt ingedeeld op rating. Geschikt voor een toernooi op één avond, zoals de rapid: niet iedereen hoeft tegen iedereen, en spelers kunnen per ronde wel of niet meedoen of tussen de rondes in- en uitstappen.</value></data>
   <data name="TimeControl" xml:space="preserve"><value>Tempo</value></data>
   <data name="TimeControlHelp" xml:space="preserve"><value>Bedenktijd in minuten + increment in seconden per zet</value></data>
   <data name="Points" xml:space="preserve"><value>Punten</value></data>
@@ -69,7 +68,6 @@
   <data name="No" xml:space="preserve"><value>Nee</value></data>
   <data name="PairingSystem" xml:space="preserve"><value>Indelingssysteem</value></data>
   <data name="PairingSystem_Swiss" xml:space="preserve"><value>Zwitsers</value></data>
-  <data name="PairingSystem_RoundRobin" xml:space="preserve"><value>Round robin</value></data>
   <data name="GameTime" xml:space="preserve"><value>Bedenktijd (minuten)</value></data>
   <data name="Increment" xml:space="preserve"><value>Increment (seconden per zet)</value></data>
   <data name="PointsForWin" xml:space="preserve"><value>Punten voor winst</value></data>
@@ -121,7 +119,6 @@
   <data name="PresentShort" xml:space="preserve"><value>Doet mee</value></data>
   <data name="PresentHelp" xml:space="preserve"><value>Doet mee aan de volgende ronde. Wie niet aangevinkt is, wordt niet ingedeeld maar blijft gewoon in het toernooi.</value></data>
   <data name="PresenceLockedInRound" xml:space="preserve"><value>Tijdens een ronde kan een speler alleen aangezet worden (laatkomer), niet uit</value></data>
-  <data name="PresenceRoundRobin" xml:space="preserve"><value>Bij een round robin doet iedereen elke ronde mee: iedereen speelt tegen iedereen. Kan iemand een partij niet spelen, voer dan reglementair verlies in.</value></data>
   <data name="RepeatMeeting" xml:space="preserve"><value>{0}e keer</value></data>
   <data name="RepeatMeetingHelp" xml:space="preserve"><value>Deze spelers speelden al {0} keer tegen elkaar in dit toernooi.</value></data>
   <data name="RepeatMeetingsInPairing" xml:space="preserve"><value>Let op: in deze indeling spelen {0} paar spelers voor de derde keer (of vaker) tegen elkaar. Dat was met de spelers die meedoen niet te voorkomen; de indeling houdt het aantal zo laag mogelijk.</value></data>
@@ -137,7 +134,6 @@
   <data name="RemovePlayerOnlyAbsent" xml:space="preserve"><value>Doet {0} alleen een speelavond niet mee? Haal {0} dan niet uit het toernooi, maar zet het vinkje "Doet mee" uit (of kies "Alleen deze ronde niet meedoen" hieronder).</value></data>
   <data name="RemovePlayerWithGames" xml:space="preserve"><value>{0} stopt definitief met dit toernooi. De {1} gespeelde partij(en) blijven in de stand staan, maar {0} wordt niet meer ingedeeld en staat in de stand als uit het toernooi gestapt.</value></data>
   <data name="RemovePlayerWithoutGames" xml:space="preserve"><value>{0} heeft nog geen partijen gespeeld en verdwijnt helemaal uit het toernooi.</value></data>
-  <data name="RemovePlayerRoundRobin" xml:space="preserve"><value>{0} stopt definitief met dit toernooi. De {1} gespeelde partij(en) blijven in de stand staan; alle resterende partijen van {0} worden reglementair verloren, zodat het schema voor de anderen gelijk blijft.</value></data>
   <data name="RemovePlayerConfirm" xml:space="preserve"><value>Uit toernooi halen</value></data>
   <data name="NoPlayers" xml:space="preserve"><value>Er doen nog geen spelers mee.</value></data>
   <data name="FirstName" xml:space="preserve"><value>Voornaam</value></data>
@@ -203,7 +199,6 @@
   <data name="PlayerAdded" xml:space="preserve"><value>{0} is toegevoegd.</value></data>
   <data name="PlayerRemoved" xml:space="preserve"><value>{0} is uit het toernooi gehaald.</value></data>
   <data name="PlayersLockedClosed" xml:space="preserve"><value>Dit toernooi is afgesloten.</value></data>
-  <data name="PlayersLockedRoundRobin" xml:space="preserve"><value>Round robin: de spelerslijst ligt vast sinds ronde 1 is gestart. Wie gestopt is, kan wel weer instappen.</value></data>
 
   <!-- Matches and standings -->
   <data name="Round" xml:space="preserve"><value>Ronde {0}</value></data>
@@ -281,8 +276,6 @@
   <data name="Error_PlayerAlreadyInTournament" xml:space="preserve"><value>Deze speler doet al mee.</value></data>
   <data name="Error_PlayerNotInTournament" xml:space="preserve"><value>Deze speler doet niet mee.</value></data>
   <data name="Error_PlayerInActiveGame" xml:space="preserve"><value>Deze speler is nog bezig met een partij en kan pas uit het toernooi stappen als de uitslag bekend is.</value></data>
-  <data name="Error_PlayersFixed" xml:space="preserve"><value>Bij een round robin kunnen er na de start van ronde 1 geen nieuwe spelers meer bij.</value></data>
-  <data name="Error_AbsenceNotAllowed" xml:space="preserve"><value>Bij een round robin doet iedereen elke ronde mee. Kan iemand een partij niet spelen, voer dan reglementair verlies in.</value></data>
   <data name="RemoveBlockedInGame" xml:space="preserve"><value>Kan pas uitstappen als de partij klaar is</value></data>
   <data name="Error_ResultNotEditable" xml:space="preserve"><value>Deze uitslag kan niet meer gewijzigd worden.</value></data>
   <data name="Error_NotEnoughPlayers" xml:space="preserve"><value>Er zijn minimaal 2 spelers nodig.</value></data>
@@ -710,6 +703,7 @@
   <data name="ActivityAction_Tournaments_AddPlayer" xml:space="preserve"><value>Speler aan toernooi toevoegen</value></data>
   <data name="ActivityAction_Tournaments_RemovePlayer" xml:space="preserve"><value>Speler uit toernooi halen</value></data>
   <data name="ActivityAction_Tournaments_SetPresence" xml:space="preserve"><value>Speler doet wel/niet mee</value></data>
+  <data name="ActivityAction_Tournaments_AddCatchUpGame" xml:space="preserve"><value>Inhaalpartij invoeren</value></data>
   <data name="ActivityAction_Tournaments_SetResult" xml:space="preserve"><value>Uitslag invoeren</value></data>
 
   <!-- Home (dashboard) -->
@@ -738,4 +732,47 @@
   <data name="DashboardNoRisers" xml:space="preserve"><value>Geen stijgers in de laatste 30 dagen.</value></data>
   <data name="DashboardNoPlayers" xml:space="preserve"><value>Nog geen spelers met een rating.</value></data>
   <data name="DashboardAll" xml:space="preserve"><value>Alles bekijken</value></data>
+  <data name="PairingSystem_Competition" xml:space="preserve"><value>Competitie</value></data>
+  <data name="PairingSystemInfo_Competition" xml:space="preserve"><value>Iedereen speelt tegen iedereen, één of twee keer (dan één keer met wit en één keer met zwart). Elke ronde worden alleen de spelers ingedeeld die meedoen, op de partijen die ze nog tegen elkaar moeten spelen. Gemiste partijen kunnen later als inhaalpartij worden ingevoerd. Geschikt voor de interne clubcompetitie over een heel seizoen, of voor een kleine groep die op één avond iedereen speelt.</value></data>
+  <data name="TimesAgainstEachOther" xml:space="preserve"><value>Aantal keer tegen elkaar</value></data>
+  <data name="TimesAgainstEachOther_1" xml:space="preserve"><value>1 keer (enkelrondig)</value></data>
+  <data name="TimesAgainstEachOther_2" xml:space="preserve"><value>2 keer: één keer met wit, één keer met zwart</value></data>
+  <data name="Result_NoOpponent" xml:space="preserve"><value>Geen tegenstander</value></data>
+  <data name="Status_NoOpponent" xml:space="preserve"><value>Geen tegenstander</value></data>
+  <data name="GamesNoOpponent" xml:space="preserve"><value>Geen tegenstander deze ronde</value></data>
+  <data name="GamesNoOpponentInfo" xml:space="preserve"><value>Er was niemand meer beschikbaar met wie nog een partij gespeeld moet worden. Dit levert geen punten op.</value></data>
+  <data name="NoOpponentOpponent" xml:space="preserve"><value>— geen tegenstander —</value></data>
+  <data name="RemovePlayerCompetition" xml:space="preserve"><value>{0} stopt definitief met deze competitie. De {1} gespeelde partij(en) blijven in de stand staan; de partijen die {0} nog moet spelen worden niet meer ingedeeld. Stapt {0} later weer in, dan kunnen die alsnog gespeeld worden.</value></data>
+  <data name="CloseConfirmOpenGames" xml:space="preserve"><value>Er staan nog {0} partijen open. Die worden bij het afsluiten 'niet gespeeld': ze leveren niemand punten op en tellen niet mee voor de rating.</value></data>
+  <data name="Schedule" xml:space="preserve"><value>Schema</value></data>
+  <data name="ScheduleIntro" xml:space="preserve"><value>Iedereen tegen iedereen. In elk vak de uitslag van de speler in de rij tegen de speler in de kolom; een open partij is nog niet gespeeld. Klik op een open partij om een inhaalpartij in te voeren.</value></data>
+  <data name="ScheduleIntroWhite" xml:space="preserve"><value>Per vak eerst de partij waarin de speler in de rij wit had, dan die met zwart.</value></data>
+  <data name="ScheduleOpen" xml:space="preserve"><value>open</value></data>
+  <data name="SchedulePlaying" xml:space="preserve"><value>bezig</value></data>
+  <data name="ScheduleNotPlayed" xml:space="preserve"><value>niet gespeeld</value></data>
+  <data name="ScheduleOpenGames" xml:space="preserve"><value>{0} partijen nog te spelen</value></data>
+  <data name="ScheduleOpenGamesOf" xml:space="preserve"><value>Nog te spelen voor {0}</value></data>
+  <data name="ScheduleNoOpenGames" xml:space="preserve"><value>Alle partijen zijn gespeeld.</value></data>
+  <data name="ScheduleChoosePlayer" xml:space="preserve"><value>Kies een speler om de partijen te zien die nog gespeeld moeten worden.</value></data>
+  <data name="ScheduleColorFree" xml:space="preserve"><value>kleur vrij</value></data>
+  <data name="CatchUpGames" xml:space="preserve"><value>Inhaalpartijen</value></data>
+  <data name="CatchUpGamesInfo" xml:space="preserve"><value>Buiten de clubavond gespeeld en achteraf ingevoerd. Een uitslag wissen haalt de inhaalpartij weg; de partij staat dan weer open.</value></data>
+  <data name="CatchUpTitle" xml:space="preserve"><value>Inhaalpartij invoeren</value></data>
+  <data name="CatchUpIntro" xml:space="preserve"><value>Voor een partij die buiten de clubavond is gespeeld. De uitslag telt mee vanaf ronde {0}.</value></data>
+  <data name="CatchUpEnter" xml:space="preserve"><value>Inhaalpartij invoeren</value></data>
+  <data name="CatchUpSaved" xml:space="preserve"><value>De inhaalpartij is ingevoerd.</value></data>
+  <data name="CatchUpNotYet" xml:space="preserve"><value>Inhaalpartijen kunnen worden ingevoerd zodra ronde 1 is gestart.</value></data>
+  <data name="CatchUpSwapColors" xml:space="preserve"><value>Kleuren omdraaien</value></data>
+  <data name="CatchUp" xml:space="preserve"><value>inhaalpartij</value></data>
+  <data name="RemainingShort" xml:space="preserve"><value>Te sp.</value></data>
+  <data name="RemainingLong" xml:space="preserve"><value>Partijen die nog gespeeld moeten worden</value></data>
+  <data name="PercentageShort" xml:space="preserve"><value>%</value></data>
+  <data name="PercentageLong" xml:space="preserve"><value>Score in procenten van het maximum voor de gespeelde partijen</value></data>
+  <data name="CompetitionCompleteInfo" xml:space="preserve"><value>Alle partijen zijn gespeeld. Sluit de competitie af.</value></data>
+  <data name="Error_CompetitionComplete" xml:space="preserve"><value>Alle partijen van de competitie zijn gespeeld. Sluit de competitie af.</value></data>
+  <data name="Error_NoGamesBetweenPresentPlayers" xml:space="preserve"><value>De spelers die meedoen hebben geen partijen meer tegen elkaar te spelen.</value></data>
+  <data name="Error_NotACompetition" xml:space="preserve"><value>Dit kan alleen bij een competitie.</value></data>
+  <data name="Error_GameNotOpen" xml:space="preserve"><value>Deze partij (met deze kleuren) staat niet meer open.</value></data>
+  <data name="Error_GameInCurrentRound" xml:space="preserve"><value>Deze partij wordt in de huidige ronde gespeeld.</value></data>
+  <data name="Error_CatchUpGamesInRound" xml:space="preserve"><value>Ronde 1 kan niet worden geannuleerd zolang er inhaalpartijen bij horen. Haal die eerst weg (wis hun uitslag).</value></data>
 </root>

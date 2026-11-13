@@ -86,6 +86,14 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<List<StandingDto>> GetStandingsAsync(int id) =>
         SendAsync<List<StandingDto>>(HttpMethod.Get, $"api/tournaments/{id}/standings");
 
+    /// <summary>Competition: everyone against everyone, with the games played and still to play.</summary>
+    public Task<CompetitionScheduleDto> GetScheduleAsync(int id) =>
+        SendAsync<CompetitionScheduleDto>(HttpMethod.Get, $"api/tournaments/{id}/schedule");
+
+    /// <summary>Competition: enters a game played outside a club evening.</summary>
+    public Task<TournamentDto> AddCatchUpGameAsync(int id, CatchUpGameRequest request) =>
+        SendAsync<TournamentDto>(HttpMethod.Post, $"api/tournaments/{id}/catch-up-games", request);
+
     // ----- Application settings -----
 
     public Task<TournamentDefaultsDto> GetTournamentDefaultsAsync() =>

@@ -9,9 +9,6 @@ internal sealed class PlayerHistory
     public HashSet<int> Opponents { get; } = [];
     /// <summary>How often this player met each opponent (forfeits excluded).</summary>
     public Dictionary<int, int> TimesMet { get; } = [];
-    /// <summary>How often this player was paired against each opponent, forfeits included. Round robin uses this:
-    /// a forfeited game is a game of the schedule that has been used up.</summary>
-    public Dictionary<int, int> TimesPaired { get; } = [];
     /// <summary>Per opponent: games with White minus games with Black against that opponent.</summary>
     public Dictionary<int, int> WhiteBalanceAgainst { get; } = [];
 
@@ -28,6 +25,8 @@ internal sealed class PlayerHistory
         };
     public List<PieceColor> Colors { get; } = [];
     public int ByeCount { get; private set; }
+    /// <summary>Competition: how often the player took part but had no opponent.</summary>
+    public int NoOpponentCount { get; private set; }
     public ColorPreference ColorPreference => ColorAllocator.PreferenceOf(Colors);
 
     /// <summary>
@@ -49,17 +48,17 @@ internal sealed class PlayerHistory
 
             // An absence is not a bye: the player can still get a bye later.
             if (game.Result == GameResult.Absent) continue;
+            if (game.Result == GameResult.NoOpponent)
+            {
+                if (white is not null) white.NoOpponentCount++;
+                continue;
+            }
 
             if (game.BlackId is null)
             {
                 if (white is not null) white.ByeCount++;
                 continue;
             }
-
-            if (white is not null)
-                white.TimesPaired[game.BlackId.Value] = white.TimesPaired.GetValueOrDefault(game.BlackId.Value) + 1;
-            if (black is not null)
-                black.TimesPaired[game.WhiteId] = black.TimesPaired.GetValueOrDefault(game.WhiteId) + 1;
 
             if (game.Result is GameResult.WhiteWinsByForfeit or GameResult.BlackWinsByForfeit)
                 continue;

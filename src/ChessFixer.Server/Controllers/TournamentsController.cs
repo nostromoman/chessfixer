@@ -86,6 +86,16 @@ public class TournamentsController(TournamentService service) : ControllerBase
     public Task<TournamentDto> SetResult(int id, int gameId, SetResultRequest request) =>
         service.SetResultAsync(id, gameId, request.Result);
 
+    /// <summary>Competition: everyone against everyone, with the games played and still to play.</summary>
+    [HttpGet("{id:int}/schedule")]
+    public Task<CompetitionScheduleDto> GetSchedule(int id) => service.GetScheduleAsync(id);
+
+    /// <summary>Competition: enters a game that was played outside a club evening. Clearing its result
+    /// (PUT games/{gameId}/result with NotPlayed) removes it again.</summary>
+    [HttpPost("{id:int}/catch-up-games")]
+    public Task<TournamentDto> AddCatchUpGame(int id, CatchUpGameRequest request) =>
+        service.AddCatchUpGameAsync(id, request);
+
     [HttpGet("{id:int}/standings")]
     public Task<List<StandingDto>> GetStandings(int id) => service.GetStandingsAsync(id);
 }

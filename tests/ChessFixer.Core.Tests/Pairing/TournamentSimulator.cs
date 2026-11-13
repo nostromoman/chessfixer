@@ -14,14 +14,20 @@ internal sealed class TournamentSimulator(IPairingStrategy strategy, IEnumerable
     public static List<PairingPlayer> CreatePlayers(int count) =>
         Enumerable.Range(1, count).Select(i => new PairingPlayer(i, 2000 - i * 10)).ToList();
 
-    public IReadOnlyList<BoardPairing> PairNext() =>
-        strategy.PairNextRound(new PairingInput(Players, History, ScoringRules.Default));
+    public IReadOnlyList<BoardPairing> PairNext(IReadOnlyList<PairingPlayer>? present = null) =>
+        strategy.PairNextRound(new PairingInput(present ?? Players, History, ScoringRules.Default));
 
     /// <summary>Pairs and plays one round. By default the higher-rated player (lower id) wins.</summary>
-    public IReadOnlyList<BoardPairing> PlayRound(Func<BoardPairing, GameResult>? result = null)
+    /// <param name="present">The players who take part (default: everyone). Those not paired get a "no opponent"
+    /// line, as the server does in a competition.</param>
+    public IReadOnlyList<BoardPairing> PlayRound(Func<BoardPairing, GameResult>? result = null,
+        IReadOnlyList<PairingPlayer>? present = null)
     {
-        var pairings = PairNext();
+        var pairings = PairNext(present);
         RoundsPlayed++;
+        var paired = pairings.SelectMany(p => new[] { p.WhiteId, p.BlackId ?? p.WhiteId }).ToHashSet();
+        foreach (var player in (present ?? Players).Where(p => !paired.Contains(p.Id)))
+            History.Add(new PlayedGame(RoundsPlayed, player.Id, null, GameResult.NoOpponent));
         foreach (var p in pairings)
         {
             var outcome = p.IsBye

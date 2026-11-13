@@ -5,7 +5,8 @@ namespace ChessFixer.Core.Pairing;
 /// <summary>A player that can be paired. Id is the tournament participant id (stable, in registration order).</summary>
 public record PairingPlayer(int Id, int? Rating);
 
-/// <summary>A game from an earlier round. BlackId is null for a bye and for an absence (<see cref="GameResult.Absent"/>).</summary>
+/// <summary>A game from an earlier round. BlackId is null for a bye, an absence (<see cref="GameResult.Absent"/>) and
+/// a round without opponent (<see cref="GameResult.NoOpponent"/>).</summary>
 public record PlayedGame(int Round, int WhiteId, int? BlackId, GameResult Result);
 
 /// <summary>Everything needed to pair the next round.</summary>
@@ -27,7 +28,11 @@ public enum PairingError
 {
     NotEnoughPlayers,
     TooManyPlayers,
-    NoValidPairing
+    NoValidPairing,
+    /// <summary>Competition: every pair has played all its games.</summary>
+    CompetitionComplete,
+    /// <summary>Competition: there are games left, but none between the players who take part.</summary>
+    NoGamesBetweenPresentPlayers
 }
 
 public sealed class PairingException(PairingError error) : Exception($"Pairing failed: {error}")

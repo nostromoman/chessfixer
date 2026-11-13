@@ -107,7 +107,7 @@ public class PlayerTests : ApiTestBase
     [Fact]
     public async Task Statistics_ShowTournamentResultsAndGames()
     {
-        var tournamentId = await CreateTournamentAsync(PairingSystem.RoundRobin);
+        var tournamentId = await CreateTournamentAsync(PairingSystem.Swiss);
         var playerIds = await AddNewPlayersAsync(tournamentId, 3);
         await StartRoundAsync(tournamentId);
         var round = (await GetRoundsAsync(tournamentId)).Single(r => r.IsStarted);

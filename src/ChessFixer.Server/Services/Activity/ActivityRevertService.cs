@@ -113,7 +113,7 @@ public partial class ActivityRevertService(
                 var request = new UpdateTournamentRequest(tournament.Title,
                     new TournamentSettingsDto(tournament.PairingSystem, tournament.GameTimeMinutes, tournament.IncrementSeconds,
                         tournament.PointsForWin, tournament.PointsForDraw, tournament.PointsForLoss, tournament.PointsForBye,
-                        tournament.Boards, tournament.IsRated, tournament.PointsForAbsence),
+                        tournament.Boards, tournament.IsRated, tournament.PointsForAbsence, tournament.TimesAgainstEachOther),
                     tournament.Location, tournament.Description);
                 db.ChangeTracker.Clear();
                 await tournaments.UpdateAsync(tournamentId, request);
@@ -157,7 +157,7 @@ public partial class ActivityRevertService(
                 var lastStarted = await db.Rounds.Where(r => r.TournamentId == tournamentId && r.StartedAt != null)
                     .MaxAsync(r => (int?)r.Number);
                 if (round.Number != lastStarted
-                    || round.Games.Any(g => g.Result is not (GameResult.NotPlayed or GameResult.Bye or GameResult.Absent)))
+                    || round.Games.Any(g => g.Result is not (GameResult.NotPlayed or GameResult.Bye or GameResult.Absent or GameResult.NoOpponent)))
                     throw new ApiException(ApiErrorCode.ChangedSinceAction);
                 await tournaments.CancelRoundAsync(tournamentId);
                 break;

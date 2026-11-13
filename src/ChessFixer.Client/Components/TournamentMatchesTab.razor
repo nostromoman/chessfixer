@@ -3,7 +3,8 @@
 @* The games per round, with a row of tabs: one tab per started round, the newest on the right. Starting a round
    adds its tab and opens it. Results can only be entered (and corrected) in the most recent round; the other
    rounds show their results. Before round 1 the pairing of round 1 is shown (without tabs).
-   A player with a bye is shown in a separate group at the bottom, then the absent players, then the round report.
+   A player with a bye is shown in a separate group at the bottom, then the players without opponent (competition)
+   and the absent players, then the catch-up games entered during the round (competition), then the round report.
    A finished round has a green check mark on its tab; the round in progress an hourglass. *@
 @if (StartedRounds.Count > 0)
 {
@@ -79,8 +80,12 @@ else if (Tournament.State == TournamentState.New)
     /// <summary>The next round, already paired but not started.</summary>
     private RoundDto? PendingRound => Rounds.FirstOrDefault(r => !r.IsStarted);
 
-    /// <summary>The real games of a round, without byes.</summary>
-    private static IEnumerable<GameDto> Games(RoundDto round) => round.Games.Where(g => g.Black is not null);
+    /// <summary>The real games of a round, without byes and catch-up games.</summary>
+    private static IEnumerable<GameDto> Games(RoundDto round) => round.Games.Where(g => g.Black is not null && !g.IsCatchUp);
+
+    /// <summary>Competition: games played outside the club evening, entered while this was the latest round.</summary>
+    private static List<GameDto> CatchUps(RoundDto round) =>
+        round.Games.Where(g => g.IsCatchUp).OrderBy(g => g.PlayedAt).ThenBy(g => g.Number).ToList();
 
     private static IEnumerable<GameDto> Playing(RoundDto round) =>
         Games(round).Where(g => g.Board is not null && g.Result == GameResult.NotPlayed).OrderBy(g => g.Board);
@@ -173,6 +178,7 @@ else if (Tournament.State == TournamentState.New)
         }
 
         @Byes(round, isStarted: true)
+        @CatchUpGames(round)
         @Report(round)
     };
 
@@ -182,6 +188,7 @@ else if (Tournament.State == TournamentState.New)
         <MudText Typo="Typo.h6" Class="mb-3">@L["ResultsRound", round.Number]</MudText>
         @Cards(Finished(round), isStarted: true, editable: false)
         @Byes(round, isStarted: true)
+        @CatchUpGames(round)
         @Report(round)
     };
 
@@ -222,26 +229,48 @@ else if (Tournament.State == TournamentState.New)
     /// </summary>
     private RenderFragment Byes(RoundDto round, bool isStarted) => __builder =>
     {
-        var byes = round.Games.Where(g => g.Black is null && g.Result != GameResult.Absent).OrderBy(g => g.Number).ToList();
+        var byes = round.Games.Where(g => g.Result == GameResult.Bye).OrderBy(g => g.Number).ToList();
         if (byes.Count > 0)
         {
             <MudText Typo="Typo.h6" Class="mt-6 mb-3">@L["GamesBye"]</MudText>
             @Cards(byes, isStarted, editable: false)
         }
 
-        var absent = round.Games.Where(g => g.Result == GameResult.Absent).OrderBy(g => g.Number).ToList();
-        if (absent.Count > 0)
+        @PlayerChips(round, GameResult.NoOpponent, L["GamesNoOpponent"], Icons.Material.Filled.PersonOff, L["GamesNoOpponentInfo"])
+        @PlayerChips(round, GameResult.Absent, L["GamesAbsent"], Icons.Material.Filled.EventBusy)
+    };
+
+    /// <summary>The players with a line of the given kind (absent, no opponent), by name only; nothing when there are none.</summary>
+    private static RenderFragment PlayerChips(RoundDto round, GameResult result, string title, string icon, string? info = null) => __builder =>
+    {
+        var lines = round.Games.Where(g => g.Result == result).OrderBy(g => g.Number).ToList();
+        if (lines.Count == 0) return;
+
+        <MudText Typo="Typo.h6" Class="@(info is null ? "mt-6 mb-2" : "mt-6")">@title</MudText>
+        @if (info is not null)
         {
-            <MudText Typo="Typo.h6" Class="mt-6 mb-2">@L["GamesAbsent"]</MudText>
-            <div class="d-flex flex-wrap gap-1">
-                @foreach (var game in absent)
-                {
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.EventBusy" Class="ma-0">
-                        <PlayerName Name="@game.White.Name" IsDeleted="game.White.IsDeleted" />
-                    </MudChip>
-                }
-            </div>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@info</MudText>
         }
+        <div class="d-flex flex-wrap gap-1">
+            @foreach (var game in lines)
+            {
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@icon" Class="ma-0">
+                    <PlayerName Name="@game.White.Name" IsDeleted="game.White.IsDeleted" />
+                </MudChip>
+            }
+        </div>
+    };
+
+    /// <summary>Competition: the catch-up games entered while this was the latest round. Their result can be corrected
+    /// (clearing it removes the game) until the competition is closed.</summary>
+    private RenderFragment CatchUpGames(RoundDto round) => __builder =>
+    {
+        var games = CatchUps(round);
+        if (games.Count == 0) return;
+
+        <MudText Typo="Typo.h6" Class="mt-6">@L["CatchUpGames"]</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["CatchUpGamesInfo"]</MudText>
+        @Cards(games, isStarted: true, editable: Tournament.State != TournamentState.Closed)
     };
 
     private RenderFragment Cards(IEnumerable<GameDto> games, bool isStarted, bool editable, bool queued = false) =>

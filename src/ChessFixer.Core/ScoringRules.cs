@@ -15,6 +15,7 @@ public record ScoringRules(double Win, double Draw, double Loss, double Bye, dou
         GameResult.Draw => (Draw, Draw),
         GameResult.Bye => (Bye, 0),
         GameResult.Absent => (Absent, 0),
+        // No opponent (competition): no points.
         _ => (0, 0)
     };
 }

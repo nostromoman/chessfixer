@@ -3,8 +3,8 @@
 @using System.Globalization
 @inject IDialogService Dialogs
 
-@* One tournament: progress, and tabs for the rules (settings), players, rounds and standings (and the report once
-   closed). The red power button in the header closes the tournament. *@
+@* One tournament: progress, and tabs for the rules (settings), players, rounds and standings, the schedule (cross
+   table, competition only) and the report once closed. The red power button in the header closes the tournament. *@
 <PageTitle>@(Tournament?.Title ?? L["Tournament"])</PageTitle>
 
 @if (IsLoading)
@@ -69,10 +69,17 @@ else
                             <tr><th>@L["GameTime"]</th><td>@Tournament.Settings.GameTimeMinutes</td></tr>
                             <tr><th>@L["Increment"]</th><td>@Tournament.Settings.IncrementSeconds</td></tr>
                             <tr><th>@L["PairingSystem"]</th><td>@L[$"PairingSystem_{Tournament.Settings.PairingSystem}"]</td></tr>
+                            @if (IsCompetition)
+                            {
+                                <tr><th>@L["TimesAgainstEachOther"]</th><td>@L[$"TimesAgainstEachOther_{Tournament.Settings.TimesAgainstEachOther}"]</td></tr>
+                            }
                             <tr><th>@L["PointsForWin"]</th><td>@Display.Points(Tournament.Settings.PointsForWin)</td></tr>
                             <tr><th>@L["PointsForDraw"]</th><td>@Display.Points(Tournament.Settings.PointsForDraw)</td></tr>
                             <tr><th>@L["PointsForLoss"]</th><td>@Display.Points(Tournament.Settings.PointsForLoss)</td></tr>
-                            <tr><th>@L["PointsForBye"]</th><td>@Display.Points(Tournament.Settings.PointsForBye)</td></tr>
+                            @if (!IsCompetition)
+                            {
+                                <tr><th>@L["PointsForBye"]</th><td>@Display.Points(Tournament.Settings.PointsForBye)</td></tr>
+                            }
                             <tr><th>@L["PointsForAbsence"]</th><td>@Display.Points(Tournament.Settings.PointsForAbsence)</td></tr>
                             <tr><th>@L["IsRated"]</th><td>@(Tournament.Settings.IsRated ? L["Yes"] : L["No"])</td></tr>
                         </tbody>
@@ -122,6 +129,16 @@ else
                                 }
                             </MudSelect>
                         </MudItem>
+                        @if (_form.PairingSystem == PairingSystem.Competition)
+                        {
+                            <MudItem xs="12">
+                                <MudSelect T="int" @bind-Value="_form.TimesAgainstEachOther" Label="@L["TimesAgainstEachOther"]"
+                                           Variant="Variant.Outlined" Disabled="Tournament.SettingsLocked">
+                                    <MudSelectItem Value="2">@L["TimesAgainstEachOther_2"]</MudSelectItem>
+                                    <MudSelectItem Value="1">@L["TimesAgainstEachOther_1"]</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                        }
                         <MudItem xs="12">
                             <MudNumericField T="double" @bind-Value="_form.PointsForWin" Label="@L["PointsForWin"]"
                                              Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
@@ -134,10 +151,13 @@ else
                             <MudNumericField T="double" @bind-Value="_form.PointsForLoss" Label="@L["PointsForLoss"]"
                                              Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
                         </MudItem>
-                        <MudItem xs="12">
-                            <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
-                                             Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
-                        </MudItem>
+                        @if (_form.PairingSystem == PairingSystem.Swiss)
+                        {
+                            <MudItem xs="12">
+                                <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
+                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Disabled="Tournament.SettingsLocked" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                            </MudItem>
+                        }
                         <MudItem xs="12">
                             <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" Label="@L["PointsForAbsence"]"
                                              HelperText="@L["PointsForAbsenceHelp"]"
@@ -179,6 +199,12 @@ else
                     }
                 </div>
             </MudTabPanel>
+            @if (IsCompetition && _schedule is not null)
+            {
+                <MudTabPanel Text="@L["Schedule"]" Icon="@Icons.Material.Filled.TableChart">
+                    <CompetitionScheduleTab Tournament="Tournament" Schedule="_schedule" Disabled="IsBusy" OnCatchUp="CatchUpAsync" />
+                </MudTabPanel>
+            }
             @if (IsClosed)
             {
                 <MudTabPanel Text="@L["Report"]" Icon="@Icons.Material.Filled.AutoAwesome">
@@ -193,12 +219,16 @@ else
 <PlayerEditDrawer @ref="_playerDrawer" OnSaved="_ => RunAsync(() => Task.CompletedTask)" />
 
 @code {
-    private const int RulesTab = 0, PlayersTab = 1, RoundsTab = 2, StandingsTab = 3, ReportTab = 4;
+    private const int RulesTab = 0, PlayersTab = 1, RoundsTab = 2, StandingsTab = 3;
+    /// <summary>A competition has the schedule tab before the report.</summary>
+    private int ReportTab => IsCompetition ? 5 : 4;
 
     private List<TournamentPlayerDto> _participants = [];
     private Dictionary<int, PlayerDto> _players = [];
     private List<RoundDto> _rounds = [];
     private List<StandingDto> _standings = [];
+    /// <summary>Competition only: the cross table with the open games.</summary>
+    private CompetitionScheduleDto? _schedule;
 
     private int _activeTab;
     private bool _initialTabChosen;
@@ -209,6 +239,7 @@ else
 
     private int ActivePlayerCount => _participants.Count(p => p.IsActive);
     private bool IsClosed => Tournament?.State == TournamentState.Closed;
+    private bool IsCompetition => Tournament?.Settings.PairingSystem == PairingSystem.Competition;
     /// <summary>Settings can change before and between rounds, not during a round or after closing.</summary>
     private bool CanEditSettings => Tournament?.State is TournamentState.New or TournamentState.WaitingForNextRound;
     private bool IsDirty => _loaded is not null && _form.ToRequest() != _loaded;
@@ -217,6 +248,7 @@ else
         !CanStartNextRound ? null
         : Tournament!.Settings.Boards < 1 ? L["StartBlockedBoards"].Value
         : ActivePlayerCount < 2 ? L["StartBlockedPlayers"].Value
+        : IsCompetition && Tournament.RoundsStarted > 0 && Tournament.OpenGames == 0 ? L["CompetitionCompleteInfo"].Value
         : !_rounds.Any(r => !r.IsStarted) ? L["NoPairingPossible"].Value
         : null;
 
@@ -228,10 +260,12 @@ else
         var allPlayers = Api.GetPlayersAsync(includeDeleted: true);
         var rounds = Api.GetRoundsAsync(Id);
         var standings = Api.GetStandingsAsync(Id);
+        var schedule = IsCompetition ? Api.GetScheduleAsync(Id) : null;
         _participants = await participants;
         _players = (await allPlayers).ToDictionary(p => p.Id);
         _rounds = await rounds;
         _standings = await standings;
+        _schedule = schedule is null ? null : await schedule;
     }
 
     /// <summary>Takes over the server values, unless the user is busy editing the settings.</summary>
@@ -315,7 +349,7 @@ else
     {
         if (_rounds.LastOrDefault(r => r.IsStarted) is not { } round) return;
 
-        var resultCount = round.Games.Count(g => g.Black is not null && g.Result != GameResult.NotPlayed);
+        var resultCount = round.Games.Count(g => g.Black is not null && !g.IsCatchUp && g.Result != GameResult.NotPlayed);
         var running = round.StartedAt is { } startedAt ? DateTime.UtcNow - startedAt : TimeSpan.Zero;
         if (resultCount > 0 || running > CancelWithoutConfirmation)
         {
@@ -335,13 +369,39 @@ else
 
     private async Task CloseAsync()
     {
+        // A competition with games still to play: they become "not played".
+        var text = Tournament!.OpenGames > 0
+            ? $"{L["CloseConfirmOpenGames", Tournament.OpenGames]} {L["CloseConfirmText"]}"
+            : L["CloseConfirmText"].Value;
         var confirmed = await Dialogs.ShowMessageBoxAsync(
-            L["CloseConfirmTitle"], L["CloseConfirmText"], yesText: L["CloseTournament"], cancelText: L["Cancel"]);
+            L["CloseConfirmTitle"], text, yesText: L["CloseTournament"], cancelText: L["Cancel"]);
         if (confirmed != true) return;
 
         await RunAsync(() => Api.CloseAsync(Id), L["TournamentClosed"]);
         // The report is written on request: show the tab with the button for it.
         if (IsClosed) _activeTab = ReportTab;
+    }
+
+    /// <summary>Competition: the leader picked an open game in the schedule; ask for the colors and the result.</summary>
+    private async Task CatchUpAsync(OpenGameDto game)
+    {
+        if (_schedule is null) return;
+        var a = _schedule.Players.First(p => p.PlayerId == game.PlayerA);
+        var b = _schedule.Players.First(p => p.PlayerId == game.PlayerB);
+        var (white, black) = game.WhitePlayerId == b.PlayerId ? (b, a) : (a, b);
+
+        var dialog = await Dialogs.ShowAsync<CatchUpGameDialog>(null,
+            new DialogParameters<CatchUpGameDialog>
+            {
+                { d => d.White, white },
+                { d => d.Black, black },
+                { d => d.ColorsFixed, game.WhitePlayerId is not null },
+                { d => d.RoundNumber, Tournament!.RoundsStarted }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is not { Canceled: false, Data: CatchUpGameRequest request }) return;
+
+        await RunAsync(() => Api.AddCatchUpGameAsync(Id, request), L["CatchUpSaved"]);
     }
 
     private Task GenerateReportAsync(GenerateReportRequest request) =>
@@ -353,9 +413,9 @@ else
     /// <summary>A report exists or is being written.</summary>
     private bool HasReport => Tournament?.Report is { } r && (r.Text is not null || r.Status == ReportStatus.Generating);
 
-    /// <summary>The real games (without byes) of the most recent started round.</summary>
+    /// <summary>The real games (without byes and catch-up games) of the most recent started round.</summary>
     private List<GameDto> CurrentGames =>
-        _rounds.LastOrDefault(r => r.IsStarted)?.Games.Where(g => g.Black is not null).ToList() ?? [];
+        _rounds.LastOrDefault(r => r.IsStarted)?.Games.Where(g => g.Black is not null && !g.IsCatchUp).ToList() ?? [];
 
     private string StatusIcon => Tournament?.State switch
     {
@@ -388,6 +448,7 @@ else
         public string Location { get; set; } = "";
         public string Description { get; set; } = "";
         public PairingSystem PairingSystem { get; set; }
+        public int TimesAgainstEachOther { get; set; } = 2;
         public int GameTimeMinutes { get; set; }
         public int IncrementSeconds { get; set; }
         public double PointsForWin { get; set; }
@@ -404,6 +465,7 @@ else
             Location = t.Location ?? "",
             Description = t.Description ?? "",
             PairingSystem = t.Settings.PairingSystem,
+            TimesAgainstEachOther = t.Settings.TimesAgainstEachOther,
             GameTimeMinutes = t.Settings.GameTimeMinutes,
             IncrementSeconds = t.Settings.IncrementSeconds,
             PointsForWin = t.Settings.PointsForWin,
@@ -418,7 +480,8 @@ else
         public UpdateTournamentRequest ToRequest() => new(
             Title,
             new TournamentSettingsDto(PairingSystem, GameTimeMinutes, IncrementSeconds,
-                PointsForWin, PointsForDraw, PointsForLoss, PointsForBye, Boards, IsRated, PointsForAbsence),
+                PointsForWin, PointsForDraw, PointsForLoss, PointsForBye, Boards, IsRated, PointsForAbsence,
+                TimesAgainstEachOther),
             NullIfEmpty(Location),
             NullIfEmpty(Description));
 

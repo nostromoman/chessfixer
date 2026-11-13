@@ -1201,3 +1201,71 @@ html, body {
         height: 140px;
     }
 }
+
+/* Competition schedule: the cross table. Scrolls sideways on its own on a narrow screen. */
+.schedule-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.schedule-table {
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+    .schedule-table th,
+    .schedule-table td {
+        border: 1px solid var(--mud-palette-lines-default);
+        padding: 2px 4px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .schedule-table th.schedule-name {
+        text-align: left;
+        font-weight: normal;
+        position: sticky;
+        left: 0;
+        background: var(--mud-palette-surface);
+        z-index: 1;
+    }
+
+    .schedule-table td.schedule-self {
+        background: var(--mud-palette-action-disabled-background);
+    }
+
+    .schedule-table td.schedule-highlight {
+        background: var(--mud-palette-primary-hover);
+    }
+
+.schedule-cell {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+}
+
+.schedule-slot {
+    display: inline-block;
+    min-width: 1.4em;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+button.schedule-slot {
+    border: 1px dashed var(--mud-palette-lines-default);
+    background: transparent;
+    color: var(--mud-palette-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+}
+
+    button.schedule-slot:hover:not(:disabled) {
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary);
+    }
+
+.schedule-open {
+    color: var(--mud-palette-text-secondary);
+    font-weight: normal;
+}

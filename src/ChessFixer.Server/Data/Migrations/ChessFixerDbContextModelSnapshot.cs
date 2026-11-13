@@ -297,8 +297,14 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<int?>("Board")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsCatchUp")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Number")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("PlayedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("RatedAt")
                         .HasColumnType("TEXT");
@@ -334,7 +340,9 @@ namespace ChessFixer.Server.Data.Migrations
 
                     b.ToTable("Games", t =>
                         {
-                            t.HasCheckConstraint("CK_Games_Bye", "(\"BlackId\" IS NULL) = (\"Result\" IN ('Bye', 'Absent')) AND (\"Result\" NOT IN ('Bye', 'Absent') OR \"Board\" IS NULL)");
+                            t.HasCheckConstraint("CK_Games_Bye", "(\"BlackId\" IS NULL) = (\"Result\" IN ('Bye', 'Absent', 'NoOpponent')) AND (\"Result\" NOT IN ('Bye', 'Absent', 'NoOpponent') OR \"Board\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Games_CatchUp", "\"IsCatchUp\" = 0 OR (\"BlackId\" IS NOT NULL AND \"Board\" IS NULL AND \"Result\" <> 'NotPlayed' AND \"PlayedAt\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_Games_DifferentPlayers", "\"BlackId\" IS NULL OR \"BlackId\" <> \"WhiteId\"");
 
@@ -610,6 +618,9 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<double>("PointsForWin")
                         .HasColumnType("REAL");
 
+                    b.Property<int>("TimesAgainstEachOther")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -624,6 +635,8 @@ namespace ChessFixer.Server.Data.Migrations
                             t.HasCheckConstraint("CK_Tournaments_Points", "\"PointsForWin\" >= 0 AND \"PointsForDraw\" >= 0 AND \"PointsForLoss\" >= 0 AND \"PointsForBye\" >= 0 AND \"PointsForAbsence\" >= 0");
 
                             t.HasCheckConstraint("CK_Tournaments_TimeControl", "\"GameTimeMinutes\" > 0 AND \"IncrementSeconds\" >= 0");
+
+                            t.HasCheckConstraint("CK_Tournaments_TimesAgainstEachOther", "\"TimesAgainstEachOther\" BETWEEN 1 AND 2");
                         });
                 });
 

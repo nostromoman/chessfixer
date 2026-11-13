@@ -82,17 +82,15 @@ else
                     <td>
                         @if (player.IsActive)
                         {
-                            var noAbsence = IsRoundRobin && player.IsPresent;
                             // During a round a player can be switched on (a latecomer), not off.
                             var locked = PresenceLocked && player.IsPresent;
                             var tooltip = locked ? L["PresenceLockedInRound"]
-                                : noAbsence ? L["PresenceRoundRobin"]
-                                : PresenceLocked && !IsRoundRobin ? L["PresentLate"]
+                                : PresenceLocked ? L["PresentLate"]
                                 : L["Present"];
                             <MudTooltip Text="@tooltip">
                                 <MudCheckBox T="bool" Value="player.IsPresent" ValueChanged="v => SetPresenceAsync(player, v)"
                                              Color="Color.Primary" Dense="true" Size="Size.Small" aria-label="@L["Present"]"
-                                             Disabled="@(!CanChangePlayers || Disabled || locked || noAbsence)" />
+                                             Disabled="@(!CanChangePlayers || Disabled || locked)" />
                             </MudTooltip>
                         }
                     </td>
@@ -141,7 +139,7 @@ else
 }
 
 @code {
-    private enum PlayerStatus { Waiting, WaitingForBoard, Playing, Bye, Absent, Withdrawn, Finished }
+    private enum PlayerStatus { Waiting, WaitingForBoard, Playing, Bye, NoOpponent, Absent, Withdrawn, Finished }
 
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
     [Parameter, EditorRequired] public List<TournamentPlayerDto> Participants { get; set; } = [];
@@ -166,16 +164,12 @@ else
     private string? LockReason => Tournament.State switch
     {
         TournamentState.Closed => L["PlayersLockedClosed"].Value,
-        _ when PlayerListFixed => L["PlayersLockedRoundRobin"].Value,
         _ => null
     };
 
-    private bool IsRoundRobin => Tournament.Settings.PairingSystem == PairingSystem.RoundRobin;
+    private bool IsCompetition => Tournament.Settings.PairingSystem == PairingSystem.Competition;
 
-    /// <summary>Round robin is for a fixed group: no new players once round 1 has started (withdrawn players can rejoin).</summary>
-    private bool PlayerListFixed => IsRoundRobin && Tournament.SettingsLocked;
-
-    private bool CanAddPlayers => CanChangePlayers && !PlayerListFixed;
+    private bool CanAddPlayers => CanChangePlayers;
 
     private PlayerStatus StatusOf(TournamentPlayerDto player)
     {
@@ -184,11 +178,13 @@ else
         if (Tournament.State != TournamentState.RoundActive) return player.IsPresent ? PlayerStatus.Waiting : PlayerStatus.Absent;
 
         var round = Rounds.LastOrDefault(r => r.IsStarted);
-        var game = round?.Games.FirstOrDefault(g => g.White.PlayerId == player.PlayerId || g.Black?.PlayerId == player.PlayerId);
+        var game = round?.Games.FirstOrDefault(g => !g.IsCatchUp
+                                                    && (g.White.PlayerId == player.PlayerId || g.Black?.PlayerId == player.PlayerId));
         return game switch
         {
             null => player.IsPresent ? PlayerStatus.Waiting : PlayerStatus.Absent, // joined during this round
             { Result: GameResult.Absent } => PlayerStatus.Absent,
+            { Result: GameResult.NoOpponent } => PlayerStatus.NoOpponent,
             { Black: null } => PlayerStatus.Bye,
             { Result: GameResult.NotPlayed, Board: null } => PlayerStatus.WaitingForBoard,
             { Result: GameResult.NotPlayed } => PlayerStatus.Playing,
@@ -214,7 +210,7 @@ else
     private static Color StatusColor(PlayerStatus status) => status switch
     {
         PlayerStatus.Playing => Color.Success,
-        PlayerStatus.Bye => Color.Info,
+        PlayerStatus.Bye or PlayerStatus.NoOpponent => Color.Info,
         PlayerStatus.Absent => Color.Secondary,
         PlayerStatus.Waiting or PlayerStatus.WaitingForBoard => Color.Warning,
         _ => Color.Default
@@ -327,7 +323,7 @@ else
                 { d => d.Name, player.Name },
                 { d => d.GameCount, gameCount },
                 { d => d.IsPresent, player.IsPresent && !PresenceLocked },
-                { d => d.IsRoundRobin, IsRoundRobin }
+                { d => d.IsCompetition, IsCompetition }
             },
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
 

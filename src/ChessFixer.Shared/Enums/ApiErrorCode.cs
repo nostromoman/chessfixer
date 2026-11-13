@@ -42,14 +42,22 @@ public enum ApiErrorCode
     PlayerAlreadyInTournament,
     PlayerNotInTournament,
     PlayerInActiveGame,
-    /// <summary>Round robin: no new players once round 1 has started.</summary>
-    PlayersFixed,
-    /// <summary>Round robin: players cannot be marked absent.</summary>
-    AbsenceNotAllowed,
     ResultNotEditable,
     NotEnoughPlayers,
     TooManyPlayers,
     NoValidPairing,
+    /// <summary>Competition: every pair has played all its games.</summary>
+    CompetitionComplete,
+    /// <summary>Competition: none of the players who take part still have a game to play against each other.</summary>
+    NoGamesBetweenPresentPlayers,
+    /// <summary>Only possible in a competition (e.g. catch-up games).</summary>
+    NotACompetition,
+    /// <summary>Catch-up game: the two players have no open game with these colors.</summary>
+    GameNotOpen,
+    /// <summary>Catch-up game: the pair has this game in the current round.</summary>
+    GameInCurrentRound,
+    /// <summary>Cancelling round 1 while catch-up games belong to it.</summary>
+    CatchUpGamesInRound,
     AiNotConfigured,
     ReportNotAvailable,
     UserNameTaken,

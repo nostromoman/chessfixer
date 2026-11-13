@@ -1,0 +1,217 @@
+@inject IStringLocalizer<Strings> L
+
+@* Competition: the cross table (every player against every other player) with the results and the open games, and per
+   player the games still to play. An open game can be entered as a catch-up game (played outside a club evening).
+   With two games per pair, each cell has two parts: the game in which the row player had White, then Black. *@
+<MudText Typo="Typo.body2" Class="mb-1">@L["ScheduleIntro"]</MudText>
+@if (Schedule.TimesAgainstEachOther == 2)
+{
+    <MudText Typo="Typo.body2" Class="mb-1">@L["ScheduleIntroWhite"]</MudText>
+}
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+    @(OpenCount > 0 ? L["ScheduleOpenGames", OpenCount] : L["ScheduleNoOpenGames"])
+    @if (!CanCatchUp && OpenCount > 0 && Tournament.State == TournamentState.New)
+    {
+        <span> · @L["CatchUpNotYet"]</span>
+    }
+</MudText>
+
+<div class="schedule-scroll">
+    <table class="schedule-table">
+        <thead>
+            <tr>
+                <th></th>
+                @for (var i = 0; i < Players.Count; i++)
+                {
+                    var player = Players[i];
+                    <th title="@player.Name">@(i + 1)</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (var r = 0; r < Players.Count; r++)
+            {
+                var row = Players[r];
+                <tr class="@(row.IsActive ? null : "withdrawn")">
+                    <th class="schedule-name">
+                        <span class="mud-text-secondary">@(r + 1).</span>
+                        <MudLink OnClick="() => _selectedPlayerId = row.PlayerId"><PlayerName Name="@row.Name" IsDeleted="row.IsDeleted" /></MudLink>
+                    </th>
+                    @foreach (var column in Players)
+                    {
+                        if (column.PlayerId == row.PlayerId)
+                        {
+                            <td class="schedule-self"></td>
+                            continue;
+                        }
+                        <td class="@(row.PlayerId == _selectedPlayerId || column.PlayerId == _selectedPlayerId ? "schedule-highlight" : null)">
+                            <div class="schedule-cell">
+                                @foreach (var slot in Slots(row.PlayerId, column.PlayerId))
+                                {
+                                    @Slot(slot, row, column)
+                                }
+                            </div>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<MudText Typo="Typo.h6" Class="mt-6 mb-2">
+    @(SelectedPlayer is { } selected ? L["ScheduleOpenGamesOf", selected.Name] : L["ScheduleChoosePlayer"])
+</MudText>
+<MudSelect T="int?" Value="_selectedPlayerId" ValueChanged="id => _selectedPlayerId = id" Label="@L["Name"]"
+           Variant="Variant.Outlined" Dense="true" Clearable="true" Style="max-width: 320px" Class="mb-3">
+    @foreach (var player in Players.OrderBy(p => p.Name))
+    {
+        <MudSelectItem T="int?" Value="player.PlayerId">@player.Name</MudSelectItem>
+    }
+</MudSelect>
+@if (SelectedPlayer is { } chosen)
+{
+    var open = OpenGamesOf(chosen.PlayerId).ToList();
+    if (open.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["ScheduleNoOpenGames"]</MudText>
+    }
+    else
+    {
+        <MudSimpleTable Dense="true" Elevation="0" Style="max-width: 560px">
+            <tbody>
+                @foreach (var game in open)
+                {
+                    var opponentId = game.PlayerA == chosen.PlayerId ? game.PlayerB : game.PlayerA;
+                    var opponent = PlayerById(opponentId);
+                    <tr>
+                        <td><PlayerName Name="@opponent.Name" IsDeleted="opponent.IsDeleted" /></td>
+                        <td>@ColorText(game, chosen.PlayerId)</td>
+                        <td style="text-align: right">
+                            @if (CanCatchUp && chosen.IsActive && opponent.IsActive)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.EditCalendar" Disabled="Disabled"
+                                           OnClick="() => OpenCatchUpAsync(game)">@L["CatchUpEnter"]</MudButton>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
+    [Parameter, EditorRequired] public CompetitionScheduleDto Schedule { get; set; } = null!;
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>The leader picked an open game to enter as a catch-up game.</summary>
+    [Parameter] public EventCallback<OpenGameDto> OnCatchUp { get; set; }
+
+    private int? _selectedPlayerId;
+
+    private IReadOnlyList<SchedulePlayerDto> Players => Schedule.Players;
+    private SchedulePlayerDto? SelectedPlayer => Players.FirstOrDefault(p => p.PlayerId == _selectedPlayerId);
+    private SchedulePlayerDto PlayerById(int id) => Players.First(p => p.PlayerId == id);
+
+    /// <summary>Games between players still in the competition (only those can still be played).</summary>
+    private int OpenCount => Schedule.OpenGames.Count(g => PlayerById(g.PlayerA).IsActive && PlayerById(g.PlayerB).IsActive);
+
+    /// <summary>Catch-up games can be entered once round 1 has started, until the competition is closed.</summary>
+    private bool CanCatchUp => Tournament.State is TournamentState.RoundActive or TournamentState.WaitingForNextRound;
+
+    private bool IsClosed => Tournament.State == TournamentState.Closed;
+
+    private IEnumerable<OpenGameDto> OpenGamesOf(int playerId) =>
+        Schedule.OpenGames.Where(g => g.PlayerA == playerId || g.PlayerB == playerId);
+
+    /// <summary>One part of a cell: a game played (or being played) or still open, seen from the row player.</summary>
+    private sealed record CellSlot(ScheduleGameDto? Game, OpenGameDto? Open);
+
+    /// <summary>
+    /// The parts of the cell of row player against column player: once per game they play. With two games: first the
+    /// game in which the row player has White, then Black.
+    /// </summary>
+    private IEnumerable<CellSlot> Slots(int row, int column)
+    {
+        var games = Schedule.Games
+            .Where(g => (g.WhitePlayerId == row && g.BlackPlayerId == column) || (g.WhitePlayerId == column && g.BlackPlayerId == row))
+            .OrderBy(g => g.Round).ToList();
+        var open = Schedule.OpenGames
+            .Where(g => (g.PlayerA == row && g.PlayerB == column) || (g.PlayerA == column && g.PlayerB == row)).ToList();
+
+        if (Schedule.TimesAgainstEachOther != 2)
+        {
+            foreach (var game in games) yield return new CellSlot(game, null);
+            foreach (var game in open) yield return new CellSlot(null, game);
+            yield break;
+        }
+
+        foreach (var rowWhite in new[] { true, false })
+        {
+            var colorWhite = rowWhite ? row : column;
+            var played = games.FirstOrDefault(g => g.WhitePlayerId == colorWhite);
+            if (played is not null)
+            {
+                games.Remove(played);
+                yield return new CellSlot(played, null);
+                continue;
+            }
+            var waiting = open.FirstOrDefault(g => g.WhitePlayerId == colorWhite) ?? open.FirstOrDefault(g => g.WhitePlayerId is null);
+            if (waiting is not null)
+            {
+                open.Remove(waiting);
+                yield return new CellSlot(null, waiting);
+            }
+        }
+        // Anything left (e.g. a pair that played twice with the same colors in an older version).
+        foreach (var game in games) yield return new CellSlot(game, null);
+    }
+
+    private RenderFragment Slot(CellSlot slot, SchedulePlayerDto row, SchedulePlayerDto column) => __builder =>
+    {
+        if (slot.Game is { } game)
+        {
+            var rowWhite = game.WhitePlayerId == row.PlayerId;
+            var title = $"{L["Round", game.Round]}{(game.IsCatchUp ? $" ({L["CatchUp"]})" : "")} · {(rowWhite ? L["White"] : L["Black"])}";
+            <span class="@($"schedule-slot {Display.OutcomeClass(game.Result, rowWhite)}")" title="@title">@ScoreText(game.Result, rowWhite)</span>
+        }
+        else if (slot.Open is { } open)
+        {
+            var playable = CanCatchUp && row.IsActive && column.IsActive;
+            var title = IsClosed ? L["ScheduleNotPlayed"].Value : L["ScheduleOpen"].Value;
+            if (playable)
+            {
+                <button type="button" class="schedule-slot schedule-open" title="@($"{title} · {L["CatchUpEnter"]}")"
+                        disabled="@Disabled" @onclick="() => OpenCatchUpAsync(open)">·</button>
+            }
+            else
+            {
+                <span class="schedule-slot schedule-open" title="@title">@(IsClosed ? "–" : "·")</span>
+            }
+        }
+    };
+
+    /// <summary>The score of the row player: 1, ½, 0; + and − for a forfeit; • while the game is being played.</summary>
+    private static string ScoreText(GameResult result, bool rowWhite) => result switch
+    {
+        GameResult.NotPlayed => "•",
+        GameResult.Draw => "½",
+        GameResult.WhiteWins => rowWhite ? "1" : "0",
+        GameResult.BlackWins => rowWhite ? "0" : "1",
+        GameResult.WhiteWinsByForfeit => rowWhite ? "+" : "−",
+        GameResult.BlackWinsByForfeit => rowWhite ? "−" : "+",
+        _ => ""
+    };
+
+    private string ColorText(OpenGameDto game, int playerId) => game.WhitePlayerId switch
+    {
+        null => L["ScheduleColorFree"],
+        var white when white == playerId => L["White"],
+        _ => L["Black"]
+    };
+
+    private Task OpenCatchUpAsync(OpenGameDto game) => OnCatchUp.InvokeAsync(game);
+}

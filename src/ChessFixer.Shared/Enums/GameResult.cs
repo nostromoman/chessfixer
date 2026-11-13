@@ -14,5 +14,9 @@ public enum GameResult
     Bye,
 
     /// <summary>The player was absent this round: no game and no opponent (Black is null), points for absence.</summary>
-    Absent
+    Absent,
+
+    /// <summary>Competition: the player took part this round but had no opponent left to play (odd number, or all
+    /// remaining opponents absent or already paired). No game, no opponent (Black is null), no points.</summary>
+    NoOpponent
 }

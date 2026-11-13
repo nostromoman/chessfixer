@@ -97,9 +97,10 @@ public static class TournamentReportPrompt
         if (!string.IsNullOrWhiteSpace(t.Location)) text.AppendLine($"Locatie: {t.Location}");
         if (!string.IsNullOrWhiteSpace(t.Description)) text.AppendLine($"Omschrijving: {t.Description}");
         if (FormatDate(data.FirstRoundStartedAt, data.LastRoundStartedAt) is { } date) text.AppendLine($"Datum: {date}");
-        text.AppendLine($"Indelingssysteem: {(s.PairingSystem == PairingSystem.Swiss ? "Zwitsers" : "Round robin (iedereen tegen iedereen)")}");
+        text.AppendLine($"Indelingssysteem: {SystemName(s)}");
         text.AppendLine($"Tempo: {s.GameTimeMinutes} minuten per speler + {s.IncrementSeconds} seconden per zet");
-        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}, bye {Points(s.PointsForBye)}"
+        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}"
+            + (s.PairingSystem == PairingSystem.Swiss ? $", bye {Points(s.PointsForBye)}" : "")
             + (s.PointsForAbsence > 0 ? $", afwezig {Points(s.PointsForAbsence)}" : ""));
         text.AppendLine($"Aantal gespeelde rondes: {t.RoundsStarted}");
         text.AppendLine($"Aantal spelers: {data.Standings.Count}");
@@ -108,13 +109,18 @@ public static class TournamentReportPrompt
         foreach (var standing in data.Standings.OrderBy(p => p.Name))
             text.AppendLine($"- {DescribePlayer(standing, data)}");
 
-        text.AppendLine().AppendLine("EINDSTAND (tiebreaks: Buchholz, daarna Sonneborn-Berger)");
+        var isCompetition = s.PairingSystem == PairingSystem.Competition;
+        text.AppendLine().AppendLine(isCompetition
+            ? "EINDSTAND (tiebreaks: Sonneborn-Berger, daarna aantal winstpartijen)"
+            : "EINDSTAND (tiebreaks: Buchholz, daarna Sonneborn-Berger)");
         foreach (var row in data.Standings.OrderBy(r => r.Rank))
         {
             text.AppendLine(
                 $"{row.Rank}. {row.Name}: {Points(row.Points)} punten uit {row.Played} partijen " +
                 $"({row.Wins} winst, {row.Draws} remise, {row.Losses} verlies; " +
-                $"Buchholz {Points(row.Buchholz)}, Sonneborn-Berger {Points(row.SonnebornBerger)})");
+                (isCompetition
+                    ? $"Sonneborn-Berger {Points(row.SonnebornBerger)}" + (row.Remaining > 0 ? $"; {row.Remaining} partijen niet gespeeld" : "")
+                    : $"Buchholz {Points(row.Buchholz)}, Sonneborn-Berger {Points(row.SonnebornBerger)}") + ")");
         }
 
         text.AppendLine().AppendLine("PARTIJEN");
@@ -129,13 +135,19 @@ public static class TournamentReportPrompt
                     text.AppendLine($"- {game.White.Name} was afwezig");
                     continue;
                 }
+                if (game.Result == GameResult.NoOpponent)
+                {
+                    text.AppendLine($"- {game.White.Name} was er, maar had geen tegenstander");
+                    continue;
+                }
                 if (game.Black is null)
                 {
                     text.AppendLine($"- {game.White.Name} had een bye (vrij)");
                     continue;
                 }
 
-                text.AppendLine($"- {NameWithRating(game.White, data)} (wit) tegen {NameWithRating(game.Black, data)} (zwart): {Result(game.Result)}");
+                text.AppendLine($"- {NameWithRating(game.White, data)} (wit) tegen {NameWithRating(game.Black, data)} (zwart): {Result(game.Result)}"
+                    + (game.IsCatchUp ? " (inhaalpartij, buiten de clubavond gespeeld)" : ""));
                 if (Upset(game, round.Number, data, options.UpsetRatingDifference) is { } upset) upsets.Add(upset);
             }
         }
@@ -170,9 +182,10 @@ public static class TournamentReportPrompt
         text.AppendLine($"Naam: {t.Title}");
         if (!string.IsNullOrWhiteSpace(t.Location)) text.AppendLine($"Locatie: {t.Location}");
         if (!string.IsNullOrWhiteSpace(t.Description)) text.AppendLine($"Omschrijving: {t.Description}");
-        text.AppendLine($"Indelingssysteem: {(s.PairingSystem == PairingSystem.Swiss ? "Zwitsers" : "Round robin (iedereen tegen iedereen)")}");
+        text.AppendLine($"Indelingssysteem: {SystemName(s)}");
         text.AppendLine($"Tempo: {s.GameTimeMinutes} minuten per speler + {s.IncrementSeconds} seconden per zet");
-        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}, bye {Points(s.PointsForBye)}"
+        text.AppendLine($"Puntentelling: winst {Points(s.PointsForWin)}, remise {Points(s.PointsForDraw)}, verlies {Points(s.PointsForLoss)}"
+            + (s.PairingSystem == PairingSystem.Swiss ? $", bye {Points(s.PointsForBye)}" : "")
             + (s.PointsForAbsence > 0 ? $", afwezig {Points(s.PointsForAbsence)}" : ""));
         var isLast = t.State == TournamentState.Closed && roundNumber == t.RoundsStarted;
         text.AppendLine($"Dit is ronde {roundNumber}; er zijn tot nu toe {t.RoundsStarted} rondes gestart. " +
@@ -188,6 +201,11 @@ public static class TournamentReportPrompt
                 text.AppendLine($"- {game.White.Name} was afwezig");
                 continue;
             }
+            if (game.Result == GameResult.NoOpponent)
+            {
+                text.AppendLine($"- {game.White.Name} was er, maar had geen tegenstander");
+                continue;
+            }
             if (game.Black is null)
             {
                 text.AppendLine($"- {game.White.Name} had een bye (vrij)");
@@ -195,7 +213,8 @@ public static class TournamentReportPrompt
             }
 
             var meeting = game.TimesMetBefore > 0 ? $" (hun {game.TimesMetBefore + 1}e ontmoeting in dit toernooi)" : "";
-            text.AppendLine($"- {NameWithRating(game.White, data)} (wit) tegen {NameWithRating(game.Black, data)} (zwart): {Result(game.Result)}{meeting}");
+            text.AppendLine($"- {NameWithRating(game.White, data)} (wit) tegen {NameWithRating(game.Black, data)} (zwart): {Result(game.Result)}{meeting}"
+                + (game.IsCatchUp ? " (inhaalpartij, buiten de clubavond gespeeld)" : ""));
             if (Upset(game, roundNumber, data, options.UpsetRatingDifference) is { } upset) upsets.Add(upset);
         }
 
@@ -287,4 +306,10 @@ public static class TournamentReportPrompt
     }
 
     private static string Points(double value) => value.ToString("0.##", Dutch);
+
+    private static string SystemName(TournamentSettingsDto s) => s.PairingSystem == PairingSystem.Swiss
+        ? "Zwitsers"
+        : s.TimesAgainstEachOther == 2
+            ? "Competitie: iedereen speelt twee keer tegen iedereen (een keer met wit, een keer met zwart), elke ronde worden de aanwezigen ingedeeld"
+            : "Competitie: iedereen speelt een keer tegen iedereen, elke ronde worden de aanwezigen ingedeeld";
 }

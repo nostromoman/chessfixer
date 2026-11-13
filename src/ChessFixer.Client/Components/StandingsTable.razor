@@ -6,9 +6,20 @@
             <th>@L["Rank"]</th>
             <th>@L["Name"]</th>
             <th style="text-align: right">@L["PointsShort"]</th>
-            <th style="text-align: right" title="@L["BuchholzLong"]">@L["BuchholzShort"]</th>
+            @if (IsCompetition)
+            {
+                <th style="text-align: right" title="@L["PercentageLong"]">@L["PercentageShort"]</th>
+            }
+            else
+            {
+                <th style="text-align: right" title="@L["BuchholzLong"]">@L["BuchholzShort"]</th>
+            }
             <th class="hide-xs" style="text-align: right" title="@L["SonnebornBergerLong"]">@L["SonnebornBergerShort"]</th>
             <th style="text-align: right">@L["PlayedShort"]</th>
+            @if (IsCompetition)
+            {
+                <th style="text-align: right" title="@L["RemainingLong"]">@L["RemainingShort"]</th>
+            }
             <th class="hide-xs" style="text-align: right">@L["WinsShort"]</th>
             <th class="hide-xs" style="text-align: right">@L["DrawsShort"]</th>
             <th class="hide-xs" style="text-align: right">@L["LossesShort"]</th>
@@ -35,9 +46,20 @@
                     }
                 </td>
                 <td style="text-align: right"><b>@Display.Points(row.Points)</b></td>
-                <td style="text-align: right">@Display.Points(row.Buchholz)</td>
+                @if (IsCompetition)
+                {
+                    <td style="text-align: right">@(row.Percentage is { } percentage ? Display.Points(percentage) : "")</td>
+                }
+                else
+                {
+                    <td style="text-align: right">@Display.Points(row.Buchholz)</td>
+                }
                 <td class="hide-xs" style="text-align: right">@Display.Points(row.SonnebornBerger)</td>
                 <td style="text-align: right">@row.Played</td>
+                @if (IsCompetition)
+                {
+                    <td style="text-align: right">@row.Remaining</td>
+                }
                 <td class="hide-xs" style="text-align: right">@row.Wins</td>
                 <td class="hide-xs" style="text-align: right">@row.Draws</td>
                 <td class="hide-xs" style="text-align: right">@row.Losses</td>
@@ -48,6 +70,9 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<StandingDto> Standings { get; set; } = [];
+
+    /// <summary>Competition: percentage and games still to play instead of Buchholz.</summary>
+    private bool IsCompetition => Standings.Any(s => s.Remaining is not null);
 
     /// <summary>When set, player names are links; the callback gets the player id.</summary>
     [Parameter] public EventCallback<int> OnPlayerClick { get; set; }
