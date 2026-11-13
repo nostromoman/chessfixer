@@ -1,0 +1,74 @@
+@inject IStringLocalizer<Strings> L
+
+@* White's chance to win after every half-move (0–100 %, 50 % = equal), as an area around the middle line:
+   above the line White is better, below Black. Inaccuracies, mistakes and blunders get a labelled marker.
+   Hover shows the move and the evaluation; a click jumps to that move. *@
+<div class="eval-graph" @onmouseleave="() => _hover = null">
+    <svg viewBox="0 0 @W @H" preserveAspectRatio="none" role="img" aria-label="@L["EvalGraphLabel"]">
+        <rect class="eval-graph-black" x="0" y="0" width="@W" height="@H" />
+        <path class="eval-graph-white" d="@AreaPath" />
+        <line class="eval-graph-mid" x1="0" y1="@F(H / 2)" x2="@W" y2="@F(H / 2)" />
+        <path class="eval-graph-line" d="@LinePath" vector-effect="non-scaling-stroke" />
+        @if (Current >= 0 && Current < Plies.Count)
+        {
+            <line class="eval-graph-current" x1="@F(X(Current))" y1="0" x2="@F(X(Current))" y2="@H" vector-effect="non-scaling-stroke" />
+        }
+        @if (_hover is { } h)
+        {
+            <line class="eval-graph-hover" x1="@F(X(h))" y1="0" x2="@F(X(h))" y2="@H" vector-effect="non-scaling-stroke" />
+        }
+        @* Hit targets: one full-height column per move, wider than any mark. *@
+        @for (var i = 0; i < Plies.Count; i++)
+        {
+            var index = i;
+            <rect class="eval-graph-hit" x="@F(X(i) - Step / 2)" y="0" width="@F(Step)" height="@H"
+                  @onmouseenter="() => _hover = index" @onclick="() => OnSelect.InvokeAsync(index)" />
+        }
+    </svg>
+    @* Markers and their labels in HTML, so they keep their shape however wide the graph is. *@
+    @for (var i = 0; i < Plies.Count; i++)
+    {
+        if (Plies[i].Quality is not (MoveQuality.Inaccuracy or MoveQuality.Mistake or MoveQuality.Blunder) || Plies[i].Evaluation is null) continue;
+        var index = i;
+        <button type="button" class="eval-graph-marker @(Plies[i].Quality?.ToString().ToLowerInvariant())"
+                style="left: @F(X(i) / W * 100)%; top: @F(Y(Plies[i].Evaluation!.WhiteWinChance) / H * 100)%"
+                title="@Describe(index)" @onclick="() => OnSelect.InvokeAsync(index)"></button>
+    }
+    @if (_hover is { } hover)
+    {
+        <div class="eval-graph-tooltip" style="left: @F(Math.Clamp(X(hover) / W * 100, 12, 88))%">@Describe(hover)</div>
+    }
+</div>
+
+@code {
+    private const double W = 600;
+    private const double H = 120;
+
+    [Parameter, EditorRequired] public IReadOnlyList<PlyDto> Plies { get; set; } = [];
+
+    /// <summary>The selected half-move (index in Plies); -1 for the start position.</summary>
+    [Parameter] public int Current { get; set; } = -1;
+
+    [Parameter] public EventCallback<int> OnSelect { get; set; }
+
+    private int? _hover;
+
+    private double Step => Plies.Count > 1 ? W / (Plies.Count - 1) : W;
+    private double X(int i) => Plies.Count > 1 ? i * W / (Plies.Count - 1) : W / 2;
+    private static double Y(double whiteWinChance) => H - whiteWinChance / 100 * H;
+    private double ChanceAt(int i) => Plies[i].Evaluation?.WhiteWinChance ?? 50;
+
+    private string LinePath =>
+        string.Concat(Enumerable.Range(0, Plies.Count).Select(i => $"{(i == 0 ? "M" : "L")}{F(X(i))},{F(Y(ChanceAt(i)))} "));
+
+    private string AreaPath => Plies.Count == 0 ? "" : $"M0,{F(H)} L0,{F(Y(ChanceAt(0)))} {LinePath.Replace("M", "L")} L{F(W)},{F(H)} Z";
+
+    private string Describe(int i)
+    {
+        var ply = Plies[i];
+        var move = $"{ply.MoveNumber}.{(ply.White ? "" : "..")} {ply.San}{Display.QualitySymbol(ply.Quality)}";
+        return ply.Evaluation is { } e ? $"{move}  {Display.Evaluation(e)}" : move;
+    }
+
+    private static string F(double value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

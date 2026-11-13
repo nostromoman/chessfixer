@@ -22,6 +22,9 @@ public sealed class TournamentHubClient(NavigationManager navigation) : IAsyncDi
     /// <summary>Raised when the list of tournaments changed.</summary>
     public event Func<Task>? TournamentListChanged;
 
+    /// <summary>Raised with the game id when the engine analysis of that game changed (requested, progress, done).</summary>
+    public event Func<int, Task>? GameAnalysisChanged;
+
     /// <summary>Raised after the connection was (re)established; updates may have been missed, so reload.</summary>
     public event Func<Task>? Connected;
 
@@ -39,6 +42,8 @@ public sealed class TournamentHubClient(NavigationManager navigation) : IAsyncDi
             id => RaiseAsync(TournamentChanged, handler => handler(id)));
         _connection.On(TournamentHubContract.TournamentListChanged,
             () => RaiseAsync(TournamentListChanged, handler => handler()));
+        _connection.On<int>(TournamentHubContract.GameAnalysisChanged,
+            id => RaiseAsync(GameAnalysisChanged, handler => handler(id)));
         _connection.Reconnected += _ => RaiseAsync(Connected, handler => handler());
 
         _ = ConnectAsync(_connection);

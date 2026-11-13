@@ -806,4 +806,46 @@
   <data name="PgnRemoved" xml:space="preserve"><value>De zetten zijn verwijderd.</value></data>
   <data name="Error_InvalidPgn" xml:space="preserve"><value>Geen geldige PGN: er staan geen zetten in, of de tekst is te lang.</value></data>
   <data name="Error_PgnNotAllowed" xml:space="preserve"><value>Alleen bij een gespeelde partij (gewonnen, verloren of remise) kunnen zetten worden toegevoegd.</value></data>
+  <data name="ActivityAction_Tournaments_SetPgn" xml:space="preserve"><value>Zetten (PGN) opslaan</value></data>
+  <data name="ActivityAction_Games_Analyse" xml:space="preserve"><value>Partij opnieuw analyseren</value></data>
+  <data name="Games" xml:space="preserve"><value>Partijen</value></data>
+  <data name="GamesIntro" xml:space="preserve"><value>De partijen waarvan de zetten (PGN) zijn toegevoegd, met de analyse door Stockfish. Klik op een partij om de analyse te bekijken.</value></data>
+  <data name="GamesEmpty" xml:space="preserve"><value>Er zijn nog geen partijen met zetten. Voeg de zetten toe via het notatie-icoon op een gespeelde partij in de Rondes-tab van een toernooi.</value></data>
+  <data name="GamesSearch" xml:space="preserve"><value>Zoek speler of toernooi</value></data>
+  <data name="GamesMoves" xml:space="preserve"><value>Zetten</value></data>
+  <data name="GameNotFound" xml:space="preserve"><value>Deze partij bestaat niet (meer), of er zijn geen zetten van.</value></data>
+  <data name="Analysis" xml:space="preserve"><value>Analyse</value></data>
+  <data name="Accuracy" xml:space="preserve"><value>Nauwkeurigheid</value></data>
+  <data name="AccuracyHelp" xml:space="preserve"><value>Nauwkeurigheid: hoe dicht de zetten bij de beste zet van Stockfish lagen (100% = steeds de beste zet). Een zet is een onnauwkeurigheid (?!), fout (?) of blunder (??) als de winstkans er 5, 10 of 15 procentpunt door daalt.</value></data>
+  <data name="Inaccuracies" xml:space="preserve"><value>Onnauwkeurigheden</value></data>
+  <data name="Mistakes" xml:space="preserve"><value>Fouten</value></data>
+  <data name="Blunders" xml:space="preserve"><value>Blunders</value></data>
+  <data name="AnalysisPending" xml:space="preserve"><value>Wacht op analyse door Stockfish…</value></data>
+  <data name="AnalysisRunning" xml:space="preserve"><value>Stockfish analyseert: positie {0} van {1}</value></data>
+  <data name="AnalysisFailed" xml:space="preserve"><value>Analyse mislukt</value></data>
+  <data name="AnalysisNone" xml:space="preserve"><value>Deze zetten zijn nog niet geanalyseerd.</value></data>
+  <data name="AnalysisRequested" xml:space="preserve"><value>De partij wordt opnieuw geanalyseerd.</value></data>
+  <data name="AnalyseAgain" xml:space="preserve"><value>Opnieuw analyseren</value></data>
+  <data name="AnalysedWith" xml:space="preserve"><value>{0}, diepte {1}</value></data>
+  <data name="PgnEdit" xml:space="preserve"><value>Zetten bewerken</value></data>
+  <data name="PgnShowAnalysis" xml:space="preserve"><value>Analyse bekijken</value></data>
+  <data name="PgnMoveError" xml:space="preserve"><value>De zetten konden niet verder gelezen worden: zet {0} van {1} ({2}) is niet mogelijk. Pas de PGN aan; de zetten ervoor zijn wel geanalyseerd.</value></data>
+  <data name="StartPosition" xml:space="preserve"><value>Beginstelling</value></data>
+  <data name="MoveFirst" xml:space="preserve"><value>Naar het begin</value></data>
+  <data name="MovePrevious" xml:space="preserve"><value>Vorige zet</value></data>
+  <data name="MoveNext" xml:space="preserve"><value>Volgende zet</value></data>
+  <data name="MoveLast" xml:space="preserve"><value>Naar het einde</value></data>
+  <data name="FlipBoard" xml:space="preserve"><value>Bord draaien</value></data>
+  <data name="ShowBestMove" xml:space="preserve"><value>Beste zet tonen</value></data>
+  <data name="BetterWas" xml:space="preserve"><value>Beter was</value></data>
+  <data name="BestLine" xml:space="preserve"><value>Beste variant</value></data>
+  <data name="EngineSuggests" xml:space="preserve"><value>Stockfish speelt hier</value></data>
+  <data name="MoveQuality_Best" xml:space="preserve"><value>Beste zet</value></data>
+  <data name="MoveQuality_Good" xml:space="preserve"><value>Goede zet</value></data>
+  <data name="MoveQuality_Inaccuracy" xml:space="preserve"><value>Onnauwkeurigheid</value></data>
+  <data name="MoveQuality_Mistake" xml:space="preserve"><value>Fout</value></data>
+  <data name="MoveQuality_Blunder" xml:space="preserve"><value>Blunder</value></data>
+  <data name="EvalGraphTitle" xml:space="preserve"><value>Verloop van de partij</value></data>
+  <data name="EvalGraphLabel" xml:space="preserve"><value>Winstkans van wit per zet</value></data>
+  <data name="EvalGraphHelp" xml:space="preserve"><value>Winstkans van wit na elke zet: boven de middellijn staat wit beter, eronder zwart. Klik in de grafiek om naar die zet te gaan; de bolletjes zijn onnauwkeurigheden, fouten en blunders.</value></data>
 </root>

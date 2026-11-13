@@ -10,6 +10,10 @@ RUN dotnet publish src/ChessFixer.Server/ChessFixer.Server.csproj -c Release -o 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Stockfish analyses the moves (PGN) of games. The package installs it in /usr/games, which is not on the PATH.
+RUN apt-get update     && apt-get install -y --no-install-recommends stockfish     && rm -rf /var/lib/apt/lists/*
+ENV Stockfish__Path=/usr/games/stockfish
+
 COPY --from=build /app/publish .
 # SQLite does not create missing folders; the volume mount normally covers this, but not without one.
 RUN mkdir -p /app/App_Data

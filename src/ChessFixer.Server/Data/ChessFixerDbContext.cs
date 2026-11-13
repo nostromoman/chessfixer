@@ -21,6 +21,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
     public DbSet<TournamentPlayer> TournamentPlayers => Set<TournamentPlayer>();
     public DbSet<Round> Rounds => Set<Round>();
     public DbSet<Game> Games => Set<Game>();
+    public DbSet<GameAnalysis> GameAnalyses => Set<GameAnalysis>();
     public DbSet<AppSettings> AppSettings => Set<AppSettings>();
     public DbSet<WritingStyle> WritingStyles => Set<WritingStyle>();
     public DbSet<Club> Clubs => Set<Club>();
@@ -40,6 +41,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         StoreAsText<RatingChangeReason>();
         StoreAsText<ActivityKind>();
         StoreAsText<ActivityChangeKind>();
+        StoreAsText<AnalysisStatus>();
 
         // All times are UTC. SQLite does not keep DateTimeKind, so mark the values as UTC again when reading.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcConverter>();
@@ -175,6 +177,16 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
                     " OR (\"RatedAt\" IS NOT NULL AND \"WhiteRatingBefore\" IS NOT NULL AND \"BlackRatingBefore\" IS NOT NULL" +
                     " AND \"WhiteRatingChange\" IS NOT NULL AND \"BlackRatingChange\" IS NOT NULL)");
             });
+        });
+
+        modelBuilder.Entity<GameAnalysis>(analysis =>
+        {
+            analysis.HasIndex(a => a.GameId).IsUnique();
+            analysis.HasOne(a => a.Game).WithOne(g => g.Analysis).HasForeignKey<GameAnalysis>(a => a.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+            analysis.Property(a => a.Pgn).HasMaxLength(PgnText.MaxLength);
+            analysis.Property(a => a.Engine).HasMaxLength(100);
+            analysis.Property(a => a.Error).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<AppSettings>(settings =>

@@ -112,7 +112,7 @@ There are two pairing systems.
 ### 5.4 Results
 - Possible results: White wins, Draw, Black wins, Forfeit (white or black wins by forfeit).
 - Results can be corrected until the next round has started. A catch-up game (5.8) can be corrected until the tournament is closed.
-- **Moves (PGN)**: the moves of a game played over the board (won, lost or drawn; not a forfeit or bye) can be added afterwards in Portable Game Notation, for later analysis: via the notation icon on the game card in the Rounds tab (filled when moves were added), in any round and also after the tournament is closed, since they do not count for anything. The text is stored as pasted (trimmed); it must contain moves (starting with move 1) and is at most 20,000 characters. The dialog can copy the PGN, download it as a `.pgn` file (when only moves were pasted, the Event, White, Black and Result tags are added) and open the moves on the Lichess analysis board. Emptying the text removes the moves.
+- **Moves (PGN)**: the moves of a game played over the board (won, lost or drawn; not a forfeit or bye) can be added afterwards in Portable Game Notation, for later analysis: via the notation icon on the game card in the Rounds tab (filled when moves were added), in any round and also after the tournament is closed, since they do not count for anything. The text is stored as pasted (trimmed); it must contain moves (starting with move 1) and is at most 20,000 characters. The dialog can copy the PGN, download it as a `.pgn` file (when only moves were pasted, the Event, White, Black and Result tags are added) and open the moves on the Lichess analysis board. Emptying the text removes the moves. When the moves are saved (or changed) Stockfish analyses them in the background (see the Partijen pages in 7).
 
 ### 5.5 Standings
 - Score according to the tournament's scoring settings.
@@ -158,7 +158,18 @@ There are two pairing systems.
 ## 7. Pages
 UI language: **Dutch only** for now (other languages later, so keep texts in resource files).
 
-A main menu on the left links to **Toernooien** (`/tournament`), **Spelers** (`/players`), **Clubs**, **Ratinglijst** and **Ratinglog**. For the system administrator only, a group **Beheer** follows with **Toernooileiders** (`/admin/leaders`), **Activiteit** (`/admin/activity`) and **Development** (`/admin/development`); tournament leaders do not see it, and the server refuses them too. A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
+A main menu on the left links to **Toernooien** (`/tournament`), **Spelers** (`/players`), **Partijen** (`/games`), **Clubs**, **Ratinglijst** and **Ratinglog**. For the system administrator only, a group **Beheer** follows with **Toernooileiders** (`/admin/leaders`), **Activiteit** (`/admin/activity`) and **Development** (`/admin/development`); tournament leaders do not see it, and the server refuses them too. A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
+
+### Partijen — `/games`
+All games whose moves (PGN, see 5.4) were added, newest first: date, White, result, Black, tournament and round (or *inhaalpartij*), number of moves and the analysis (accuracy of White · Black and the number of blunders, or *wacht op analyse* / progress / *mislukt*). A search field filters on player and tournament. A row opens the analysis of that game. Updates live while Stockfish works.
+
+### Partij-analyse — `/games/{id}`
+- The moves are replayed on a board (the moves are read as SAN, also long algebraic and Dutch piece letters K D T L P; reading stops at the first move that is not possible, with a warning naming that move). Next to the board an evaluation bar; below it buttons for first/previous/next/last move and flip board; the arrow keys also step through the moves. The page opens at the final position.
+- **Stockfish analysis** (in the background, one game at a time, every position at a fixed depth, default 16; progress is shown live): per move the evaluation, and how good it was, judged as on Lichess by the drop in the mover's chance to win: 5/10/15 percentage points = inaccuracy (?!), mistake (?), blunder (??). For such a move the better move, its evaluation and the best line are shown; for every position what Stockfish would play (also as an arrow on the board, can be switched off).
+- Per player the **accuracy** (Lichess formula, average over the moves) and the number of inaccuracies, mistakes and blunders.
+- A graph of White's chance to win after every move (area around the 50 % line), with markers on inaccuracies, mistakes and blunders; hover shows the move and evaluation, a click goes to that move.
+- Buttons: *Zetten bewerken* (the PGN dialog; changed moves are analysed again, removed moves remove the game from the list) and *Opnieuw analyseren*.
+- The analysis is stored, so it is made once per version of the moves; games that already had moves are analysed after the update.
 
 ### Tournament overview — `/tournament`
 Table of all tournaments with their title and state. Columns: title, type (Swiss or competition), number of active players, boards, time control (minutes + increment) and state. A + button at the top right opens a wizard in a modal to create a new tournament: 1. tournament type (Swiss or competition, each with a short explanation; Swiss is preselected; for a competition also *Times against each other*, default 2); 2. available boards (default 8), game time and increment; 3. points for a win, draw and loss, and whether the tournament counts for the rating (default yes); 4. title; 5. location and description (both optional, used for the report). All of this can be changed later in the settings (only title, location, description and boards once round 1 has started). Clicking next to the modal does not close it; only Cancel or Escape does. After creating, the tournament detail page opens. Clicking a tournament opens its detail page.
@@ -201,6 +212,7 @@ Tools for trying the application out. A button **Database resetten** (after conf
 - The frontend communicates with the backend only through the Web API. Keep the backend stateless.
 - **SignalR** pushes live updates to the frontend (all open pages).
 - **SQLite** database.
+- **Stockfish** (installed in the Docker image, `/usr/games/stockfish`; setting `Stockfish:Path`, `Stockfish:Depth`) analyses games in a background service over the UCI protocol. The chess rules (legal moves, SAN) are in ChessFixer.Core.
 - Authentication with an HttpOnly, SameSite=Strict cookie set by the Web API; every API endpoint and the SignalR hub require a login. Passwords are stored hashed (ASP.NET Core Identity password hasher).
 - The data is kept across updates: schema changes are EF Core migrations, applied automatically on startup after a backup of the database file.
 

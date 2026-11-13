@@ -1,0 +1,395 @@
+@page "/games/{GameId:int}"
+@implements IDisposable
+@inject TournamentApi Api
+@inject TournamentHubClient Hub
+@inject NavigationManager Navigation
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* One game with its moves on a board and the Stockfish analysis: evaluation per move, the best move and line,
+   inaccuracies/mistakes/blunders and the accuracy of both players. Arrow keys step through the moves. *@
+<PageTitle>@(_game is null ? L["Analysis"] : $"{_game.White.Name} – {_game.Black.Name}")</PageTitle>
+
+<div class="mb-3">
+    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Href="games">@L["Games"]</MudButton>
+</div>
+
+@if (_notFound)
+{
+    <MudAlert Severity="Severity.Warning">@L["GameNotFound"]</MudAlert>
+}
+else if (_game is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    var game = _game;
+    <div class="d-flex flex-wrap align-center gap-2 mb-1">
+        <MudText Typo="Typo.h4">
+            <PlayerName Name="@game.White.Name" IsDeleted="game.White.IsDeleted" /> – <PlayerName Name="@game.Black.Name" IsDeleted="game.Black.IsDeleted" />
+        </MudText>
+        <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">@L[$"Result_{game.Result}"]</MudChip>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="EditPgnAsync" Disabled="_busy">@L["PgnEdit"]</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="AnalyseAsync"
+                   Disabled="@(_busy || game.Analysis.Status is AnalysisStatus.Pending or AnalysisStatus.Running)">@L["AnalyseAgain"]</MudButton>
+    </div>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+        <MudLink Href="@($"tournament/{game.TournamentId}")">@game.TournamentTitle</MudLink>
+        · @(game.IsCatchUp ? L["CatchUp"] : L["Round", game.Round])
+        @if (game.Date is { } date)
+        {
+            <span> · @date.ToLocalTime().ToString("d MMMM yyyy")</span>
+        }
+        @if (game.Engine is not null && game.Analysis.Status == AnalysisStatus.Done)
+        {
+            <span> · @L["AnalysedWith", game.Engine, game.Depth ?? 0]</span>
+        }
+    </MudText>
+
+    @StatusAlert(game)
+
+    <div class="analysis-layout" tabindex="0" @onkeydown="OnKeyDown">
+        <div class="analysis-board-column">
+            <div class="analysis-board-row">
+                <div class="eval-bar @(_flipped ? "flipped" : "")" title="@(CurrentEvaluation is { } ce ? Display.Evaluation(ce) : "")">
+                    <div class="eval-bar-white" style="height: @F(CurrentEvaluation?.WhiteWinChance ?? 50)%"></div>
+                    @if (CurrentEvaluation is { } e)
+                    {
+                        <span class="eval-bar-text @(e.WhiteWinChance >= 50 ? "white-better" : "black-better")">@Display.Evaluation(e)</span>
+                    }
+                </div>
+                <div class="analysis-board">
+                    <ChessBoard Fen="@CurrentFen" LastMove="@CurrentPly?.Uci" Arrow="@(_showBest ? BestHere : null)" Flipped="_flipped"
+                                IsCheckMarked="@(CurrentPly?.San.EndsWith('+') == true || CurrentPly?.San.EndsWith('#') == true)" />
+                </div>
+            </div>
+
+            <div class="d-flex align-center justify-center flex-wrap gap-1 mt-2">
+                <MudIconButton Icon="@Icons.Material.Filled.FirstPage" aria-label="@L["MoveFirst"]" OnClick="() => Go(-1)" Disabled="@(_ply < 0)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" aria-label="@L["MovePrevious"]" OnClick="() => Go(_ply - 1)" Disabled="@(_ply < 0)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" aria-label="@L["MoveNext"]" OnClick="() => Go(_ply + 1)" Disabled="@(_ply >= game.Plies.Count - 1)" />
+                <MudIconButton Icon="@Icons.Material.Filled.LastPage" aria-label="@L["MoveLast"]" OnClick="() => Go(game.Plies.Count - 1)" Disabled="@(_ply >= game.Plies.Count - 1)" />
+                <MudTooltip Text="@L["FlipBoard"]">
+                    <MudIconButton Icon="@Icons.Material.Filled.SwapVert" aria-label="@L["FlipBoard"]" OnClick="() => _flipped = !_flipped" />
+                </MudTooltip>
+                @if (game.Analysis.Status == AnalysisStatus.Done)
+                {
+                    <MudSwitch T="bool" @bind-Value="_showBest" Color="Color.Primary" Label="@L["ShowBestMove"]" Class="ml-2" />
+                }
+            </div>
+
+            @MovePanel(game)
+        </div>
+
+        <div class="analysis-side-column">
+            @if (game.Analysis.Status == AnalysisStatus.Done)
+            {
+                <MudPaper Class="pa-3 mb-3" Elevation="1">
+                    <table class="analysis-summary">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>@L["Accuracy"]</th>
+                                <th title="@L["Inaccuracies"]"><span class="move-quality inaccuracy">?!</span></th>
+                                <th title="@L["Mistakes"]"><span class="move-quality mistake">?</span></th>
+                                <th title="@L["Blunders"]"><span class="move-quality blunder">??</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @SummaryRow(game.White.Name, true, game.Analysis.WhiteAccuracy, game.Analysis.White!)
+                            @SummaryRow(game.Black.Name, false, game.Analysis.BlackAccuracy, game.Analysis.Black!)
+                        </tbody>
+                    </table>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">@L["AccuracyHelp"]</MudText>
+                </MudPaper>
+            }
+
+            <MudPaper Class="pa-2 move-list" Elevation="1">
+                <button type="button" class="move-list-start @(_ply < 0 ? "selected" : "")" @onclick="() => Go(-1)">@L["StartPosition"]</button>
+                <table>
+                    <tbody>
+                        @foreach (var row in Rows(game))
+                        {
+                            <tr>
+                                <td class="move-number">@row.Number.</td>
+                                <td>@MoveButton(row.White)</td>
+                                <td>@MoveButton(row.Black)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </MudPaper>
+        </div>
+    </div>
+
+    @if (game.Analysis.Status == AnalysisStatus.Done && game.Plies.Count > 1)
+    {
+        <MudPaper Class="pa-3 mt-4" Elevation="1">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">@L["EvalGraphTitle"]</MudText>
+            <EvalGraph Plies="game.Plies" Current="_ply" OnSelect="Go" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["EvalGraphHelp"]</MudText>
+        </MudPaper>
+    }
+}
+
+@code {
+    [Parameter] public int GameId { get; set; }
+
+    private GameAnalysisDto? _game;
+    private bool _notFound;
+    private bool _busy;
+    private bool _flipped;
+    private bool _showBest = true;
+
+    /// <summary>The selected half-move (index in Plies); -1 = the start position.</summary>
+    private int _ply = -1;
+
+    private PlyDto? CurrentPly => _ply >= 0 && _game is not null && _ply < _game.Plies.Count ? _game.Plies[_ply] : null;
+    private string CurrentFen => CurrentPly?.Fen ?? _game?.StartFen ?? "";
+    private EvaluationDto? CurrentEvaluation => _ply < 0 ? _game?.StartEvaluation : CurrentPly?.Evaluation;
+
+    /// <summary>The engine's best move in the shown position: the best move before the next half-move.</summary>
+    private string? BestHere => _game is not null && _ply + 1 < _game.Plies.Count ? _game.Plies[_ply + 1].BestUci : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Hub.GameAnalysisChanged += OnAnalysisChangedAsync;
+        Hub.TournamentChanged += OnTournamentChangedAsync;
+        Hub.Connected += ReloadAsync;
+        Hub.EnsureStarted();
+        await ReloadAsync();
+        if (_game is not null) _ply = _game.Plies.Count - 1; // open at the final position
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _game = await Api.GetGameAnalysisAsync(GameId);
+            _ply = Math.Min(_ply, _game.Plies.Count - 1);
+        }
+        catch (ApiClientException e) when (e.Code == ApiErrorCode.GameNotFound)
+        {
+            _notFound = true;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnAnalysisChangedAsync(int gameId) => gameId == GameId ? ReloadAsync() : Task.CompletedTask;
+
+    private Task OnTournamentChangedAsync(int tournamentId) =>
+        _game?.TournamentId == tournamentId ? ReloadAsync() : Task.CompletedTask;
+
+    private void Go(int ply)
+    {
+        if (_game is null) return;
+        _ply = Math.Clamp(ply, -1, _game.Plies.Count - 1);
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (_game is null) return;
+        switch (e.Key)
+        {
+            case "ArrowLeft": Go(_ply - 1); break;
+            case "ArrowRight": Go(_ply + 1); break;
+            case "Home": Go(-1); break;
+            case "End": Go(_game.Plies.Count - 1); break;
+        }
+    }
+
+    private async Task AnalyseAsync()
+    {
+        _busy = true;
+        try
+        {
+            _game = await Api.AnalyseGameAsync(GameId);
+            Snackbar.Add(L["AnalysisRequested"], Severity.Success);
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task EditPgnAsync()
+    {
+        if (_game is not { } game) return;
+        var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
+            new DialogParameters<PgnDialog>
+            {
+                { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: true) },
+                { d => d.Pgn, game.Pgn },
+                { d => d.TournamentTitle, game.TournamentTitle },
+                { d => d.ShowAnalysisLink, false }
+            },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is not { Canceled: false, Data: string text }) return;
+
+        _busy = true;
+        try
+        {
+            await Api.SetPgnAsync(game.TournamentId, game.GameId, text);
+            if (text.Length == 0)
+            {
+                Snackbar.Add(L["PgnRemoved"], Severity.Success);
+                Navigation.NavigateTo("games");
+                return;
+            }
+            Snackbar.Add(L["PgnSaved"], Severity.Success);
+            _ply = int.MaxValue; // show the final position of the new moves
+            await ReloadAsync();
+        }
+        catch (ApiClientException e)
+        {
+            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private RenderFragment StatusAlert(GameAnalysisDto game) => __builder =>
+    {
+        if (game.MoveError is { } error)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-3">
+                @L["PgnMoveError", error.MoveNumber, error.White ? L["White"] : L["Black"], error.Text]
+            </MudAlert>
+        }
+        switch (game.Analysis.Status)
+        {
+            case AnalysisStatus.Pending:
+            case AnalysisStatus.Running:
+                var total = Math.Max(1, game.Analysis.PositionsTotal);
+                <MudAlert Severity="Severity.Info" Class="mb-3" Icon="@Icons.Material.Filled.HourglassTop">
+                    @(game.Analysis.Status == AnalysisStatus.Pending
+                        ? L["AnalysisPending"]
+                        : L["AnalysisRunning", game.Analysis.PositionsDone, game.Analysis.PositionsTotal])
+                    <MudProgressLinear Color="Color.Primary" Value="@(100.0 * game.Analysis.PositionsDone / total)" Class="mt-2"
+                                       Indeterminate="@(game.Analysis.Status == AnalysisStatus.Pending)" />
+                </MudAlert>
+                break;
+            case AnalysisStatus.Failed:
+                <MudAlert Severity="Severity.Error" Class="mb-3">@L["AnalysisFailed"]: @game.AnalysisError</MudAlert>
+                break;
+            case AnalysisStatus.None:
+                <MudAlert Severity="Severity.Info" Class="mb-3">@L["AnalysisNone"]</MudAlert>
+                break;
+        }
+    };
+
+    private RenderFragment MovePanel(GameAnalysisDto game) => __builder =>
+    {
+        var ply = CurrentPly;
+        var next = _ply + 1 < game.Plies.Count ? game.Plies[_ply + 1] : null;
+        var nextLine = next?.BestLine ?? ply?.NextLine;
+        <MudPaper Class="pa-3 mt-2 move-panel" Elevation="1">
+            @if (ply is null)
+            {
+                <MudText Typo="Typo.subtitle1"><b>@L["StartPosition"]</b></MudText>
+            }
+            else
+            {
+                <div class="d-flex align-center flex-wrap gap-2">
+                    <MudText Typo="Typo.subtitle1">
+                        <b>@MoveLabel(ply)<span class="move-quality @QualityClass(ply.Quality)">@Display.QualitySymbol(ply.Quality)</span></b>
+                    </MudText>
+                    @if (ply.Quality is { } quality)
+                    {
+                        <span class="move-quality-label @QualityClass(quality)">@L[$"MoveQuality_{quality}"]</span>
+                    }
+                    <MudSpacer />
+                    @if (ply.Evaluation is { } evaluation)
+                    {
+                        <span class="eval-chip">@Display.Evaluation(evaluation)</span>
+                    }
+                </div>
+                @if (ply.Quality is MoveQuality.Inaccuracy or MoveQuality.Mistake or MoveQuality.Blunder && ply.BestSan is not null)
+                {
+                    <MudText Typo="Typo.body2" Class="mt-1">
+                        @L["BetterWas"] <b>@ply.BestSan</b>
+                        @if (ply.BestEvaluation is { } best)
+                        {
+                            <span class="mud-text-secondary"> (@Display.Evaluation(best))</span>
+                        }
+                    </MudText>
+                    @if (ply.BestLine is { Count: > 1 } bestLine)
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["BestLine"]: @string.Join(" ", bestLine)</MudText>
+                    }
+                }
+            }
+            @if (nextLine is { Count: > 0 })
+            {
+                <MudText Typo="Typo.body2" Class="mt-1"><span class="mud-text-secondary">@L["EngineSuggests"]:</span> @string.Join(" ", nextLine)</MudText>
+            }
+        </MudPaper>
+    };
+
+    private RenderFragment SummaryRow(string name, bool white, double? accuracy, MoveQualityCountDto counts) =>
+        @<tr>
+            <td><span class="game-side-color @(white ? "white" : "black")">@(white ? L["White"] : L["Black"])</span> @name</td>
+            <td><b>@Display.Percentage(accuracy)</b></td>
+            <td>@counts.Inaccuracies</td>
+            <td>@counts.Mistakes</td>
+            <td>@counts.Blunders</td>
+        </tr>;
+
+    private RenderFragment MoveButton(int? index) => __builder =>
+    {
+        if (index is not { } i || _game is null) return;
+        var ply = _game.Plies[i];
+        <button type="button" class="move-button @(i == _ply ? "selected" : "")" @onclick="() => Go(i)">
+            @ply.San<span class="move-quality @QualityClass(ply.Quality)">@Display.QualitySymbol(ply.Quality)</span>
+        </button>
+    };
+
+    /// <summary>The moves in rows of a move number with White's and Black's half-move (index in Plies).</summary>
+    private static IEnumerable<(int Number, int? White, int? Black)> Rows(GameAnalysisDto game)
+    {
+        var rows = new List<(int Number, int? White, int? Black)>();
+        for (var i = 0; i < game.Plies.Count; i++)
+        {
+            var ply = game.Plies[i];
+            if (ply.White || rows.Count == 0 || rows[^1].Number != ply.MoveNumber)
+                rows.Add((ply.MoveNumber, ply.White ? i : null, ply.White ? null : i));
+            else
+                rows[^1] = rows[^1] with { Black = i };
+        }
+        return rows;
+    }
+
+    private static string MoveLabel(PlyDto ply) => $"{ply.MoveNumber}.{(ply.White ? "" : "..")} {ply.San}";
+
+    private static string QualityClass(MoveQuality? quality) => quality?.ToString().ToLowerInvariant() ?? "";
+
+    private static string F(double value) => value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+
+    public void Dispose()
+    {
+        Hub.GameAnalysisChanged -= OnAnalysisChangedAsync;
+        Hub.TournamentChanged -= OnTournamentChangedAsync;
+        Hub.Connected -= ReloadAsync;
+    }
+}

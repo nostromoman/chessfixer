@@ -354,6 +354,59 @@ namespace ChessFixer.Server.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.GameAnalysis", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Depth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Engine")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Pgn")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Positions")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PositionsDone")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PositionsTotal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId")
+                        .IsUnique();
+
+                    b.ToTable("GameAnalyses");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>
                 {
                     b.Property<int>("Id")
@@ -811,6 +864,17 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Navigation("White");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.GameAnalysis", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.Game", "Game")
+                        .WithOne("Analysis")
+                        .HasForeignKey("ChessFixer.Server.Data.GameAnalysis", "GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>
                 {
                     b.HasOne("ChessFixer.Server.Data.Club", "Club")
@@ -906,6 +970,11 @@ namespace ChessFixer.Server.Data.Migrations
             modelBuilder.Entity("ChessFixer.Server.Data.ActivityLogEntry", b =>
                 {
                     b.Navigation("Changes");
+                });
+
+            modelBuilder.Entity("ChessFixer.Server.Data.Game", b =>
+                {
+                    b.Navigation("Analysis");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.Player", b =>

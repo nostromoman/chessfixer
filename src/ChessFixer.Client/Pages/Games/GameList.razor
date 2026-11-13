@@ -1,0 +1,120 @@
+@page "/games"
+@implements IDisposable
+@inject TournamentApi Api
+@inject TournamentHubClient Hub
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* All games whose moves (PGN) were added, newest first, with the state of the Stockfish analysis.
+   A row opens the analysis of that game. *@
+<PageTitle>@L["Games"]</PageTitle>
+
+<div class="d-flex flex-wrap align-center gap-2 mb-4">
+    <MudText Typo="Typo.h4">@L["Games"]</MudText>
+    <MudSpacer />
+    @if (_games is { Count: > 0 })
+    {
+        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="@L["GamesSearch"]" Clearable="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Style="max-width: 280px" />
+    }
+</div>
+
+<MudPaper Class="pa-2 pa-sm-4" Elevation="1">
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesIntro"]</MudText>
+
+    @if (_games is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_games.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true">@L["GamesEmpty"]</MudAlert>
+    }
+    else
+    {
+        <MudTable T="AnalysedGameSummaryDto" Items="Filtered" Dense="true" Hover="true" Striped="true" Elevation="0"
+                  Breakpoint="Breakpoint.None" OnRowClick="args => Open(args.Item!)" RowClass="cursor-pointer">
+            <HeaderContent>
+                <MudTh Class="hide-xs">@L["Date"]</MudTh>
+                <MudTh>@L["White"]</MudTh>
+                <MudTh Style="text-align: center">@L["Result"]</MudTh>
+                <MudTh>@L["Black"]</MudTh>
+                <MudTh Class="hide-xs">@L["Tournament"]</MudTh>
+                <MudTh Class="hide-xs" Style="text-align: right">@L["GamesMoves"]</MudTh>
+                <MudTh>@L["Analysis"]</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd Class="hide-xs" Style="white-space: nowrap">@(context.Date?.ToLocalTime().ToString("d MMM yyyy") ?? "")</MudTd>
+                <MudTd><PlayerName Name="@context.White.Name" IsDeleted="context.White.IsDeleted" /></MudTd>
+                <MudTd Style="text-align: center; white-space: nowrap"><b>@L[$"Result_{context.Result}"]</b></MudTd>
+                <MudTd><PlayerName Name="@context.Black.Name" IsDeleted="context.Black.IsDeleted" /></MudTd>
+                <MudTd Class="hide-xs">
+                    @context.TournamentTitle
+                    <span class="mud-text-secondary">· @(context.IsCatchUp ? L["CatchUp"] : L["Round", context.Round])</span>
+                </MudTd>
+                <MudTd Class="hide-xs" Style="text-align: right">@context.Moves</MudTd>
+                <MudTd Style="white-space: nowrap">@AnalysisCell(context.Analysis)</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+    private List<AnalysedGameSummaryDto>? _games;
+    private string? _search;
+
+    private IEnumerable<AnalysedGameSummaryDto> Filtered =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _games!
+            : _games!.Where(g => $"{g.White.Name} {g.Black.Name} {g.TournamentTitle}".Contains(_search.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Hub.GameAnalysisChanged += OnAnalysisChangedAsync;
+        Hub.Connected += ReloadAsync;
+        Hub.EnsureStarted();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _games = await Api.GetAnalysedGamesAsync();
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+            _games ??= [];
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnAnalysisChangedAsync(int gameId) => ReloadAsync();
+
+    private void Open(AnalysedGameSummaryDto game) => Navigation.NavigateTo($"games/{game.GameId}");
+
+    private RenderFragment AnalysisCell(AnalysisSummaryDto analysis) => analysis.Status switch
+    {
+        AnalysisStatus.Done =>
+            @<span>
+                <span title="@L["Accuracy"]">@Display.Percentage(analysis.WhiteAccuracy) · @Display.Percentage(analysis.BlackAccuracy)</span>
+                @if (analysis.White!.Blunders + analysis.Black!.Blunders is var blunders and > 0)
+                {
+                    <span class="move-quality blunder ms-2" title="@L["Blunders"]">@blunders ??</span>
+                }
+            </span>,
+        AnalysisStatus.Pending => @<span class="mud-text-secondary">@L["AnalysisPending"]</span>,
+        AnalysisStatus.Running => @<span class="mud-text-secondary">@L["AnalysisRunning", analysis.PositionsDone, analysis.PositionsTotal]</span>,
+        AnalysisStatus.Failed => @<span class="mud-error-text">@L["AnalysisFailed"]</span>,
+        _ => @<span class="mud-text-secondary">–</span>
+    };
+
+    public void Dispose()
+    {
+        Hub.GameAnalysisChanged -= OnAnalysisChangedAsync;
+        Hub.Connected -= ReloadAsync;
+    }
+}

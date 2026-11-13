@@ -90,6 +90,17 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<TournamentDto> SetPgnAsync(int id, int gameId, string? pgn) =>
         SendAsync<TournamentDto>(HttpMethod.Put, $"api/tournaments/{id}/games/{gameId}/pgn", new SetPgnRequest(pgn));
 
+    // ----- Games with moves and their analysis -----
+
+    public Task<List<AnalysedGameSummaryDto>> GetAnalysedGamesAsync() =>
+        SendAsync<List<AnalysedGameSummaryDto>>(HttpMethod.Get, "api/games");
+
+    public Task<GameAnalysisDto> GetGameAnalysisAsync(int gameId) =>
+        SendAsync<GameAnalysisDto>(HttpMethod.Get, $"api/games/{gameId}");
+
+    public Task<GameAnalysisDto> AnalyseGameAsync(int gameId) =>
+        SendAsync<GameAnalysisDto>(HttpMethod.Post, $"api/games/{gameId}/analyse");
+
     public Task<List<StandingDto>> GetStandingsAsync(int id) =>
         SendAsync<List<StandingDto>>(HttpMethod.Get, $"api/tournaments/{id}/standings");
 

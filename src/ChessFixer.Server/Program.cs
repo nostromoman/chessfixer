@@ -6,6 +6,7 @@ using ChessFixer.Server.Hubs;
 using ChessFixer.Server.Services;
 using ChessFixer.Server.Services.Activity;
 using ChessFixer.Server.Services.Ai;
+using ChessFixer.Server.Services.Analysis;
 using ChessFixer.Server.Services.Auth;
 using ChessFixer.Server.Services.Clubs;
 using ChessFixer.Server.Services.Ratings;
@@ -102,6 +103,13 @@ builder.Services.AddScoped<RatingLogService>();
 builder.Services.AddSingleton<ActivityLog>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<ReportWorker>();
+
+// Stockfish analysis of the moves (PGN) of games, in the background.
+builder.Services.Configure<StockfishOptions>(builder.Configuration.GetSection("Stockfish"));
+builder.Services.AddSingleton<AnalysisQueue>();
+builder.Services.AddSingleton<IChessEngineFactory, StockfishEngineFactory>();
+builder.Services.AddScoped<GameAnalysisService>();
+builder.Services.AddHostedService<AnalysisWorker>();
 builder.Services.AddSingleton<ChangeCapture>();
 builder.Services.AddScoped<ActivityRevertService>();
 builder.Services.AddDbContext<ChessFixerDbContext>((services, options) => options

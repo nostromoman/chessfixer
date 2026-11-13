@@ -1,0 +1,121 @@
+@* A chess board drawn from a FEN, with the last move highlighted and optionally an arrow (the engine's best move).
+   Pieces are the chess glyphs of the font, drawn solid for both colors (outlined for White). *@
+<div class="chess-board @(Flipped ? "flipped" : "")" role="img" aria-label="@Fen">
+    @for (var row = 0; row < 8; row++)
+    {
+        @for (var col = 0; col < 8; col++)
+        {
+            var square = Flipped ? row * 8 + (7 - col) : (7 - row) * 8 + col;
+            var piece = _board[square];
+            var css = "chess-square " + ((square / 8 + square % 8) % 2 == 0 ? "dark" : "light")
+                      + (square == _lastFrom || square == _lastTo ? " last-move" : "")
+                      + (square == _checkSquare ? " in-check" : "");
+            <div class="@css">
+                @if (piece != '\0')
+                {
+                    <span class="chess-piece @(char.IsUpper(piece) ? "white" : "black")">@Glyph(piece)</span>
+                }
+                @if (col == 0)
+                {
+                    <span class="chess-coord rank">@(square / 8 + 1)</span>
+                }
+                @if (row == 7)
+                {
+                    <span class="chess-coord file">@((char)('a' + square % 8))</span>
+                }
+            </div>
+        }
+    }
+    @if (_arrow is { } arrow)
+    {
+        <svg class="chess-arrow" viewBox="0 0 8 8" aria-hidden="true">
+            <defs>
+                <marker id="arrowhead" markerWidth="3" markerHeight="3" refX="1.6" refY="1.5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L3,1.5 L0,3 z" />
+                </marker>
+            </defs>
+            <line x1="@F(arrow.X1)" y1="@F(arrow.Y1)" x2="@F(arrow.X2)" y2="@F(arrow.Y2)" stroke-width="0.17" marker-end="url(#arrowhead)" />
+        </svg>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Fen { get; set; } = "";
+
+    /// <summary>The move that led to this position (UCI), highlighted.</summary>
+    [Parameter] public string? LastMove { get; set; }
+
+    /// <summary>A move to draw as an arrow (UCI), e.g. the engine's best move.</summary>
+    [Parameter] public string? Arrow { get; set; }
+
+    /// <summary>Black at the bottom.</summary>
+    [Parameter] public bool Flipped { get; set; }
+
+    private readonly char[] _board = new char[64];
+    private int _lastFrom = -1, _lastTo = -1, _checkSquare = -1;
+    private (double X1, double Y1, double X2, double Y2)? _arrow;
+
+    protected override void OnParametersSet()
+    {
+        Array.Clear(_board);
+        var placement = Fen.Split(' ')[0].Split('/');
+        for (var r = 0; r < 8 && r < placement.Length; r++)
+        {
+            var file = 0;
+            foreach (var c in placement[r])
+            {
+                if (char.IsDigit(c)) file += c - '0';
+                else if (file < 8) _board[(7 - r) * 8 + file++] = c;
+            }
+        }
+
+        (_lastFrom, _lastTo) = Squares(LastMove) ?? (-1, -1);
+        _checkSquare = IsCheckMarked ? KingOfSideToMove() : -1;
+
+        _arrow = Squares(Arrow) is var (from, to) ? Line(from, to) : null;
+    }
+
+    /// <summary>Set by the parent when the side to move is in check (the SAN of the last move ends in + or #).</summary>
+    [Parameter] public bool IsCheckMarked { get; set; }
+
+    private int KingOfSideToMove()
+    {
+        var parts = Fen.Split(' ');
+        var king = parts.Length > 1 && parts[1] == "b" ? 'k' : 'K';
+        return Array.IndexOf(_board, king);
+    }
+
+    private static (int From, int To)? Squares(string? uci)
+    {
+        if (uci is not { Length: >= 4 }) return null;
+        int Sq(int i) => (uci[i + 1] - '1') * 8 + (uci[i] - 'a');
+        var (from, to) = (Sq(0), Sq(2));
+        return from is >= 0 and < 64 && to is >= 0 and < 64 ? (from, to) : null;
+    }
+
+    /// <summary>Center of a square in board coordinates (0–8, top-left origin), shortened at the end for the head.</summary>
+    private (double, double, double, double) Line(int from, int to)
+    {
+        (double X, double Y) Center(int sq) => Flipped
+            ? (7 - sq % 8 + 0.5, sq / 8 + 0.5)
+            : (sq % 8 + 0.5, 7 - sq / 8 + 0.5);
+        var (x1, y1) = Center(from);
+        var (x2, y2) = Center(to);
+        var length = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+        var shorten = length > 0 ? 0.3 / length : 0;
+        return (x1, y1, x2 - (x2 - x1) * shorten, y2 - (y2 - y1) * shorten);
+    }
+
+    private static string F(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    // The solid glyphs for both colors (styled per color); U+FE0E keeps the pawn from turning into an emoji.
+    private static string Glyph(char piece) => char.ToLowerInvariant(piece) switch
+    {
+        'k' => "♚",
+        'q' => "♛",
+        'r' => "♜",
+        'b' => "♝",
+        'n' => "♞",
+        _ => "♟︎"
+    };
+}

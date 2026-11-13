@@ -12,4 +12,7 @@ public static class TournamentHubContract
 
     /// <summary>Sent when the list of tournaments changes (created, deleted, state changed).</summary>
     public const string TournamentListChanged = nameof(TournamentListChanged);
+
+    /// <summary>Sent with the game id whenever the engine analysis of a game changes (requested, progress, done).</summary>
+    public const string GameAnalysisChanged = nameof(GameAnalysisChanged);
 }

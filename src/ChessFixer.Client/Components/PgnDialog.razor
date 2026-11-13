@@ -27,6 +27,11 @@
             </MudButton>
         }
         <MudSpacer />
+        @if (Pgn is not null && ShowAnalysisLink)
+        {
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QueryStats" Href="@($"games/{Game.Id}")"
+                       OnClick="() => Dialog.Cancel()">@L["PgnShowAnalysis"]</MudButton>
+        }
         @if (IsValid)
         {
             <MudTooltip Text="@L["PgnCopy"]">
@@ -52,6 +57,9 @@
 
     /// <summary>The moves saved so far; null when none were added.</summary>
     [Parameter] public string? Pgn { get; set; }
+
+    /// <summary>Show the button to the analysis page (not on the analysis page itself).</summary>
+    [Parameter] public bool ShowAnalysisLink { get; set; } = true;
 
     /// <summary>Used as the Event tag when the pasted text has no header tags.</summary>
     [Parameter] public string TournamentTitle { get; set; } = "";

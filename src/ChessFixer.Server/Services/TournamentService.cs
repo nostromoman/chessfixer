@@ -6,6 +6,7 @@ using ChessFixer.Server.Data;
 using ChessFixer.Server.Errors;
 using ChessFixer.Server.Hubs;
 using ChessFixer.Server.Services.Ai;
+using ChessFixer.Server.Services.Analysis;
 using ChessFixer.Server.Services.Ratings;
 using ChessFixer.Server.Services.Reports;
 using ChessFixer.Shared.Dtos;
@@ -32,7 +33,8 @@ public class TournamentService(
     AiSettingsService aiSettings,
     WritingStyleService writingStyles,
     ReportQueue reportQueue,
-    RatingLogService ratingLog)
+    RatingLogService ratingLog,
+    GameAnalysisService analyses)
 {
     private const int MaxLocationLength = 200;
     private const int MaxDescriptionLength = 2000;
@@ -625,9 +627,12 @@ public class TournamentService(
     /// <summary>
     /// Adds the moves of a game for later analysis, replaces them, or removes them (empty text). Only a game played
     /// over the board can have moves; it does not matter for the standings, so it is also allowed after closing.
+    /// New moves are analysed by Stockfish in the background.
     /// </summary>
-    public Task<TournamentDto> SetPgnAsync(int id, int gameId, string? pgn) =>
-        MutateAsync(id, tournament =>
+    public async Task<TournamentDto> SetPgnAsync(int id, int gameId, string? pgn)
+    {
+        var changed = false;
+        var dto = await MutateAsync(id, tournament =>
         {
             var game = tournament.Rounds.SelectMany(r => r.Games).SingleOrDefault(g => g.Id == gameId)
                        ?? throw new ApiException(ApiErrorCode.GameNotFound);
@@ -640,9 +645,14 @@ public class TournamentService(
                 if (text.Length > PgnText.MaxLength || !PgnText.HasMoves(text)) throw new ApiException(ApiErrorCode.InvalidPgn);
             }
 
+            changed = game.Pgn != text;
             game.Pgn = text;
             return Task.CompletedTask;
         });
+
+        if (changed) await analyses.ResetAsync(gameId);
+        return dto;
+    }
 
     /// <summary>
     /// Competition: enters a game the two players played outside a club evening. It must be one of their open games

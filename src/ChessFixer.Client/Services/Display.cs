@@ -1,4 +1,5 @@
 using System.Globalization;
+using ChessFixer.Shared.Dtos;
 using ChessFixer.Shared.Enums;
 using MudBlazor;
 
@@ -35,4 +36,25 @@ public static class Display
         TournamentState.WaitingForNextRound => Color.Warning,
         _ => Color.Default
     };
+
+    /// <summary>An engine evaluation as on an analysis board: "+0,4", "-2,3", "#3", "#-2"; "#" = checkmate.</summary>
+    public static string Evaluation(EvaluationDto evaluation) => evaluation switch
+    {
+        { Mate: 0 } => "#",
+        { Mate: { } mate } => $"#{mate}",
+        { Centipawns: { } cp } => (cp / 100.0).ToString("+0.0;-0.0;0.0", CultureInfo.CurrentCulture),
+        _ => ""
+    };
+
+    /// <summary>The annotation symbol of a move: ?! for an inaccuracy, ? for a mistake, ?? for a blunder.</summary>
+    public static string QualitySymbol(MoveQuality? quality) => quality switch
+    {
+        MoveQuality.Inaccuracy => "?!",
+        MoveQuality.Mistake => "?",
+        MoveQuality.Blunder => "??",
+        _ => ""
+    };
+
+    /// <summary>"accuracy" as a whole percentage.</summary>
+    public static string Percentage(double? value) => value is { } v ? $"{Math.Round(v):0}%" : "–";
 }

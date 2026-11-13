@@ -218,6 +218,9 @@ public class Game
     /// Only for a game played over the board (won, lost or drawn).</summary>
     public string? Pgn { get; set; }
 
+    /// <summary>The engine analysis of <see cref="Pgn"/>; null when there are no moves.</summary>
+    public GameAnalysis? Analysis { get; set; }
+
     // ----- Rating: filled in when a rated tournament is closed, for the games that count for the rating -----
 
     /// <summary>The ratings the game was calculated with: the ratings of the players before the tournament.
@@ -237,6 +240,39 @@ public class Game
     public DateTime? RatedAt { get; set; }
 
     public bool IsRated => RatedAt is not null;
+}
+
+/// <summary>
+/// The Stockfish analysis of the moves (PGN) of a game: per position the evaluation, the best move and the best
+/// line. Made in the background (AnalysisWorker). When the moves change, the row is replaced by a new one (with a
+/// new Id), so a worker still busy with the old moves cannot overwrite the new analysis.
+/// </summary>
+public class GameAnalysis
+{
+    public int Id { get; set; }
+    public int GameId { get; set; }
+    public Game Game { get; set; } = null!;
+
+    public AnalysisStatus Status { get; set; } = AnalysisStatus.Pending;
+
+    /// <summary>The moves that are analysed (a copy of the game's PGN at the time of the request).</summary>
+    public string Pgn { get; set; } = "";
+
+    /// <summary>Search depth (half-moves) per position.</summary>
+    public int Depth { get; set; }
+
+    /// <summary>Engine name and version, as the engine reports it ("Stockfish 16").</summary>
+    public string? Engine { get; set; }
+
+    public int PositionsDone { get; set; }
+    public int PositionsTotal { get; set; }
+
+    /// <summary>JSON: the analysed positions (start position first), see AnalysedPosition.</summary>
+    public string? Positions { get; set; }
+
+    public string? Error { get; set; }
+    public DateTime RequestedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
 }
 
 /// <summary>Application-wide settings; there is exactly one row (Id 1).</summary>
