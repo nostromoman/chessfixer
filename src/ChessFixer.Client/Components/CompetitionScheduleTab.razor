@@ -2,7 +2,9 @@
 
 @* Competition: the cross table (every player against every other player) with the results and the open games, and per
    player the games still to play. An open game can be entered as a catch-up game (played outside a club evening).
-   With two games per pair, each cell has two parts: the game in which the row player had White, then Black. *@
+   With two games per pair, each cell has two parts: the game in which the row player had White, then Black.
+   Below that the catch-up games entered so far (newest first), as cards like in the rounds; their result can be
+   corrected (clearing it removes the game) until the competition is closed. *@
 <MudText Typo="Typo.body2" Class="mb-1">@L["ScheduleIntro"]</MudText>
 @if (Schedule.TimesAgainstEachOther == 2)
 {
@@ -102,10 +104,34 @@
     }
 }
 
+@if (CatchUpGames.Count > 0)
+{
+    <MudText Typo="Typo.h6" Class="mt-8">@L["CatchUpGames"] (@CatchUpGames.Count)</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["CatchUpGamesInfo"]</MudText>
+    <div class="game-cards">
+        @foreach (var (game, round) in CatchUpGames)
+        {
+            <div class="catch-up-card">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["CatchUpCountsFrom", round]</MudText>
+                <GameCard @key="game.Id" Game="game" IsStarted="true" Editable="@(!IsClosed)" Disabled="Disabled"
+                          Players="PlayerInfo" OnResult="result => OnResult.InvokeAsync((game, result))" />
+            </div>
+        }
+    </div>
+}
+
 @code {
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
     [Parameter, EditorRequired] public CompetitionScheduleDto Schedule { get; set; } = null!;
+    [Parameter, EditorRequired] public List<RoundDto> Rounds { get; set; } = [];
+
+    /// <summary>All players by id, for the photos on the catch-up game cards.</summary>
+    [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> PlayerInfo { get; set; } = null!;
+
     [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>The result of a catch-up game was corrected (or cleared).</summary>
+    [Parameter] public EventCallback<(GameDto Game, GameResult Result)> OnResult { get; set; }
 
     /// <summary>The leader picked an open game to enter as a catch-up game.</summary>
     [Parameter] public EventCallback<OpenGameDto> OnCatchUp { get; set; }
@@ -123,6 +149,12 @@
     private bool CanCatchUp => Tournament.State is TournamentState.RoundActive or TournamentState.WaitingForNextRound;
 
     private bool IsClosed => Tournament.State == TournamentState.Closed;
+
+    /// <summary>The catch-up games with the round they count from, newest first.</summary>
+    private List<(GameDto Game, int Round)> CatchUpGames =>
+        Rounds.SelectMany(r => r.Games.Where(g => g.IsCatchUp).Select(g => (Game: g, Round: r.Number)))
+              .OrderByDescending(x => x.Game.PlayedAt).ThenByDescending(x => x.Round).ThenByDescending(x => x.Game.Number)
+              .ToList();
 
     private IEnumerable<OpenGameDto> OpenGamesOf(int playerId) =>
         Schedule.OpenGames.Where(g => g.PlayerA == playerId || g.PlayerB == playerId);

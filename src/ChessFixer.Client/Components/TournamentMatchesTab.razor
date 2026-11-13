@@ -3,8 +3,9 @@
 @* The games per round, with a row of tabs: one tab per started round, the newest on the right. Starting a round
    adds its tab and opens it. Results can only be entered (and corrected) in the most recent round; the other
    rounds show their results. Before round 1 the pairing of round 1 is shown (without tabs).
-   A player with a bye is shown in a separate group at the bottom, then the players without opponent (competition)
-   and the absent players, then the catch-up games entered during the round (competition), then the round report.
+   Each round tab has two sub tabs: the results and the round report. The results end with the player with a bye,
+   the players without opponent (competition) and the absent players. Catch-up games (competition) are not part of a
+   round here; they are listed in the Schema tab.
    A finished round has a green check mark on its tab; the round in progress an hourglass. *@
 @if (StartedRounds.Count > 0)
 {
@@ -16,14 +17,22 @@
             <MudTabPanel @key="round.Number" Text="@L["Round", round.Number]"
                          Icon="@(inProgress ? Icons.Material.Filled.HourglassTop : round.IsFinished ? Icons.Material.Filled.CheckCircle : null)"
                          IconColor="@(inProgress ? Color.Warning : round.IsFinished ? Color.Success : Color.Default)">
-                @if (round == CurrentRound && Tournament.State is TournamentState.RoundActive or TournamentState.WaitingForNextRound)
-                {
-                    @CurrentRoundContent(round)
-                }
-                else
-                {
-                    @PlayedRoundContent(round)
-                }
+                <MudTabs @bind-ActivePanelIndex="_subTab" Elevation="0" Rounded="true" MinimumTabWidth="120px"
+                         Class="round-sub-tabs" TabPanelsClass="pt-4">
+                    <MudTabPanel Text="@L["RoundResultsTab"]" Icon="@Icons.Material.Filled.FormatListNumbered">
+                        @if (round == CurrentRound && Tournament.State is TournamentState.RoundActive or TournamentState.WaitingForNextRound)
+                        {
+                            @CurrentRoundContent(round)
+                        }
+                        else
+                        {
+                            @PlayedRoundContent(round)
+                        }
+                    </MudTabPanel>
+                    <MudTabPanel Text="@L["Report"]" Icon="@Icons.Material.Filled.AutoAwesome">
+                        @Report(round)
+                    </MudTabPanel>
+                </MudTabs>
             </MudTabPanel>
         }
     </MudTabs>
@@ -72,6 +81,9 @@ else if (Tournament.State == TournamentState.New)
     /// <summary>The index of the open round tab.</summary>
     private int _selectedIndex;
 
+    /// <summary>The open sub tab (results or report); it stays the same when another round is opened.</summary>
+    private int _subTab;
+
     /// <summary>Set when the newest round tab must be opened after the next render (a tab was added or removed).</summary>
     private bool _activateSelected;
 
@@ -82,10 +94,6 @@ else if (Tournament.State == TournamentState.New)
 
     /// <summary>The real games of a round, without byes and catch-up games.</summary>
     private static IEnumerable<GameDto> Games(RoundDto round) => round.Games.Where(g => g.Black is not null && !g.IsCatchUp);
-
-    /// <summary>Competition: games played outside the club evening, entered while this was the latest round.</summary>
-    private static List<GameDto> CatchUps(RoundDto round) =>
-        round.Games.Where(g => g.IsCatchUp).OrderBy(g => g.PlayedAt).ThenBy(g => g.Number).ToList();
 
     private static IEnumerable<GameDto> Playing(RoundDto round) =>
         Games(round).Where(g => g.Board is not null && g.Result == GameResult.NotPlayed).OrderBy(g => g.Board);
@@ -178,8 +186,6 @@ else if (Tournament.State == TournamentState.New)
         }
 
         @Byes(round, isStarted: true)
-        @CatchUpGames(round)
-        @Report(round)
     };
 
     /// <summary>An earlier round (or any round of a closed tournament): its results, read-only.</summary>
@@ -188,14 +194,11 @@ else if (Tournament.State == TournamentState.New)
         <MudText Typo="Typo.h6" Class="mb-3">@L["ResultsRound", round.Number]</MudText>
         @Cards(Finished(round), isStarted: true, editable: false)
         @Byes(round, isStarted: true)
-        @CatchUpGames(round)
-        @Report(round)
     };
 
-    /// <summary>The AI report of a round, at the bottom of the round; it can be made once every result is in.</summary>
+    /// <summary>The AI report of a round, in its own sub tab; it can be made once every result is in.</summary>
     private RenderFragment Report(RoundDto round) => __builder =>
     {
-        <MudDivider Class="mt-6 mb-4" />
         <MudText Typo="Typo.h6" Class="mb-2">@L["RoundReportTitle", round.Number]</MudText>
         <TournamentReportTab TournamentId="Tournament.Id" RoundNumber="round.Number"
                              Report="@(round.Report ?? new TournamentReportDto(ReportStatus.None, null, null, null, null, false))"
@@ -224,7 +227,8 @@ else if (Tournament.State == TournamentState.New)
     }
 
     /// <summary>
-    /// The player(s) with a bye in a round, in their own group, and then the absent players (by name only);
+    /// The player(s) with a bye in a round, in their own group, and then the players without opponent and the absent
+    /// players (photo and name);
     /// nothing when there are none.
     /// </summary>
     private RenderFragment Byes(RoundDto round, bool isStarted) => __builder =>
@@ -240,8 +244,8 @@ else if (Tournament.State == TournamentState.New)
         @PlayerChips(round, GameResult.Absent, L["GamesAbsent"], Icons.Material.Filled.EventBusy)
     };
 
-    /// <summary>The players with a line of the given kind (absent, no opponent), by name only; nothing when there are none.</summary>
-    private static RenderFragment PlayerChips(RoundDto round, GameResult result, string title, string icon, string? info = null) => __builder =>
+    /// <summary>The players with a line of the given kind (absent, no opponent), with photo and name; nothing when there are none.</summary>
+    private RenderFragment PlayerChips(RoundDto round, GameResult result, string title, string icon, string? info = null) => __builder =>
     {
         var lines = round.Games.Where(g => g.Result == result).OrderBy(g => g.Number).ToList();
         if (lines.Count == 0) return;
@@ -251,26 +255,18 @@ else if (Tournament.State == TournamentState.New)
         {
             <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@info</MudText>
         }
-        <div class="d-flex flex-wrap gap-1">
+        <div class="player-pills">
             @foreach (var game in lines)
             {
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@icon" Class="ma-0">
+                var info = Players.GetValueOrDefault(game.White.PlayerId);
+                <div class="player-pill">
+                    <PlayerAvatar FirstName="@(info?.FirstName ?? game.White.Name)" LastName="@info?.LastName"
+                                  PhotoUrl="@info?.PhotoUrl" Size="Size.Medium" />
                     <PlayerName Name="@game.White.Name" IsDeleted="game.White.IsDeleted" />
-                </MudChip>
+                    <MudIcon Icon="@icon" Size="Size.Small" Class="player-pill-icon" />
+                </div>
             }
         </div>
-    };
-
-    /// <summary>Competition: the catch-up games entered while this was the latest round. Their result can be corrected
-    /// (clearing it removes the game) until the competition is closed.</summary>
-    private RenderFragment CatchUpGames(RoundDto round) => __builder =>
-    {
-        var games = CatchUps(round);
-        if (games.Count == 0) return;
-
-        <MudText Typo="Typo.h6" Class="mt-6">@L["CatchUpGames"]</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["CatchUpGamesInfo"]</MudText>
-        @Cards(games, isStarted: true, editable: Tournament.State != TournamentState.Closed)
     };
 
     private RenderFragment Cards(IEnumerable<GameDto> games, bool isStarted, bool editable, bool queued = false) =>

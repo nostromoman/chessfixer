@@ -1,7 +1,9 @@
 @inject IStringLocalizer<Strings> L
 
-@* Enters a catch-up game: an open game of a competition that was played outside a club evening. The colors are fixed
-   when the pair already played (the return game); otherwise they can be swapped. Closes with a CatchUpGameRequest. *@
+@* Enters a catch-up game: an open game of a competition that was played outside a club evening. The players are shown
+   as a game card, like in the rounds; the card shows the chosen outcome. The colors are fixed when the pair already
+   played (the return game); otherwise they can be swapped. The outcomes are listed below each other, with who wins.
+   Closes with a CatchUpGameRequest. *@
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">@L["CatchUpTitle"]</MudText>
@@ -9,21 +11,27 @@
     <DialogContent>
         <MudText Typo="Typo.body2" Class="mb-4">@L["CatchUpIntro", RoundNumber]</MudText>
 
-        <div class="d-flex align-center gap-2 mb-4 flex-wrap">
-            <MudChip T="string" Variant="Variant.Outlined" Class="ma-0">@L["White"]: <b class="ml-1">@_white.Name</b></MudChip>
-            <MudChip T="string" Variant="Variant.Outlined" Class="ma-0">@L["Black"]: <b class="ml-1">@_black.Name</b></MudChip>
-            @if (!ColorsFixed)
-            {
+        <GameCard Game="Preview" IsStarted="@(_result != GameResult.NotPlayed)" Players="Players" />
+
+        @if (!ColorsFixed)
+        {
+            <div class="d-flex justify-center mt-2">
                 <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.SwapHoriz"
                            OnClick="Swap">@L["CatchUpSwapColors"]</MudButton>
-            }
-        </div>
+            </div>
+        }
 
+        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">@L["CatchUpResult"]</MudText>
         <MudRadioGroup T="GameResult" @bind-Value="_result">
-            @foreach (var result in Results)
-            {
-                <MudRadio T="GameResult" Value="result" Color="Color.Primary" Dense="true">@L[$"Result_{result}"]</MudRadio>
-            }
+            <div class="catch-up-results">
+                @foreach (var result in Results)
+                {
+                    <MudRadio T="GameResult" Value="result" Color="Color.Primary" Dense="true">
+                        <span class="catch-up-result-score">@L[$"Result_{result}"]</span>
+                        <span class="mud-text-secondary">@Outcome(result)</span>
+                    </MudRadio>
+                }
+            </div>
         </MudRadioGroup>
     </DialogContent>
     <DialogActions>
@@ -42,8 +50,11 @@
 
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
 
-    [Parameter, EditorRequired] public SchedulePlayerDto White { get; set; } = null!;
-    [Parameter, EditorRequired] public SchedulePlayerDto Black { get; set; } = null!;
+    [Parameter, EditorRequired] public GamePlayerDto White { get; set; } = null!;
+    [Parameter, EditorRequired] public GamePlayerDto Black { get; set; } = null!;
+
+    /// <summary>All players by id, for the photos.</summary>
+    [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> Players { get; set; } = null!;
 
     /// <summary>The colors are fixed by the schedule (the pair played before with the other colors).</summary>
     [Parameter] public bool ColorsFixed { get; set; }
@@ -51,11 +62,21 @@
     /// <summary>The round the game will count from (the latest started round).</summary>
     [Parameter] public int RoundNumber { get; set; }
 
-    private SchedulePlayerDto _white = null!;
-    private SchedulePlayerDto _black = null!;
+    private GamePlayerDto _white = null!;
+    private GamePlayerDto _black = null!;
     private GameResult _result = GameResult.NotPlayed;
 
     protected override void OnInitialized() => (_white, _black) = (White, Black);
+
+    /// <summary>The game as it will be saved, for the card at the top.</summary>
+    private GameDto Preview => new(0, 0, null, _white, _black, _result, IsCatchUp: true);
+
+    private string Outcome(GameResult result) => result switch
+    {
+        GameResult.WhiteWins or GameResult.WhiteWinsByForfeit => L["CatchUpWins", _white.Name],
+        GameResult.BlackWins or GameResult.BlackWinsByForfeit => L["CatchUpWins", _black.Name],
+        _ => L["CatchUpDraw"]
+    };
 
     private void Swap() => (_white, _black) = (_black, _white);
 

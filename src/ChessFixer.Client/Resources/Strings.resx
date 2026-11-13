@@ -216,7 +216,7 @@
   <data name="Result" xml:space="preserve"><value>Uitslag</value></data>
   <data name="GamesBye" xml:space="preserve"><value>Vrij deze ronde (bye)</value></data>
   <data name="ByeOpponent" xml:space="preserve"><value>— vrij —</value></data>
-  <data name="GamesAbsent" xml:space="preserve"><value>Doen deze ronde niet mee</value></data>
+  <data name="GamesAbsent" xml:space="preserve"><value>Afwezig deze ronde</value></data>
   <data name="AbsentOpponent" xml:space="preserve"><value>— doet niet mee —</value></data>
   <data name="ChangeResult" xml:space="preserve"><value>Uitslag wijzigen</value></data>
   <data name="ClearResult" xml:space="preserve"><value>Uitslag wissen</value></data>
@@ -225,6 +225,7 @@
   <data name="Rules" xml:space="preserve"><value>Regels</value></data>
   <data name="UndoChanges" xml:space="preserve"><value>Wijzigingen ongedaan maken</value></data>
   <data name="CloseBlockedInRound" xml:space="preserve"><value>Het toernooi kan pas worden afgesloten als de lopende ronde klaar is</value></data>
+  <data name="RoundResultsTab" xml:space="preserve"><value>Uitslagen</value></data>
   <data name="RoundReportTitle" xml:space="preserve"><value>Verslag ronde {0}</value></data>
   <data name="RoundReportGenerate" xml:space="preserve"><value>Maak verslag</value></data>
   <data name="RoundReportNotYet" xml:space="preserve"><value>Kan zodra alle uitslagen van deze ronde zijn ingevuld.</value></data>
@@ -756,7 +757,11 @@
   <data name="ScheduleChoosePlayer" xml:space="preserve"><value>Kies een speler om de partijen te zien die nog gespeeld moeten worden.</value></data>
   <data name="ScheduleColorFree" xml:space="preserve"><value>kleur vrij</value></data>
   <data name="CatchUpGames" xml:space="preserve"><value>Inhaalpartijen</value></data>
-  <data name="CatchUpGamesInfo" xml:space="preserve"><value>Buiten de clubavond gespeeld en achteraf ingevoerd. Een uitslag wissen haalt de inhaalpartij weg; de partij staat dan weer open.</value></data>
+  <data name="CatchUpGamesInfo" xml:space="preserve"><value>Buiten de clubavond gespeeld en achteraf ingevoerd, de nieuwste eerst. Een uitslag wissen haalt de inhaalpartij weg; de partij staat dan weer open.</value></data>
+  <data name="CatchUpCountsFrom" xml:space="preserve"><value>Telt mee vanaf ronde {0}</value></data>
+  <data name="CatchUpResult" xml:space="preserve"><value>Uitslag</value></data>
+  <data name="CatchUpWins" xml:space="preserve"><value>{0} wint</value></data>
+  <data name="CatchUpDraw" xml:space="preserve"><value>Remise</value></data>
   <data name="CatchUpTitle" xml:space="preserve"><value>Inhaalpartij invoeren</value></data>
   <data name="CatchUpIntro" xml:space="preserve"><value>Voor een partij die buiten de clubavond is gespeeld. De uitslag telt mee vanaf ronde {0}.</value></data>
   <data name="CatchUpEnter" xml:space="preserve"><value>Inhaalpartij invoeren</value></data>

@@ -202,7 +202,8 @@ else
             @if (IsCompetition && _schedule is not null)
             {
                 <MudTabPanel Text="@L["Schedule"]" Icon="@Icons.Material.Filled.TableChart">
-                    <CompetitionScheduleTab Tournament="Tournament" Schedule="_schedule" Disabled="IsBusy" OnCatchUp="CatchUpAsync" />
+                    <CompetitionScheduleTab Tournament="Tournament" Schedule="_schedule" Rounds="_rounds" PlayerInfo="_players"
+                                            Disabled="IsBusy" OnCatchUp="CatchUpAsync" OnResult="SetResultAsync" />
                 </MudTabPanel>
             }
             @if (IsClosed)
@@ -389,16 +390,18 @@ else
         var a = _schedule.Players.First(p => p.PlayerId == game.PlayerA);
         var b = _schedule.Players.First(p => p.PlayerId == game.PlayerB);
         var (white, black) = game.WhitePlayerId == b.PlayerId ? (b, a) : (a, b);
+        static GamePlayerDto AsGamePlayer(SchedulePlayerDto p) => new(p.PlayerId, p.Name, p.IsDeleted);
 
         var dialog = await Dialogs.ShowAsync<CatchUpGameDialog>(null,
             new DialogParameters<CatchUpGameDialog>
             {
-                { d => d.White, white },
-                { d => d.Black, black },
+                { d => d.White, AsGamePlayer(white) },
+                { d => d.Black, AsGamePlayer(black) },
+                { d => d.Players, _players },
                 { d => d.ColorsFixed, game.WhitePlayerId is not null },
                 { d => d.RoundNumber, Tournament!.RoundsStarted }
             },
-            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseOnEscapeKey = true });
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         if (await dialog.Result is not { Canceled: false, Data: CatchUpGameRequest request }) return;
 
         await RunAsync(() => Api.AddCatchUpGameAsync(Id, request), L["CatchUpSaved"]);

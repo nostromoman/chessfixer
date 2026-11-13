@@ -585,6 +585,52 @@ html, body {
     background: var(--mud-palette-background-gray);
 }
 
+/* The sub tabs of a round (results, report): lighter than the round tabs, with a line below. */
+.round-tabs .round-sub-tabs .mud-tabs-tabbar {
+    background: transparent;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+/* Players without a game in a round (no opponent, absent): photo and name. */
+.player-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.player-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 14px 4px 4px;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 999px;
+    background: var(--mud-palette-surface);
+}
+
+.player-pill-icon {
+    color: var(--mud-palette-text-secondary);
+}
+
+/* Catch-up game dialog: the outcomes below each other. */
+.catch-up-results {
+    display: flex;
+    flex-direction: column;
+}
+
+.catch-up-result-score {
+    display: inline-block;
+    min-width: 9.5rem;
+    font-weight: 600;
+}
+
+/* Schema tab: a catch-up game card with the round it counts from above it. */
+.catch-up-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 /* The system prompt in the AI settings: monospace, like the prompt viewer. */
 .prompt-field textarea {
     font-family: ui-monospace, Consolas, monospace;
