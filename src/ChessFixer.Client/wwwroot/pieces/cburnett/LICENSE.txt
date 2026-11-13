@@ -1,0 +1,7 @@
+Chess pieces "cburnett" by Colin M.L. Burnett (https://en.wikipedia.org/wiki/User:Cburnett),
+as used by Lichess (https://github.com/lichess-org/lila/tree/master/public/piece/cburnett).
+
+Licensed under the GNU General Public License, version 2 or later (GPLv2+);
+also available under CC BY-SA 3.0 and BSD (Wikimedia Commons: "Category:SVG chess pieces").
+
+File names: w/b (White/Black) + K Q R B N P (king, queen, rook, bishop, knight, pawn).

@@ -1449,7 +1449,10 @@ button.schedule-slot {
 .chess-board {
     position: relative;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
+    /* Fixed rows as well: without them an empty rank (no piece, no coordinate) collapses and the squares are no
+       longer square. minmax(0, …) keeps a piece image from stretching its row. */
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-rows: repeat(8, minmax(0, 1fr));
     aspect-ratio: 1;
     width: 100%;
     border-radius: 4px;
@@ -1460,6 +1463,9 @@ button.schedule-slot {
 
 .chess-square {
     position: relative;
+    aspect-ratio: 1;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1472,21 +1478,11 @@ button.schedule-slot {
 .chess-square.in-check { background: radial-gradient(circle, #ff3b3b 0%, rgba(255, 59, 59, 0.5) 45%, transparent 75%); }
 
 .chess-piece {
-    font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", "Arial Unicode MS", sans-serif;
-    font-size: 10cqw;
-    line-height: 1;
-}
-
-.chess-piece.white {
-    color: #fff;
-    -webkit-text-stroke: 0.06em #222;
-    paint-order: stroke fill;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
-}
-
-.chess-piece.black {
-    color: #1d1d1d;
-    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.25);
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
 }
 
 .chess-coord {

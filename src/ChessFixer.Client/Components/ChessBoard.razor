@@ -1,5 +1,5 @@
 @* A chess board drawn from a FEN, with the last move highlighted and optionally an arrow (the engine's best move).
-   Pieces are the chess glyphs of the font, drawn solid for both colors (outlined for White). *@
+   Pieces are the "cburnett" SVG set (wwwroot/pieces/cburnett, GPLv2+, see LICENSE.txt there). *@
 <div class="chess-board @(Flipped ? "flipped" : "")" role="img" aria-label="@Fen">
     @for (var row = 0; row < 8; row++)
     {
@@ -13,7 +13,7 @@
             <div class="@css">
                 @if (piece != '\0')
                 {
-                    <span class="chess-piece @(char.IsUpper(piece) ? "white" : "black")">@Glyph(piece)</span>
+                    <img class="chess-piece" src="@PieceUrl(piece)" alt="@PieceName(piece)" draggable="false" />
                 }
                 @if (col == 0)
                 {
@@ -108,14 +108,10 @@
 
     private static string F(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
 
-    // The solid glyphs for both colors (styled per color); U+FE0E keeps the pawn from turning into an emoji.
-    private static string Glyph(char piece) => char.ToLowerInvariant(piece) switch
-    {
-        'k' => "♚",
-        'q' => "♛",
-        'r' => "♜",
-        'b' => "♝",
-        'n' => "♞",
-        _ => "♟︎"
-    };
+    /// <summary>The image of a piece: w/b for the color and the uppercase FEN letter, e.g. "wK.svg", "bP.svg".</summary>
+    private static string PieceUrl(char piece) =>
+        $"pieces/cburnett/{(char.IsUpper(piece) ? 'w' : 'b')}{char.ToUpperInvariant(piece)}.svg";
+
+    /// <summary>Alt text for screen readers, e.g. "white K"; the FEN letter is enough there.</summary>
+    private static string PieceName(char piece) => $"{(char.IsUpper(piece) ? "white" : "black")} {char.ToUpperInvariant(piece)}";
 }
