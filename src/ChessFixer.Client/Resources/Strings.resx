@@ -39,7 +39,6 @@
   <data name="WizardTypeIntro" xml:space="preserve"><value>Kies hoe de spelers per ronde worden ingedeeld.</value></data>
   <data name="WizardPlayIntro" xml:space="preserve"><value>Hoeveel borden zijn er beschikbaar en met welk tempo wordt er gespeeld?</value></data>
   <data name="WizardPointsIntro" xml:space="preserve"><value>Hoeveel punten levert een partij op?</value></data>
-  <data name="WizardChangeLater" xml:space="preserve"><value>Dit kan later nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="WizardChangeBeforeRound1" xml:space="preserve"><value>Dit kan tot de start van ronde 1 nog aangepast worden bij de instellingen van het toernooi.</value></data>
   <data name="TournamentType" xml:space="preserve"><value>Toernooitype</value></data>
   <data name="PairingSystemInfo_Swiss" xml:space="preserve"><value>Spelers met een gelijke score spelen tegen elkaar, zonder dat ze elkaar twee keer treffen. Ronde 1 wordt ingedeeld op rating. Geschikt voor een toernooi op één avond, zoals de rapid: niet iedereen hoeft tegen iedereen, en spelers kunnen per ronde wel of niet meedoen of tussen de rondes in- en uitstappen.</value></data>
@@ -77,7 +76,6 @@
   <data name="PointsForAbsence" xml:space="preserve"><value>Punten bij afwezigheid</value></data>
   <data name="PointsForAbsenceHelp" xml:space="preserve"><value>Voor een ronde waarin een speler niet meedoet. Meestal 0.</value></data>
   <data name="SettingsRules" xml:space="preserve"><value>Spelregels</value></data>
-  <data name="Boards" xml:space="preserve"><value>Borden</value></data>
   <data name="BoardsAvailable" xml:space="preserve"><value>Beschikbare schaakborden</value></data>
 
   <!-- Tournament progress (management page) -->
