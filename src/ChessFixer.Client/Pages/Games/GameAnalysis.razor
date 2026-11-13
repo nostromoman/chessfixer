@@ -349,7 +349,12 @@ else
 
     private RenderFragment SummaryRow(string name, bool white, double? accuracy, MoveQualityCountDto counts) =>
         @<tr>
-            <td><span class="game-side-color @(white ? "white" : "black")">@(white ? L["White"] : L["Black"])</span> @name</td>
+            <td>
+                <div class="analysis-summary-player">
+                    <span class="game-side-color @(white ? "white" : "black")">@(white ? L["White"] : L["Black"])</span>
+                    <span>@name</span>
+                </div>
+            </td>
             <td><b>@Display.Percentage(accuracy)</b></td>
             <td>@counts.Inaccuracies</td>
             <td>@counts.Mistakes</td>

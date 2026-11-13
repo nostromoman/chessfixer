@@ -1387,7 +1387,8 @@ button.schedule-slot {
 
 .analysis-layout {
     display: grid;
-    grid-template-columns: minmax(0, 560px) minmax(260px, 1fr);
+    /* The side column (summary, move list) has a maximum width: wider tables are harder to read. */
+    grid-template-columns: minmax(0, 560px) minmax(280px, 400px);
     gap: 24px;
     align-items: start;
     outline: none;
@@ -1396,6 +1397,10 @@ button.schedule-slot {
 @media (max-width: 900px) {
     .analysis-layout {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .analysis-side-column {
+        max-width: 420px;
     }
 }
 
@@ -1536,6 +1541,21 @@ button.schedule-slot {
     white-space: normal;
 }
 
+/* WIT and ZWART equally wide, so the player names after them line up (also a name over two lines). */
+.analysis-summary-player {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analysis-summary .game-side-color {
+    flex: none;
+    width: 5.6em;
+    margin: 0;
+    padding: 2px 0;
+    text-align: center;
+}
+
 .analysis-summary th {
     font-size: 0.8rem;
     font-weight: 600;
@@ -1551,6 +1571,7 @@ button.schedule-slot {
 .move-list table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* White's and Black's moves in equally wide columns */
 }
 
 .move-list td {
