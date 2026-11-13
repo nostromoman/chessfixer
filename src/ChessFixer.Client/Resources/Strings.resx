@@ -77,10 +77,8 @@
   <data name="PointsForAbsence" xml:space="preserve"><value>Punten bij afwezigheid</value></data>
   <data name="PointsForAbsenceHelp" xml:space="preserve"><value>Voor een ronde waarin een speler niet meedoet. Meestal 0.</value></data>
   <data name="SettingsRules" xml:space="preserve"><value>Spelregels</value></data>
-  <data name="SettingsLockedInfo" xml:space="preserve"><value>Ronde 1 is gestart: de spelregels liggen vast. Alleen titel, locatie, omschrijving en aantal borden kunnen nog worden aangepast.</value></data>
   <data name="Boards" xml:space="preserve"><value>Borden</value></data>
-  <data name="BoardsHelp" xml:space="preserve"><value>Speelplaatsen voor de volgende ronde</value></data>
-  <data name="SettingsRoundActiveInfo" xml:space="preserve"><value>Tijdens een ronde kunnen de instellingen niet gewijzigd worden. Dat kan weer zodra alle uitslagen binnen zijn.</value></data>
+  <data name="BoardsAvailable" xml:space="preserve"><value>Beschikbare schaakborden</value></data>
 
   <!-- Tournament progress (management page) -->
   <data name="StartRound" xml:space="preserve"><value>Start ronde {0}</value></data>
@@ -297,7 +295,6 @@
   <data name="LocationPlaceholder" xml:space="preserve"><value>Bijvoorbeeld het clubgebouw of de plaats</value></data>
   <data name="Description" xml:space="preserve"><value>Omschrijving</value></data>
   <data name="DescriptionPlaceholder" xml:space="preserve"><value>Bijvoorbeeld: de jaarlijkse zomerrapid, met een taart voor de winnaar</value></data>
-  <data name="DescriptionHelp" xml:space="preserve"><value>Wordt gebruikt voor het verslag na afloop</value></data>
 
   <!-- Tournament report (AI) -->
   <data name="Report" xml:space="preserve"><value>Verslag</value></data>

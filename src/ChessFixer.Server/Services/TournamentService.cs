@@ -281,8 +281,9 @@ public class TournamentService(
             if (title == tournament.Title && location == tournament.Location && description == tournament.Description
                 && settings == current) return;
 
-            // Settings can change between rounds, not during a round or after closing.
-            EnsureBetweenRounds(tournament);
+            // Title, location and description can always change until closing; the settings only between rounds.
+            if (settings != current) EnsureBetweenRounds(tournament);
+            else if (StateOf(tournament) == TournamentState.Closed) throw new ApiException(ApiErrorCode.TournamentClosed);
 
             // Once round 1 has started, only the title, location, description and boards can change.
             var onlyFreeSettingsChanged = settings with { Boards = current.Boards } == current;

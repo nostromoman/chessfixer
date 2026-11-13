@@ -54,57 +54,60 @@ else
                  Class="tabs-icons-xs">
             <MudTabPanel Text="@L["Rules"]" Icon="@Icons.Material.Filled.Tune">
                 <div class="rules-tab">
-                @if (!CanEditSettings)
+                @if (IsClosed)
                 {
-                    @* During a round or after closing nothing can change: show the settings as text. *@
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                        @(IsClosed ? L["PlayersLockedClosed"] : L["SettingsRoundActiveInfo"])
-                    </MudAlert>
+                    @* After closing nothing can change: show the settings as text. *@
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@L["PlayersLockedClosed"]</MudAlert>
                     <MudSimpleTable Dense="true" Elevation="0">
                         <tbody>
                             <tr><th style="width: 45%">@L["Title"]</th><td>@Tournament.Title</td></tr>
                             <tr><th>@L["Location"]</th><td>@Tournament.Location</td></tr>
                             <tr><th>@L["Description"]</th><td style="white-space: pre-line">@Tournament.Description</td></tr>
-                            <tr><th>@L["Boards"]</th><td>@Tournament.Settings.Boards</td></tr>
+                            <tr><th>@L["BoardsAvailable"]</th><td>@Tournament.Settings.Boards</td></tr>
                             @RuleRows
                         </tbody>
                     </MudSimpleTable>
                 }
                 else
                 {
-                    @* Before round 1 everything can change; after that only the general fields, and the rules are text. *@
+                    @* Every field saves itself when it is left (text) or changed (choices). Title, location and
+                       description can always change; the boards between rounds; the rules only before round 1
+                       (after that they are text). *@
                     var locked = Tournament.SettingsLocked;
                     <MudGrid Spacing="2">
                         <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary">@L["SettingsGeneral"]</MudText></MudItem>
                         <MudItem xs="12">
-                            <MudTextField @bind-Value="_form.Title" Label="@L["Title"]" Variant="Variant.Outlined" Immediate="true" />
+                            <MudTextField @bind-Value="_form.Title" @bind-Value:after="AutoSaveAsync" Label="@L["Title"]" Variant="Variant.Outlined" />
                         </MudItem>
                         <MudItem xs="12">
-                            <MudTextField @bind-Value="_form.Location" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
-                                          Variant="Variant.Outlined" Immediate="true" MaxLength="200" />
+                            <MudTextField @bind-Value="_form.Location" @bind-Value:after="AutoSaveAsync" Label="@L["Location"]" Placeholder="@L["LocationPlaceholder"]"
+                                          Variant="Variant.Outlined" MaxLength="200" />
                         </MudItem>
                         <MudItem xs="12">
-                            <MudTextField @bind-Value="_form.Description" Label="@L["Description"]" HelperText="@L["DescriptionHelp"]"
-                                          Variant="Variant.Outlined" Immediate="true" Lines="3" Sizing="InputSizing.Auto" MaxLines="10" MaxLength="2000" />
+                            <MudTextField @bind-Value="_form.Description" @bind-Value:after="AutoSaveAsync" Label="@L["Description"]"
+                                          Variant="Variant.Outlined" Lines="3" Sizing="InputSizing.Auto" MaxLines="10" MaxLength="2000" />
                         </MudItem>
-                        <MudItem xs="12">
-                            <MudNumericField T="int" @bind-Value="_form.Boards" Label="@L["Boards"]" HelperText="@L["BoardsHelp"]"
-                                             Variant="Variant.Outlined" Min="1" Immediate="true" />
-                        </MudItem>
+                        @if (CanEditSettings)
+                        {
+                            <MudItem xs="12">
+                                <MudNumericField T="int" @bind-Value="_form.Boards" @bind-Value:after="AutoSaveAsync" Label="@L["BoardsAvailable"]"
+                                                 Variant="Variant.Outlined" Min="1" />
+                            </MudItem>
+                        }
                         @if (!locked)
                         {
                             <MudItem xs="12">
-                                <MudNumericField T="int" @bind-Value="_form.GameTimeMinutes" Label="@L["GameTime"]"
-                                                 Variant="Variant.Outlined" Min="1" Immediate="true" />
+                                <MudNumericField T="int" @bind-Value="_form.GameTimeMinutes" @bind-Value:after="AutoSaveAsync" Label="@L["GameTime"]"
+                                                 Variant="Variant.Outlined" Min="1" />
                             </MudItem>
                             <MudItem xs="12">
-                                <MudNumericField T="int" @bind-Value="_form.IncrementSeconds" Label="@L["Increment"]"
-                                                 Variant="Variant.Outlined" Min="0" Immediate="true" />
+                                <MudNumericField T="int" @bind-Value="_form.IncrementSeconds" @bind-Value:after="AutoSaveAsync" Label="@L["Increment"]"
+                                                 Variant="Variant.Outlined" Min="0" />
                             </MudItem>
 
                             <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="mud-text-secondary mt-4">@L["SettingsPairingAndPoints"]</MudText></MudItem>
                             <MudItem xs="12">
-                                <MudSelect T="PairingSystem" @bind-Value="_form.PairingSystem" Label="@L["PairingSystem"]" Variant="Variant.Outlined">
+                                <MudSelect T="PairingSystem" @bind-Value="_form.PairingSystem" @bind-Value:after="AutoSaveAsync" Label="@L["PairingSystem"]" Variant="Variant.Outlined">
                                     @foreach (var system in Enum.GetValues<PairingSystem>())
                                     {
                                         <MudSelectItem Value="system">@L[$"PairingSystem_{system}"]</MudSelectItem>
@@ -114,55 +117,55 @@ else
                             @if (_form.PairingSystem == PairingSystem.Competition)
                             {
                                 <MudItem xs="12">
-                                    <MudSelect T="int" @bind-Value="_form.TimesAgainstEachOther" Label="@L["TimesAgainstEachOther"]" Variant="Variant.Outlined">
+                                    <MudSelect T="int" @bind-Value="_form.TimesAgainstEachOther" @bind-Value:after="AutoSaveAsync" Label="@L["TimesAgainstEachOther"]" Variant="Variant.Outlined">
                                         <MudSelectItem Value="2">@L["TimesAgainstEachOther_2"]</MudSelectItem>
                                         <MudSelectItem Value="1">@L["TimesAgainstEachOther_1"]</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
                             }
                             <MudItem xs="12">
-                                <MudNumericField T="double" @bind-Value="_form.PointsForWin" Label="@L["PointsForWin"]"
-                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                                <MudNumericField T="double" @bind-Value="_form.PointsForWin" @bind-Value:after="AutoSaveAsync" Label="@L["PointsForWin"]"
+                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Culture="CultureInfo.CurrentCulture" />
                             </MudItem>
                             <MudItem xs="12">
-                                <MudNumericField T="double" @bind-Value="_form.PointsForDraw" Label="@L["PointsForDraw"]"
-                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                                <MudNumericField T="double" @bind-Value="_form.PointsForDraw" @bind-Value:after="AutoSaveAsync" Label="@L["PointsForDraw"]"
+                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Culture="CultureInfo.CurrentCulture" />
                             </MudItem>
                             <MudItem xs="12">
-                                <MudNumericField T="double" @bind-Value="_form.PointsForLoss" Label="@L["PointsForLoss"]"
-                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                                <MudNumericField T="double" @bind-Value="_form.PointsForLoss" @bind-Value:after="AutoSaveAsync" Label="@L["PointsForLoss"]"
+                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Culture="CultureInfo.CurrentCulture" />
                             </MudItem>
                             @if (_form.PairingSystem == PairingSystem.Swiss)
                             {
                                 <MudItem xs="12">
-                                    <MudNumericField T="double" @bind-Value="_form.PointsForBye" Label="@L["PointsForBye"]"
-                                                     Variant="Variant.Outlined" Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                                    <MudNumericField T="double" @bind-Value="_form.PointsForBye" @bind-Value:after="AutoSaveAsync" Label="@L["PointsForBye"]"
+                                                     Variant="Variant.Outlined" Min="0" Step="0.5" Culture="CultureInfo.CurrentCulture" />
                                 </MudItem>
                             }
                             <MudItem xs="12">
-                                <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" Label="@L["PointsForAbsence"]"
+                                <MudNumericField T="double" @bind-Value="_form.PointsForAbsence" @bind-Value:after="AutoSaveAsync" Label="@L["PointsForAbsence"]"
                                                  HelperText="@L["PointsForAbsenceHelp"]"
-                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Immediate="true" Culture="CultureInfo.CurrentCulture" />
+                                                 Variant="Variant.Outlined" Min="0" Step="0.5" Culture="CultureInfo.CurrentCulture" />
                             </MudItem>
                             <MudItem xs="12">
-                                <MudSwitch T="bool" @bind-Value="_form.IsRated" Label="@L["IsRated"]" Color="Color.Primary" />
+                                <MudSwitch T="bool" @bind-Value="_form.IsRated" @bind-Value:after="AutoSaveAsync" Label="@L["IsRated"]" Color="Color.Primary" />
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["IsRatedHelp"]</MudText>
                             </MudItem>
                         }
                     </MudGrid>
 
-                    <div class="d-flex gap-2 justify-end mt-4">
-                        <MudButton Variant="Variant.Text" OnClick="ResetSettings" Disabled="@(!IsDirty || IsBusy)">@L["UndoChanges"]</MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                                   Disabled="@(!IsDirty || IsBusy)" OnClick="SaveAsync">@L["Save"]</MudButton>
-                    </div>
-
                     @if (locked)
                     {
                         <MudText Typo="Typo.subtitle2" Class="mud-text-secondary mt-6 mb-2">@L["SettingsRules"]</MudText>
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">@L["SettingsLockedInfo"]</MudAlert>
                         <MudSimpleTable Dense="true" Elevation="0">
-                            <tbody>@RuleRows</tbody>
+                            <tbody>
+                                @if (!CanEditSettings)
+                                {
+                                    @* During a round the boards cannot change. *@
+                                    <tr><th style="width: 45%">@L["BoardsAvailable"]</th><td>@Tournament.Settings.Boards</td></tr>
+                                }
+                                @RuleRows
+                            </tbody>
                         </MudSimpleTable>
                     }
                 }
@@ -253,7 +256,7 @@ else
     private int ActivePlayerCount => _participants.Count(p => p.IsActive);
     private bool IsClosed => Tournament?.State == TournamentState.Closed;
     private bool IsCompetition => Tournament?.Settings.PairingSystem == PairingSystem.Competition;
-    /// <summary>Settings can change before and between rounds, not during a round or after closing.</summary>
+    /// <summary>Boards and rules can change before and between rounds, not during a round or after closing.</summary>
     private bool CanEditSettings => Tournament?.State is TournamentState.New or TournamentState.WaitingForNextRound;
     private bool IsDirty => _loaded is not null && _form.ToRequest() != _loaded;
     /// <summary>Why the next round cannot start yet (not enough players or boards), or null.</summary>
@@ -310,13 +313,40 @@ else
     /// <summary>Discards the changes in the rules tab.</summary>
     private void ResetSettings() => _form = SettingsForm.From(Tournament!);
 
-    private async Task SaveAsync()
+    private bool _saving, _saveAgain;
+
+    /// <summary>
+    /// Saves the rules tab after a field changed. A change made while a save is running is saved right after it.
+    /// When the server refuses (e.g. an empty title), the form goes back to the saved values.
+    /// </summary>
+    private async Task AutoSaveAsync()
     {
-        await RunAsync(async () =>
+        if (_saving)
         {
-            await Api.UpdateTournamentAsync(Id, _form.ToRequest());
-            _loaded = null; // force the form to take over the saved values
-        }, L["Saved"]);
+            _saveAgain = true;
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            do
+            {
+                _saveAgain = false;
+                if (!IsDirty) continue;
+                var saved = false;
+                await RunAsync(async () =>
+                {
+                    await Api.UpdateTournamentAsync(Id, _form.ToRequest());
+                    saved = true;
+                }, L["Saved"]);
+                if (!saved) ResetSettings();
+            } while (_saveAgain);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private Task SetResultAsync((GameDto Game, GameResult Result) change) =>

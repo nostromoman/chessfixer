@@ -58,8 +58,13 @@ public class TournamentFlowTests : ApiTestBase
 
         await AssertErrorAsync(
             await Client.PutAsJsonAsync($"api/tournaments/{id}",
-                new UpdateTournamentRequest("Nieuwe titel", tournament.Settings)),
+                new UpdateTournamentRequest("Test", tournament.Settings with { Boards = 3 })),
             HttpStatusCode.Conflict, ApiErrorCode.RoundInProgress);
+
+        // Title, location and description can change during a round.
+        var renamed = await PutAsync<TournamentDto>($"api/tournaments/{id}",
+            new UpdateTournamentRequest("Nieuwe titel", tournament.Settings, "Clubgebouw", "Wintercompetitie"));
+        Assert.Equal(("Nieuwe titel", "Clubgebouw", "Wintercompetitie"), (renamed.Title, renamed.Location, renamed.Description));
 
         // Saving unchanged values is harmless.
         tournament = await PutAsync<TournamentDto>($"api/tournaments/{id}",

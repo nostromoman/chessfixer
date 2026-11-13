@@ -70,7 +70,7 @@ The club uses two kinds of tournaments:
 | Points for a loss | Default 0 |
 | Counts for the rating | Default yes. Whether the games change the players' ratings (see 6.1). |
 
-Settings can be changed before and between rounds, never during a round or after closing. Once round 1 has started only the title, location, description and boards can still change; all other rules (pairing system, times against each other, game time, increment, points, whether the tournament counts for the rating) are fixed and shown as text instead of disabled fields.
+The rules tab saves every field by itself (no save button): a text field when it is left, a choice when it changes. Title, location and description can be changed until the tournament is closed, also during a round. The number of available boards (*Beschikbare schaakborden*) can change before and between rounds. Once round 1 has started all other rules (pairing system, times against each other, game time, increment, points, whether the tournament counts for the rating) are fixed and shown as text instead of disabled fields.
 Starting round 1 asks for confirmation. During a round the settings are shown as read-only text.
 There is **no** configured number of rounds: the leader decides when to stop.
 Tournaments have **no date**, only a state.
