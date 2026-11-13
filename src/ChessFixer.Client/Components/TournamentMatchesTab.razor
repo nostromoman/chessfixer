@@ -2,7 +2,9 @@
 
 @* The games per round, with a row of tabs: one tab per started round, the newest on the right. Starting a round
    adds its tab and opens it. Results can only be entered (and corrected) in the most recent round; the other
-   rounds show their results. Before round 1 the pairing of round 1 is shown (without tabs).
+   rounds show their results. Before round 1 the pairing of round 1 is shown (without tabs). Once every result of the
+   latest round is in, the provisional pairing of the next round gets its own tab on the right (not opened by itself);
+   it can still change (players, boards, corrected results) until the leader starts that round.
    Each round tab has two sub tabs: the results and the round report. The results end with the player with a bye,
    the players without opponent (competition) and the absent players. Catch-up games (competition) are not part of a
    round here; they are listed in the Schema tab.
@@ -35,25 +37,18 @@
                 </MudTabs>
             </MudTabPanel>
         }
+        @if (NextRound is { } next)
+        {
+            <MudTabPanel @key="next.Number" Text="@L["RoundProvisional", next.Number]" Icon="@Icons.Material.Outlined.Schedule">
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@L["ProvisionalPairingInfo"]</MudAlert>
+                @PendingRoundContent(next)
+            </MudTabPanel>
+        }
     </MudTabs>
 }
 else if (Tournament.State == TournamentState.New && PendingRound is not null)
 {
-    <MudText Typo="Typo.h5" Class="mb-3"><b>@L["PairingRound", PendingRound.Number]</b></MudText>
-    @if (PendingRound.Games.Count(g => g.TimesMetBefore >= 2) is var repeats and > 0)
-    {
-        <MudAlert Severity="Severity.Warning" Class="mb-3">@L["RepeatMeetingsInPairing", repeats]</MudAlert>
-    }
-    @Cards(Games(PendingRound).Where(g => g.Board is not null).OrderBy(g => g.Board), isStarted: false, editable: false)
-
-    @if (Queue(PendingRound).Any())
-    {
-        <MudText Typo="Typo.h6" Class="mt-6">@L["GamesQueue"]</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesQueueInfo"]</MudText>
-        @Cards(Queue(PendingRound), isStarted: false, editable: false, queued: true)
-    }
-
-    @Byes(PendingRound, isStarted: false)
+    @PendingRoundContent(PendingRound)
 }
 else if (Tournament.State == TournamentState.New)
 {
@@ -91,6 +86,9 @@ else if (Tournament.State == TournamentState.New)
 
     /// <summary>The next round, already paired but not started.</summary>
     private RoundDto? PendingRound => Rounds.FirstOrDefault(r => !r.IsStarted);
+
+    /// <summary>Between rounds: the provisional pairing of the next round, shown in its own tab.</summary>
+    private RoundDto? NextRound => Tournament.State == TournamentState.WaitingForNextRound ? PendingRound : null;
 
     /// <summary>The real games of a round, without byes and catch-up games.</summary>
     private static IEnumerable<GameDto> Games(RoundDto round) => round.Games.Where(g => g.Black is not null && !g.IsCatchUp);
@@ -137,6 +135,13 @@ else if (Tournament.State == TournamentState.New)
         }
         _previousStartedCount = StartedRounds.Count;
 
+        // The provisional tab was open and is gone (e.g. a result was cleared): open the latest round.
+        if (NextRound is null && _selectedIndex >= StartedRounds.Count && StartedRounds.Count > 0)
+        {
+            _selectedIndex = StartedRounds.Count - 1;
+            _activateSelected = true;
+        }
+
         var groups = CurrentRound is null
             ? new Dictionary<int, Group>()
             : Games(CurrentRound).ToDictionary(g => g.Id, GroupOf);
@@ -156,6 +161,26 @@ else if (Tournament.State == TournamentState.New)
         _activateSelected = false;
         await _roundTabs.ActivatePanelAsync(_selectedIndex);
     }
+
+    /// <summary>The pairing of a round that has not started: boards, queue, byes and absent players.</summary>
+    private RenderFragment PendingRoundContent(RoundDto round) => __builder =>
+    {
+        <MudText Typo="Typo.h5" Class="mb-3"><b>@L["PairingRound", round.Number]</b></MudText>
+        @if (round.Games.Count(g => g.TimesMetBefore >= 2) is var repeats and > 0)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-3">@L["RepeatMeetingsInPairing", repeats]</MudAlert>
+        }
+        @Cards(Games(round).Where(g => g.Board is not null).OrderBy(g => g.Board), isStarted: false, editable: false)
+
+        @if (Queue(round).Any())
+        {
+            <MudText Typo="Typo.h6" Class="mt-6">@L["GamesQueue"]</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["GamesQueueInfo"]</MudText>
+            @Cards(Queue(round), isStarted: false, editable: false, queued: true)
+        }
+
+        @Byes(round, isStarted: false)
+    };
 
     /// <summary>The most recent round, while results can be entered: playing, queue and finished games.</summary>
     private RenderFragment CurrentRoundContent(RoundDto round) => __builder =>

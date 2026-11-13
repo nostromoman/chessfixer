@@ -206,6 +206,8 @@
   <!-- Matches and standings -->
   <data name="Round" xml:space="preserve"><value>Ronde {0}</value></data>
   <data name="PairingRound" xml:space="preserve"><value>Indeling ronde {0}</value></data>
+  <data name="RoundProvisional" xml:space="preserve"><value>Ronde {0} (voorlopig)</value></data>
+  <data name="ProvisionalPairingInfo" xml:space="preserve"><value>Voorlopige indeling. Die kan nog veranderen als er spelers bijkomen of afhaken, het aantal borden wijzigt of een uitslag wordt aangepast. De indeling ligt vast zodra de ronde wordt gestart.</value></data>
   <data name="ResultsRound" xml:space="preserve"><value>Uitslagen ronde {0}</value></data>
   <data name="ResultsEntered" xml:space="preserve"><value>{0} van {1} uitslagen ingevoerd</value></data>
   <data name="NoPairingYet" xml:space="preserve"><value>Nog geen indeling. Er zijn minimaal 2 spelers nodig.</value></data>
