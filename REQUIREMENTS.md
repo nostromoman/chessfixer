@@ -27,7 +27,7 @@ the running games and the standings.
 - Create and configure tournaments.
 - Maintain a player list that is shared across tournaments; pick players from it for a tournament.
 - Add and remove players during a tournament, also while a round is being played.
-- Automatically pair players for the next round (Swiss or round robin).
+- Automatically pair players for the next round (Swiss or competition).
 - Enter and correct game results.
 - Track standings with configurable scoring and tie-breaks.
 - Live-updating tournament page.
@@ -41,6 +41,17 @@ result is entered in the Matches tab. When all results are in, the next round is
 automatically and shown in the Matches tab; the leader starts it. This repeats until the
 leader closes the tournament after a round.
 
+The club uses two kinds of tournaments:
+- **Rapid evening** (once a month, about 15–20 players, 5 rounds of 10 minutes): a Swiss
+  tournament that starts and ends on the same evening.
+- **Internal club competition** (classical, 90 minutes + 15 seconds per move, played on
+  Thursdays during the whole season): a competition in which everyone plays everyone twice,
+  once with White and once with Black. One round per Thursday. Not everybody is there every
+  week (illness, other plans), so each Thursday the leader checks who is present and the
+  app pairs them using the games they still have to play against each other. Games that
+  were missed can be caught up at another moment; the players arrange that themselves and
+  the leader enters the result (see 5.8).
+
 ## 5. Tournament
 
 ### 5.1 Settings
@@ -49,7 +60,8 @@ leader closes the tournament after a round.
 | Title | |
 | Location | Optional. Where the tournament is played; used for the report. |
 | Description | Optional. Free text about the tournament; used for the report. |
-| Pairing system | Swiss or round robin. Default: Swiss. |
+| Pairing system | Swiss or competition. Default: Swiss. See 5.3. |
+| Times against each other | Competition only: 1 (everyone plays everyone once) or 2 (twice: once with White, once with Black). Default 2. |
 | Game time | Minutes per player. Informational only (no clock in the app). |
 | Increment | Seconds per move. Informational only. |
 | Boards | Number of playing places available for the next round. Default 8. See 5.6. |
@@ -58,7 +70,7 @@ leader closes the tournament after a round.
 | Points for a loss | Default 0 |
 | Counts for the rating | Default yes. Whether the games change the players' ratings (see 6.1). |
 
-Settings can be changed before and between rounds, never during a round or after closing. Once round 1 has started only the title, location, description, game time, increment and boards can still change; the pairing system, the points and whether the tournament counts for the rating are fixed.
+Settings can be changed before and between rounds, never during a round or after closing. Once round 1 has started only the title, location, description, game time, increment and boards can still change; the pairing system, the times against each other, the points and whether the tournament counts for the rating are fixed.
 Starting round 1 asks for confirmation. During a round the settings are shown as read-only text.
 There is **no** configured number of rounds: the leader decides when to stop.
 Tournaments have **no date**, only a state.
@@ -72,21 +84,39 @@ Tournaments have **no date**, only a state.
 - **Closed**: only the leader can close a tournament (from *New* or *Waiting for next round*). Final; standings are frozen.
 
 ### 5.3 Pairing rules
-- **Swiss** (default): players with similar scores play each other. Round 1 is seeded by rating (if present). For club evenings and competitions where the group changes, or when there are too few rounds for everyone to play everyone.
-- **Round robin**: for a fixed group; everyone plays everyone in a fixed schedule (circle method, seeded by registration order). Once round 1 has started no new players can join, and nobody can be marked absent (a game that cannot be played is entered as a forfeit). A player who withdraws stays in the schedule so it does not shift for the others: their remaining games are lost by forfeit (the opponent wins, no board). They can rejoin and then play their remaining games again. In the schedule a forfeit counts as a game that has been played.
+There are two pairing systems.
+
+**Swiss** (default): players with similar scores play each other. Round 1 is seeded by rating (if present). For a single evening (the rapid evening) or any tournament where there are too few rounds for everyone to play everyone.
 - No player meets the same opponent twice, as long as that is possible. Once it is not (e.g. everyone has played everyone), players meet again: first at most twice, then at most three times, and so on. The leader decides when to stop.
+- With an odd number of players, one player gets a bye (the same player never gets a second bye if avoidable). A bye gives points (see 10).
+
+**Competition** (*Competitie*): everyone plays everyone, once or twice (setting *Times against each other*). For the internal club competition over a season, and also for a small group that plays everyone on one evening.
+- The players form a fixed list, but it may still change after round 1 (see 6). The games every pair still has to play (*nog te spelen partijen*) follow from that list: with *2 times*, every pair has one game in which each of them has White.
+- Each round is paired only among the players who take part (*Doet mee*, see 6); absent players simply get no game that round. Only pairs that still have a game to play can be paired.
+- The pairing chooses, in this order of importance:
+  1. as many games as possible (as few present players without a game as possible);
+  2. players with the most games still to play go first, so that at the end of the season nobody is stuck with games against only one or two opponents;
+  3. a player who was left without a game in an earlier round goes first this time;
+  4. the second game of a pair (the return game) is not played soon after the first one: the longer ago their previous meeting, the better;
+  5. colors: see below.
+- When all players are present in every round, the competition takes the minimal number of rounds: per cycle *n* − 1 rounds for an even number of players, *n* for an odd number (each player sits out once). The pairing then follows the fixed round robin schedule (circle method, seeded by registration order).
+- A present player who cannot be paired (odd number present, or all their remaining opponents are absent or already paired) gets **no** points and no game; the Matches tab shows them under *Geen tegenstander deze ronde*. They may play a friendly game that the app does not record.
+- A forfeit counts as a played game: that pair has no game left to play.
+- Once every pair has played all its games, no new round can be started (the start button says why); the leader closes the competition.
+
+**Both systems:**
 - White and black are alternated as much as possible.
 - When two players meet again, the colors of their previous meeting are reversed, so every pair plays once with White and once with Black. This rule comes first, even if a player then gets the same color three times in a row.
-- With an odd number of players, one player gets a bye (the same player never gets a second bye if avoidable).
-- In the first version the leader cannot adjust pairings manually.
+- In the first version the leader cannot adjust pairings manually; in a competition a game can be entered as a catch-up game instead (see 5.8).
 
 ### 5.4 Results
 - Possible results: White wins, Draw, Black wins, Forfeit (white or black wins by forfeit).
-- Results can be corrected until the next round has started.
+- Results can be corrected until the next round has started. A catch-up game (5.8) can be corrected until the tournament is closed.
 
 ### 5.5 Standings
 - Score according to the tournament's scoring settings.
-- Tie-breaks: Buchholz, then Sonneborn-Berger.
+- Swiss tie-breaks: Buchholz, then Sonneborn-Berger.
+- Competition: the table also shows per player the number of games played, the number still to play and the score percentage, because during the season not everyone has played the same number of games. Sorted by points; tie-breaks: Sonneborn-Berger, then the number of wins. (Buchholz means little when everyone plays everyone.)
 
 ### 5.6 Boards and queue
 - A tournament has a limited number of boards (playing places), set in the settings.
@@ -102,11 +132,17 @@ Tournaments have **no date**, only a state.
 - If writing fails (or no AI was configured at closing), the report can be written (again) from the *Verslag* tab. An existing report stays visible until a new one is ready.
 - The prompt that produced the report (instructions and tournament data) is stored with it; a *Prompt bekijken* button in the *Verslag* tab shows it. Below the report it says which AI (provider and model) wrote it.
 
+### 5.8 Competition: games still to play and catch-up games
+- A competition has an extra tab **Schema** with a cross table (*kruistabel*): every player against every other player, with the results played so far (per color when they meet twice) and the open games marked. Clicking a player shows that player's open games (opponent and color).
+- **Catch-up game** (*inhaalpartij*): players may play an open game at another moment than a club evening. The leader picks the open game in the Schema tab and enters the result (no board, no round needed). It is stored with the date it was entered, counts in the standings and the rating like any other game, and is shown in the rounds overview as a catch-up game. It is not possible while that pair already has that game in the running round.
+- **Closing** a competition with open games: the leader sees how many games are still open and confirms. The open games are then marked *niet gespeeld*: no points for either player, no rating change, and they do not count as played.
+- A player who **withdraws** keeps the results of the games they played; their open games are not paired any more and become *niet gespeeld* when the competition is closed. They can rejoin and then play their open games after all. (See 11 for the alternative rule.)
+
 ## 6. Players
 - Players are stored in a central list and reused across tournaments.
 - Player data: first name (required); rating (default 1200, used for seeding, see 6.1); last name, birth date, city, club and profile photo (all optional). Without a photo a neutral silhouette is shown (no initials: two players with the same initial could be confused).
 - A player can be deleted (after confirmation). This is a soft delete: the player leaves the player list but stays in the tournaments they played. Wherever the name still appears (tournament players, matches, standings, statistics, rating history) it is followed by *(verwijderd)*.
-- Players can be added to and removed from (withdraw from) a tournament at any time, also during a round (round robin: no new players once round 1 has started, see 5.3). A player added during a round waits for the next round. A player who withdraws during a round keeps their current game, which still needs a result.
+- Players can be added to and removed from (withdraw from) a tournament at any time, also during a round. In a competition a player who joins later gets games against everyone; those are open games like any other (see 5.3). A player added during a round waits for the next round. A player who withdraws during a round keeps their current game, which still needs a result.
 - A withdrawn player who has played games stays in the tournament player list and can rejoin; a player without games is removed completely.
 - A player who joins late starts with 0 points.
 - Per player a checkbox *Doet mee* (plays in the next round). Unchecked players are not paired and get a line *doet niet mee* for that round. During a round the box can only be switched on, for a latecomer.
@@ -124,15 +160,17 @@ UI language: **Dutch only** for now (other languages later, so keep texts in res
 A main menu on the left links to **Toernooien** (`/tournament`), **Spelers** (`/players`), **Clubs**, **Ratinglijst** and **Ratinglog**. For the system administrator only, a group **Beheer** follows with **Toernooileiders** (`/admin/leaders`) and **Activiteit** (`/admin/activity`); tournament leaders do not see it, and the server refuses them too. A gear icon at the bottom left of the menu opens the application **Instellingen** (`/settings`).
 
 ### Tournament overview — `/tournament`
-Table of all tournaments with their title and state. Columns: title, type (round robin or Swiss), number of active players, boards, time control (minutes + increment) and state. A + button at the top right opens a wizard in a modal to create a new tournament: 1. title; 2. tournament type (Swiss or round robin, each with a short explanation; Swiss is preselected); 3. boards (default 8), game time and increment; 4. points for a win, draw and loss, and whether the tournament counts for the rating (default yes); 5. location and description (both optional, used for the report). All of this can be changed later in the settings (type, points and rating until round 1 starts). Clicking next to the modal does not close it; only Cancel or Escape does. After creating, the tournament detail page opens. Clicking a tournament opens its detail page.
+Table of all tournaments with their title and state. Columns: title, type (Swiss or competition), number of active players, boards, time control (minutes + increment) and state. A + button at the top right opens a wizard in a modal to create a new tournament: 1. title; 2. tournament type (Swiss or competition, each with a short explanation; Swiss is preselected; for a competition also *Times against each other*, default 2); 3. boards (default 8), game time and increment; 4. points for a win, draw and loss, and whether the tournament counts for the rating (default yes); 5. location and description (both optional, used for the report). All of this can be changed later in the settings (type, points and rating until round 1 starts). Clicking next to the modal does not close it; only Cancel or Escape does. After creating, the tournament detail page opens. Clicking a tournament opens its detail page.
 
 ### Tournament detail — `/tournament/{id}`
 - **Header**: the title. A gear icon at the top right opens a drawer from the right with all settings (see 5.1), stacked one below the other in two groups (general; pairing, points and rating); saving closes the drawer, closing without saving discards changes.
 - **Status** (full width): one clear status line (e.g. *3 van 5 wedstrijden van ronde 3 zijn afgerond* during a round, *Alle wedstrijden van ronde 3 zijn gespeeld* once it is done), with below it the buttons to start the next round and close the tournament. The start button is disabled (with the reason below it) when there are not enough players or boards to pair the next round.
 - Below that, three **tabs**:
   1. **Spelers**: table of the players in this tournament with photo, name, rating and status: *Wacht op volgende ronde*, *Wacht op een bord*, *Bezig in een match*, *Bye game* or *Uit toernooi gestapt*. At the top right of the table a search field (autocomplete on the central player list) with a + button adds players: pick an existing player, or type a name that does not exist yet and press + or Enter to create a new player with that first name. Clicking a player name, or the pencil at the end of the row, opens the same player drawer as on the Players page, and an icon lets the player withdraw; for a withdrawn player it becomes an icon to rejoin.
-  2. **Matches**: the current round as player cards (large board number, color badge, photo, bold name, big "VS" or the result in the middle), grouped as *Bezig* (with board number and result entry), *Wachtrij* (in queue order) and *Gespeeld* (results can be corrected). When the last result is entered the round stays on screen as it is (results can still be corrected); the pairing of the next round only appears once the leader starts it. Before round 1 the pairing of round 1 is shown. A player with a bye is shown as a separate card under *Vrij deze ronde (bye)*. When a result is entered the card fades out and pops up under *Gespeeld*. Result entry offers 1-0, ½-½ and 0-1; a forfeit (reglementair) can be chosen via the edit menu of a played game. Updates live.
+  2. **Matches**: the current round as player cards (large board number, color badge, photo, bold name, big "VS" or the result in the middle), grouped as *Bezig* (with board number and result entry), *Wachtrij* (in queue order) and *Gespeeld* (results can be corrected). When the last result is entered the round stays on screen as it is (results can still be corrected); the pairing of the next round only appears once the leader starts it. Before round 1 the pairing of round 1 is shown. A player with a bye is shown as a separate card under *Vrij deze ronde (bye)*; in a competition a present player without a game is shown under *Geen tegenstander deze ronde* (no points). When a result is entered the card fades out and pops up under *Gespeeld*. Result entry offers 1-0, ½-½ and 0-1; a forfeit (reglementair) can be chosen via the edit menu of a played game. Updates live.
   3. **Toernooistand**: the standings table, centered (not full width). Clicking a player name opens the player drawer. Shown only once there are results; before that a short message.
+
+  **Schema** (only for a competition): the cross table with the open games and the catch-up game entry (see 5.8).
 
   4. **Verslag** (only for a closed tournament): the AI-written report (see 5.7), with a button to write it (again) and to copy it. While the AI is writing, a progress message is shown.
 
@@ -170,7 +208,12 @@ At the top a table of all accounts: name, user name, last login, last active, nu
 - Tournament dates / scheduling
 
 ## 10. Additional decisions
-- **Round robin:** a fixed group (see 5.3); a varying group uses Swiss. Once everyone has played everyone, a next round can still be started: the schedule starts again from the beginning. The leader decides when to close the tournament.
+- **Two types instead of three:** the former type *round robin* (fixed schedule, nobody could be absent, unplayable games became forfeits) is replaced by *competition*. A competition in which everyone is present every round is a round robin. Existing round robin tournaments are converted by a migration to competitions with *1 time* against each other; their games and results stay as they are.
 - **Closing:** a tournament is only ever closed by the leader, never automatically.
-- **Points for a bye:** extra tournament setting, default 1.
+- **Points for a bye:** Swiss only; extra tournament setting, default 1. In a competition a player without a game gets no points.
+- **Rounds, not evenings:** in a competition one round is usually one Thursday, but the app keeps calling it a round, because a small competition can also be played in one evening.
 - **Points for a forfeit:** the same as a normal win or loss.
+
+## 11. Open questions
+- **Withdrawal in a competition:** now a withdrawn player keeps their played results and their open games become *niet gespeeld* (5.8). Alternative (common in club competitions): if they played less than half of their games, all their results are struck out.
+- **Season standings for the rapid evenings:** the rapid evenings are separate Swiss tournaments; a season ranking over all evenings (sum of points, points per place, best N of M evenings, ...) is not part of this yet.
