@@ -3,7 +3,7 @@
 @* Competition: the cross table (every player against every other player) with the results and the open games, and per
    player the games still to play. An open game can be entered as a catch-up game (played outside a club evening).
    With two games per pair, each cell has two parts: the game in which the row player had White, then Black.
-   Below that the catch-up games entered so far (newest first), as cards like in the rounds; their result can be
+   Below that the catch-up games entered so far (newest first), as a compact table; their result can be
    corrected (clearing it removes the game) until the competition is closed. *@
 <MudText Typo="Typo.body2" Class="mb-1">@L["ScheduleIntro"]</MudText>
 @if (Schedule.TimesAgainstEachOther == 2)
@@ -108,25 +108,38 @@
 {
     <MudText Typo="Typo.h6" Class="mt-8">@L["CatchUpGames"] (@CatchUpGames.Count)</MudText>
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@L["CatchUpGamesInfo"]</MudText>
-    <div class="game-cards">
-        @foreach (var (game, round) in CatchUpGames)
-        {
-            <div class="catch-up-card">
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["CatchUpCountsFrom", round]</MudText>
-                <GameCard @key="game.Id" Game="game" IsStarted="true" Editable="@(!IsClosed)" Disabled="Disabled"
-                          Players="PlayerInfo" OnResult="result => OnResult.InvokeAsync((game, result))" />
-            </div>
-        }
-    </div>
+    <MudSimpleTable Dense="true" Hover="true" Elevation="0" Bordered="false" Class="catch-up-table">
+        <thead>
+            <tr>
+                <th>@L["Date"]</th>
+                <th>@L["White"]</th>
+                <th class="catch-up-table-result">@L["Result"]</th>
+                <th>@L["Black"]</th>
+                <th class="catch-up-table-round">@L["CatchUpCountsFrom"]</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var (game, round) in CatchUpGames)
+            {
+                <tr @key="game.Id">
+                    <td class="text-nowrap">@(game.PlayedAt is { } playedAt ? playedAt.ToLocalTime().ToString("d MMM yyyy") : "")</td>
+                    <td><PlayerName Name="@game.White.Name" IsDeleted="game.White.IsDeleted" /></td>
+                    <td class="catch-up-table-result">
+                        <GameResultCell Game="game" Editable="@(!IsClosed)" Disabled="Disabled"
+                                        OnResult="result => OnResult.InvokeAsync((game, result))" />
+                    </td>
+                    <td><PlayerName Name="@game.Black!.Name" IsDeleted="game.Black.IsDeleted" /></td>
+                    <td class="catch-up-table-round">@round</td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
 }
 
 @code {
     [Parameter, EditorRequired] public TournamentDto Tournament { get; set; } = null!;
     [Parameter, EditorRequired] public CompetitionScheduleDto Schedule { get; set; } = null!;
     [Parameter, EditorRequired] public List<RoundDto> Rounds { get; set; } = [];
-
-    /// <summary>All players by id, for the photos on the catch-up game cards.</summary>
-    [Parameter, EditorRequired] public IReadOnlyDictionary<int, PlayerDto> PlayerInfo { get; set; } = null!;
 
     [Parameter] public bool Disabled { get; set; }
 

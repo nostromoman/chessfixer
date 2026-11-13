@@ -758,7 +758,7 @@
   <data name="ScheduleColorFree" xml:space="preserve"><value>kleur vrij</value></data>
   <data name="CatchUpGames" xml:space="preserve"><value>Inhaalpartijen</value></data>
   <data name="CatchUpGamesInfo" xml:space="preserve"><value>Buiten de clubavond gespeeld en achteraf ingevoerd, de nieuwste eerst. Een uitslag wissen haalt de inhaalpartij weg; de partij staat dan weer open.</value></data>
-  <data name="CatchUpCountsFrom" xml:space="preserve"><value>Telt mee vanaf ronde {0}</value></data>
+  <data name="CatchUpCountsFrom" xml:space="preserve"><value>Telt mee vanaf ronde</value></data>
   <data name="CatchUpResult" xml:space="preserve"><value>Uitslag</value></data>
   <data name="CatchUpWins" xml:space="preserve"><value>{0} wint</value></data>
   <data name="CatchUpDraw" xml:space="preserve"><value>Remise</value></data>

@@ -624,12 +624,16 @@ html, body {
     font-weight: 600;
 }
 
-/* Schema tab: a catch-up game card with the round it counts from above it. */
-.catch-up-card {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+/* Schema tab: the table of catch-up games. */
+.catch-up-table {
+    max-width: 52rem;
 }
+
+    .catch-up-table .catch-up-table-result,
+    .catch-up-table .catch-up-table-round {
+        text-align: center;
+        white-space: nowrap;
+    }
 
 /* The system prompt in the AI settings: monospace, like the prompt viewer. */
 .prompt-field textarea {

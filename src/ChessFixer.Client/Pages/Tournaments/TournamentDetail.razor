@@ -202,7 +202,7 @@ else
             @if (IsCompetition && _schedule is not null)
             {
                 <MudTabPanel Text="@L["Schedule"]" Icon="@Icons.Material.Filled.TableChart">
-                    <CompetitionScheduleTab Tournament="Tournament" Schedule="_schedule" Rounds="_rounds" PlayerInfo="_players"
+                    <CompetitionScheduleTab Tournament="Tournament" Schedule="_schedule" Rounds="_rounds"
                                             Disabled="IsBusy" OnCatchUp="CatchUpAsync" OnResult="SetResultAsync" />
                 </MudTabPanel>
             }
