@@ -34,6 +34,9 @@
             @info.Tournament · @L["WizardQrValidUntil", info.ExpiresAt.ToLocalTime().ToString("HH:mm")]
         </MudText>
 
+        @* The file input must stay on the page while the photo is read from it: removing it would leave reading the
+           photo waiting forever. *@
+        <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden disabled="@_busy" />
         @if (_busy)
         {
             @if (_photoUrl is not null)
@@ -46,7 +49,6 @@
         else
         {
             <MudText Typo="Typo.body2" Class="mb-4">@L["PhoneUploadHelp"]</MudText>
-            <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden />
             <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
                        StartIcon="@Icons.Material.Filled.PhotoCamera">@L["PhoneUploadTake"]</MudButton>
         }
@@ -87,7 +89,8 @@
             var photo = await e.File.RequestImageFileAsync("image/jpeg", MaxPhotoPixels, MaxPhotoPixels);
             await using var stream = photo.OpenReadStream(MaxUploadBytes);
             using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer);
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1)))
+                await stream.CopyToAsync(buffer, timeout.Token); // never wait forever on the phone
             var bytes = buffer.ToArray();
             _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
             StateHasChanged();
@@ -97,6 +100,10 @@
         catch (IOException)
         {
             Snackbar.Add(L["Error_InvalidScoresheetImage"], Severity.Error); // try another photo
+        }
+        catch (OperationCanceledException)
+        {
+            Snackbar.Add(L["PhoneUploadStuck"], Severity.Error); // try again
         }
         catch (ApiClientException ex) when (ex.Code is ApiErrorCode.InvalidScoresheetImage)
         {

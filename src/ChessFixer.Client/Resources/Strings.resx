@@ -956,4 +956,5 @@
   <data name="WizardOr" xml:space="preserve"><value>of</value></data>
   <data name="WizardAllReadSaving" xml:space="preserve"><value>Alle zetten zijn met zekerheid gelezen en mogelijk: ze worden opgeslagen en de analyse wordt geopend…</value></data>
   <data name="PhoneUploadSending" xml:space="preserve"><value>De foto wordt verstuurd…</value></data>
+  <data name="PhoneUploadStuck" xml:space="preserve"><value>Het versturen duurde te lang. Probeer het opnieuw.</value></data>
 </root>
