@@ -3,13 +3,10 @@
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
 @inject TournamentApi Api
-@inject IDialogService Dialogs
-@inject NavigationManager Navigation
 
-@* The moves of a played game in PGN (Portable Game Notation): paste them from a notation app or a scoresheet
-   typed out, or read them from a photo of the handwritten scoresheet (a wizard: Claude reads, the user checks), and
-   later copy, download or open them on an analysis board. When a wizard was left unfinished, the dialog first asks
-   to continue it or to start over. Closes with the text to save ("" removes the moves). *@
+@* The moves of a played game in PGN (Portable Game Notation): change, copy, download or open them on an analysis
+   board, or remove them. (Moves are added with the ScoresheetWizardDialog: a photo, pasted PGN or by hand.)
+   Closes with the text to save ("" removes the moves). *@
 <MudDialog>
     <TitleContent>
         <div class="d-flex align-center gap-2">
@@ -18,42 +15,18 @@
         </div>
     </TitleContent>
     <DialogContent>
-        @if (_resume is { } resume)
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["PgnHelp"]</MudText>
+        @if (_photos is { Count: > 0 })
         {
-            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.DocumentScanner" Class="mb-2">
-                <div class="mb-1"><b>@L["WizardResumeTitle"]</b></div>
-                <div>@ResumeText(resume)</div>
-            </MudAlert>
-            <div class="d-flex flex-wrap gap-2 justify-end">
-                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="StartOverAsync"
-                           Disabled="_busy">@L["WizardStartOver"]</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow"
-                           OnClick="() => OpenWizardAsync(resume)" Disabled="_busy">@L["WizardContinue"]</MudButton>
-            </div>
+            <MudText Typo="Typo.caption" Class="d-block mb-1">@L["ScoresheetPhotosKept", _photos.Count]</MudText>
+            <ScoresheetPhotos Photos="_photos" Compact="true" />
         }
-        else
-        {
-            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["PgnHelp"]</MudText>
-            @if (TournamentId > 0)
-            {
-                <div class="d-flex align-center flex-wrap gap-2 mb-1">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.DocumentScanner"
-                               OnClick="() => OpenWizardAsync(null)" Disabled="_busy">@L["ScoresheetButton"]</MudButton>
-                </div>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">@L["ScoresheetHelp"]</MudText>
-                @if (_photos is { Count: > 0 })
-                {
-                    <MudText Typo="Typo.caption" Class="d-block mb-1">@L["ScoresheetPhotosKept", _photos.Count]</MudText>
-                    <ScoresheetPhotos Photos="_photos" Compact="true" />
-                }
-            }
-            <MudTextField T="string" @bind-Value="_text" Variant="Variant.Outlined" Lines="14"
-                          Immediate="true" MaxLength="PgnText.MaxLength" Class="pgn-text"
-                          Placeholder="@Placeholder" Error="@(ErrorText is not null)" ErrorText="@ErrorText" />
-        }
+        <MudTextField T="string" @bind-Value="_text" Variant="Variant.Outlined" Lines="14"
+                      Immediate="true" MaxLength="PgnText.MaxLength" Class="pgn-text"
+                      Placeholder="@Placeholder" Error="@(ErrorText is not null)" ErrorText="@ErrorText" />
     </DialogContent>
     <DialogActions>
-        @if (Pgn is not null && _resume is null)
+        @if (Pgn is not null)
         {
             <MudButton Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => Dialog.Close(string.Empty)">
                 @L["PgnRemove"]
@@ -65,7 +38,7 @@
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QueryStats" Href="@($"games/{Game.Id}")"
                        OnClick="() => Dialog.Cancel()">@L["PgnShowAnalysis"]</MudButton>
         }
-        @if (IsValid && _resume is null)
+        @if (IsValid)
         {
             <MudTooltip Text="@L["PgnCopy"]">
                 <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" aria-label="@L["PgnCopy"]" OnClick="CopyAsync" />
@@ -78,11 +51,8 @@
                        Href="@LichessUrl" Target="_blank" rel="noopener noreferrer">@L["PgnAnalyse"]</MudButton>
         }
         <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
-        @if (_resume is null)
-        {
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave || _busy)"
-                       OnClick="() => Dialog.Close(Normalized ?? string.Empty)">@L["Save"]</MudButton>
-        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave)"
+                   OnClick="() => Dialog.Close(Normalized ?? string.Empty)">@L["Save"]</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -100,14 +70,10 @@
     /// <summary>Used as the Event tag when the pasted text has no header tags.</summary>
     [Parameter] public string TournamentTitle { get; set; } = "";
 
-    /// <summary>The tournament of the game; needed to read a scoresheet photo (0: no photo button).</summary>
+    /// <summary>The tournament of the game; needed to show the kept scoresheet photos (0: none).</summary>
     [Parameter] public int TournamentId { get; set; }
 
     private string? _text;
-    private bool _busy;
-
-    /// <summary>A wizard that was left unfinished: asked first whether to continue it or to start over.</summary>
-    private ScoresheetWizardDto? _resume;
 
     /// <summary>The photos of this game's scoresheet that are kept; null while loading (or without a tournament).</summary>
     private List<ScoresheetPhotoDto>? _photos;
@@ -116,75 +82,6 @@
     {
         _text = Pgn;
         await LoadPhotosAsync();
-        await LoadWizardAsync();
-    }
-
-    private async Task LoadWizardAsync()
-    {
-        if (TournamentId <= 0) return;
-        try
-        {
-            _resume = await Api.GetScoresheetWizardAsync(Game.Id);
-        }
-        catch (Exception e) when (e is ApiClientException or HttpRequestException)
-        {
-            _resume = null; // not essential: the moves can still be pasted
-        }
-    }
-
-    private string ResumeText(ScoresheetWizardDto wizard)
-    {
-        var uploaded = wizard.UploadedAt.ToLocalTime().ToString("d MMM yyyy HH:mm");
-        if (wizard.Review is { } review)
-            return L["WizardResumeCheck", uploaded, review.Moves.Count(m => m.Checked), review.Moves.Count];
-        return wizard.ReadStatus switch
-        {
-            ScoresheetReadStatus.Reading => L["WizardResumeReading", uploaded],
-            ScoresheetReadStatus.Failed => L["WizardResumeFailed", uploaded],
-            _ => L["WizardResumePhoto", uploaded]
-        };
-    }
-
-    /// <summary>
-    /// The wizard (a new one, or the one to continue). When it saved the moves, this dialog closes and the analysis page
-    /// of the game is shown (Stockfish starts right away). Closed before that: the work is kept, and offered again here.
-    /// </summary>
-    private async Task OpenWizardAsync(ScoresheetWizardDto? wizard)
-    {
-        var dialog = await Dialogs.ShowAsync<ScoresheetWizardDialog>(null,
-            new DialogParameters<ScoresheetWizardDialog>
-            {
-                { d => d.Game, Game }, { d => d.Wizard, wizard }, { d => d.TournamentId, TournamentId }
-            },
-            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseOnEscapeKey = false, BackdropClick = false });
-        if (await dialog.Result is { Canceled: false, Data: true })
-        {
-            Snackbar.Add(L["PgnSaved"], Severity.Success);
-            Dialog.Cancel(); // saved already; the caller reloads
-            Navigation.NavigateTo($"games/{Game.Id}");
-            return;
-        }
-        await LoadPhotosAsync();
-        await LoadWizardAsync();
-    }
-
-    /// <summary>Starts over: the unfinished wizard is closed (its photo is kept); then paste or read a new photo.</summary>
-    private async Task StartOverAsync()
-    {
-        _busy = true;
-        try
-        {
-            await Api.CloseScoresheetWizardAsync(Game.Id);
-            _resume = null;
-        }
-        catch (Exception e) when (e is ApiClientException or HttpRequestException)
-        {
-            Snackbar.Add(e is ApiClientException { Code: { } code } ? L[$"Error_{code}"] : L["Error_ServerUnavailable"], Severity.Error);
-        }
-        finally
-        {
-            _busy = false;
-        }
     }
 
     private async Task LoadPhotosAsync()

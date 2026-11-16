@@ -247,10 +247,23 @@ else
     private async Task EditPgnAsync()
     {
         if (_game is not { } game) return;
+        var gameDto = new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.Pgn is not null);
+        if (game.Pgn is null)
+        {
+            // Only photos so far: add the moves (a photo, pasted PGN or by hand).
+            if (await ScoresheetWizardDialog.ShowAsync(Dialogs, Api, gameDto, game.TournamentId))
+            {
+                Snackbar.Add(L["PgnSaved"], Severity.Success);
+                _ply = int.MaxValue; // show the final position of the new moves
+            }
+            await ReloadAsync();
+            return;
+        }
+
         var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
             new DialogParameters<PgnDialog>
             {
-                { d => d.Game, new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.Pgn is not null) },
+                { d => d.Game, gameDto },
                 { d => d.Pgn, game.Pgn },
                 { d => d.TournamentTitle, game.TournamentTitle },
                 { d => d.TournamentId, game.TournamentId },

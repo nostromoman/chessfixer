@@ -2,6 +2,7 @@
 @inherits TournamentPageBase
 @using System.Globalization
 @inject IDialogService Dialogs
+@inject NavigationManager Navigation
 
 @* One tournament: progress, and tabs for the rules (settings), players, rounds and standings, the schedule (cross
    table, competition only) and the report once closed. The red power button in the header closes the tournament. *@
@@ -450,21 +451,31 @@ else
         await RunAsync(() => Api.AddCatchUpGameAsync(Id, request), L["CatchUpSaved"]);
     }
 
-    /// <summary>Shows the moves (PGN) of a played game, to paste, change, copy or analyse them.</summary>
+    /// <summary>
+    /// Without moves: adds them (a photo, pasted PGN or by hand) and then shows the analysis. With moves: shows them
+    /// (PGN), to change, copy or analyse them.
+    /// </summary>
     private async Task PgnAsync(GameDto game)
     {
-        string? pgn = null;
-        if (game.HasPgn)
+        if (!game.HasPgn)
         {
-            try
+            if (await ScoresheetWizardDialog.ShowAsync(Dialogs, Api, game, Id))
             {
-                pgn = (await Api.GetPgnAsync(Id, game.Id)).Pgn;
+                Snackbar.Add(L["PgnSaved"], Severity.Success);
+                Navigation.NavigateTo($"games/{game.Id}");
             }
-            catch (Exception e) when (e is ApiClientException or HttpRequestException)
-            {
-                Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
-                return;
-            }
+            return;
+        }
+
+        string? pgn;
+        try
+        {
+            pgn = (await Api.GetPgnAsync(Id, game.Id)).Pgn;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
+            return;
         }
 
         var dialog = await Dialogs.ShowAsync<PgnDialog>(null,

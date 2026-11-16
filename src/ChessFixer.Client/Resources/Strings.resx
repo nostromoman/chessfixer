@@ -792,7 +792,7 @@
   <data name="ResetDatabaseConfirmText" xml:space="preserve"><value>Alle toernooien, spelers, clubs en ratings worden verwijderd en vervangen door testgegevens. Dit is bedoeld om de applicatie uit te proberen, niet voor echte clubgegevens.</value></data>
   <data name="ResetDatabaseDone" xml:space="preserve"><value>De database is gereset: {0} spelers en {1} clubs. Back-up: {2}</value></data>
   <data name="ActivityAction_Development_Reset" xml:space="preserve"><value>Database resetten</value></data>
-  <data name="PgnAdd" xml:space="preserve"><value>Zetten toevoegen (PGN)</value></data>
+  <data name="PgnAdd" xml:space="preserve"><value>Zetten toevoegen</value></data>
   <data name="PgnView" xml:space="preserve"><value>Zetten bekijken (PGN)</value></data>
   <data name="PgnTitle" xml:space="preserve"><value>{0} – {1} ({2})</value></data>
   <data name="PgnHelp" xml:space="preserve"><value>Plak hier de notatie van de partij in PGN (Portable Game Notation), bijvoorbeeld uit een notatie-app of overgetypt van het notatieformulier. Zo kan de partij later geanalyseerd worden.</value></data>
@@ -808,7 +808,7 @@
   <data name="Error_PgnNotAllowed" xml:space="preserve"><value>Alleen bij een gespeelde partij (gewonnen, verloren of remise) kunnen zetten worden toegevoegd.</value></data>
   <data name="ActivityAction_Tournaments_SetPgn" xml:space="preserve"><value>Zetten (PGN) opslaan</value></data>
   <data name="ActivityAction_Games_Analyse" xml:space="preserve"><value>Partij opnieuw analyseren</value></data>
-  <data name="Games" xml:space="preserve"><value>Partijen</value></data>
+  <data name="Games" xml:space="preserve"><value>Analyses</value></data>
   <data name="GamesIntro" xml:space="preserve"><value>De partijen waarvan de zetten (PGN) of een foto van het notatieformulier zijn toegevoegd, met de analyse door Stockfish. Klik op een partij om de analyse en de foto’s te bekijken.</value></data>
   <data name="GamesEmpty" xml:space="preserve"><value>Er zijn nog geen partijen met zetten. Voeg de zetten toe via het notatie-icoon op een gespeelde partij in de Rondes-tab van een toernooi.</value></data>
   <data name="GamesSearch" xml:space="preserve"><value>Zoek speler of toernooi</value></data>
@@ -853,14 +853,10 @@
   <data name="PlayerGamesCountsHelp" xml:space="preserve"><value>{0} onnauwkeurigheden, {1} fouten, {2} blunders</value></data>
   <data name="AnalysisPendingShort" xml:space="preserve"><value>wacht op analyse</value></data>
   <data name="AnalysisRunningShort" xml:space="preserve"><value>analyse {0}/{1}</value></data>
-  <data name="ScoresheetButton" xml:space="preserve"><value>Inlezen vanaf foto</value></data>
-  <data name="ScoresheetHelp" xml:space="preserve"><value>Maak of kies een foto van het handgeschreven notatieformulier. Claude leest de zetten (de foto gaat daarvoor naar Anthropic) en daarna controleer je elke zet naast de foto, met de stelling op een bord. De foto wordt altijd bij de partij bewaard, ook als het lezen niet lukt.</value></data>
   <data name="Error_InvalidScoresheetImage" xml:space="preserve"><value>Dit is geen bruikbare foto (JPEG, PNG, GIF of WebP, maximaal 5 MB).</value></data>
   <data name="Error_ScoresheetNeedsClaude" xml:space="preserve"><value>Een foto lezen kan alleen met Claude als AI. Stel dat in bij Instellingen → AI.</value></data>
   <data name="Error_ScoresheetFailed" xml:space="preserve"><value>De foto kon niet gelezen worden.</value></data>
   <data name="ActivityAction_Tournaments_ReadScoresheet" xml:space="preserve"><value>Notatieformulier laten lezen</value></data>
-  <data name="ScoresheetUploadOnly" xml:space="preserve"><value>Foto alleen bewaren</value></data>
-  <data name="ScoresheetStored" xml:space="preserve"><value>De foto van het notatieformulier is bewaard.</value></data>
   <data name="ScoresheetStoredAnyway" xml:space="preserve"><value>De foto is wel bewaard.</value></data>
   <data name="ScoresheetPhotos" xml:space="preserve"><value>Notatieformulier</value></data>
   <data name="ScoresheetPhotosKept" xml:space="preserve"><value>Bewaarde foto’s van het notatieformulier ({0}); klik om groot te bekijken:</value></data>
@@ -876,12 +872,10 @@
   <data name="Error_ScoresheetNotFound" xml:space="preserve"><value>Deze foto bestaat niet (meer).</value></data>
   <data name="ActivityAction_Games_UploadScoresheet" xml:space="preserve"><value>Foto van notatieformulier bewaren</value></data>
   <data name="ActivityAction_Games_DeleteScoresheet" xml:space="preserve"><value>Foto van notatieformulier verwijderen</value></data>
-  <data name="WizardTitle" xml:space="preserve"><value>Zetten inlezen van foto: {0} – {1}</value></data>
-  <data name="WizardStepPhoto" xml:space="preserve"><value>Foto</value></data>
+  <data name="WizardTitle" xml:space="preserve"><value>Zetten toevoegen: {0} – {1}</value></data>
+  <data name="WizardStepPhoto" xml:space="preserve"><value>Invoer</value></data>
   <data name="WizardStepRead" xml:space="preserve"><value>Lezen door AI</value></data>
   <data name="WizardStepCheck" xml:space="preserve"><value>Controleren</value></data>
-  <data name="WizardStartOver" xml:space="preserve"><value>Opnieuw beginnen</value></data>
-  <data name="WizardStartOverConfirm" xml:space="preserve"><value>Opnieuw beginnen met een nieuwe foto? Wat je tot nu toe hebt gecontroleerd vervalt; de foto zelf blijft bij de partij bewaard.</value></data>
   <data name="WizardSave" xml:space="preserve"><value>Opslaan en analyseren</value></data>
   <data name="WizardPhotoHelp" xml:space="preserve"><value>Leg het notatieformulier plat, in goed licht, met alle zetten scherp in beeld.</value></data>
   <data name="WizardChoosePhoto" xml:space="preserve"><value>Foto op deze computer selecteren</value></data>
@@ -890,8 +884,7 @@
   <data name="WizardOtherPhoto" xml:space="preserve"><value>Andere foto</value></data>
   <data name="WizardRead" xml:space="preserve"><value>Laten lezen</value></data>
   <data name="WizardReadFailed" xml:space="preserve"><value>Het lezen is niet gelukt.</value></data>
-  <data name="WizardReadAgain" xml:space="preserve"><value>Opnieuw laten lezen</value></data>
-  <data name="WizardTypeMoves" xml:space="preserve"><value>Zelf invoeren</value></data>
+  <data name="WizardTypeMoves" xml:space="preserve"><value>Zetten zelf invoeren</value></data>
   <data name="WizardReading" xml:space="preserve"><value>Claude leest het notatieformulier…</value></data>
   <data name="WizardReadingHelp" xml:space="preserve"><value>Dit duurt meestal een tot twee minuten. Je mag dit venster sluiten: het lezen gaat door, en als je later weer op ‘Zetten toevoegen’ klikt, kun je verdergaan met controleren.</value></data>
   <data name="WizardNoMoves" xml:space="preserve"><value>Nog geen zetten</value></data>
@@ -930,12 +923,6 @@
   <data name="WizardLegal" xml:space="preserve"><value>Mogelijke zet</value></data>
   <data name="WizardIllegal" xml:space="preserve"><value>Deze zet is niet mogelijk in deze stelling</value></data>
   <data name="WizardUnknown" xml:space="preserve"><value>Nog niet te controleren: een eerdere zet is niet mogelijk</value></data>
-  <data name="WizardResumeTitle" xml:space="preserve"><value>Je was bezig met het inlezen van een foto van het notatieformulier.</value></data>
-  <data name="WizardResumeCheck" xml:space="preserve"><value>Foto van {0}: {1} van de {2} zetten gecontroleerd. Wil je verdergaan of opnieuw beginnen?</value></data>
-  <data name="WizardResumeReading" xml:space="preserve"><value>Claude is de foto van {0} nog aan het lezen. Wil je verdergaan of opnieuw beginnen?</value></data>
-  <data name="WizardResumeFailed" xml:space="preserve"><value>Het lezen van de foto van {0} is niet gelukt. Wil je verdergaan (opnieuw laten lezen of zelf invoeren) of opnieuw beginnen?</value></data>
-  <data name="WizardResumePhoto" xml:space="preserve"><value>Foto van {0}. Wil je verdergaan of opnieuw beginnen?</value></data>
-  <data name="WizardContinue" xml:space="preserve"><value>Verdergaan</value></data>
   <data name="ActivityAction_Games_ReadScoresheet" xml:space="preserve"><value>Foto van notatieformulier laten lezen</value></data>
   <data name="ActivityAction_Games_CloseWizard" xml:space="preserve"><value>Inlezen van notatieformulier opnieuw begonnen</value></data>
   <data name="ActivityProblem" xml:space="preserve"><value>Uitgevoerd, met een probleem</value></data>
@@ -955,6 +942,19 @@
   <data name="Error_UploadLinkInvalid" xml:space="preserve"><value>Deze QR-code is verlopen, al gebruikt of geannuleerd. Vraag om een nieuwe QR-code.</value></data>
   <data name="WizardOr" xml:space="preserve"><value>of</value></data>
   <data name="WizardAllReadSaving" xml:space="preserve"><value>Alle zetten zijn met zekerheid gelezen en mogelijk: ze worden opgeslagen en de analyse wordt geopend…</value></data>
+  <data name="WizardFromPhoto" xml:space="preserve"><value>Foto van het notatieformulier</value></data>
+  <data name="WizardPastePgn" xml:space="preserve"><value>PGN plakken</value></data>
+  <data name="WizardPastePgnHelp" xml:space="preserve"><value>Plak de notatie in PGN (Portable Game Notation), bijvoorbeeld uit een notatie-app.</value></data>
+  <data name="WizardManual" xml:space="preserve"><value>Zelf invoeren</value></data>
+  <data name="WizardManualIntro" xml:space="preserve"><value>Geen foto of PGN? Voer de zetten zelf in: typ ze, of zet ze op het bord.</value></data>
+  <data name="WizardEnterByHand" xml:space="preserve"><value>Zetten zelf invoeren</value></data>
+  <data name="WizardManualHelp" xml:space="preserve"><value>Typ elke zet (bijvoorbeeld e4, Pf3 of Nf3) of zet hem op het bord: klik op het stuk en dan op het veld waar het heen gaat. Een zet op het bord bij de laatste zet voegt meteen een nieuwe zet toe. Een rode zet is niet mogelijk.</value></data>
+  <data name="WizardMoveCount" xml:space="preserve"><value>{0} zet(ten) ingevoerd</value></data>
+  <data name="WizardPositionWhite" xml:space="preserve"><value>Stelling vóór de zet, wit aan zet.</value></data>
+  <data name="WizardPositionBlack" xml:space="preserve"><value>Stelling vóór de zet, zwart aan zet.</value></data>
+  <data name="WizardBoardHelpManual" xml:space="preserve"><value>Klik op het stuk en dan op het veld waar het heen gaat.</value></data>
+  <data name="WizardCloseUnsaved" xml:space="preserve"><value>De ingevoerde zetten zijn nog niet opgeslagen en gaan verloren. Toch sluiten?</value></data>
+  <data name="WizardFillEarlier" xml:space="preserve"><value>Vul eerst de zet ervoor in.</value></data>
   <data name="PhoneUploadSending" xml:space="preserve"><value>De foto wordt verstuurd…</value></data>
   <data name="PhoneUploadStuck" xml:space="preserve"><value>Het versturen duurde te lang. Probeer het opnieuw.</value></data>
 </root>
