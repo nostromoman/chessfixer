@@ -152,7 +152,13 @@
             <MudTd DataLabel="@L["ActivityResult"]" Style="white-space: nowrap">
                 @if (context.StatusCode is { } status)
                 {
-                    <span class="@(status >= 400 ? "mud-error-text" : "mud-success-text")">@StatusText(status)</span>
+                    <span class="@(status >= 400 || context.Error is not null ? "mud-error-text" : "mud-success-text")">
+                        @(status < 400 && context.Error is not null ? L["ActivityProblem"] : StatusText(status))
+                    </span>
+                }
+                @if (context.Error is { } error)
+                {
+                    <div class="mud-error-text activity-error">@error</div>
                 }
             </MudTd>
             <MudTd DataLabel="@L["ActivityIpAddress"]">

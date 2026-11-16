@@ -151,6 +151,25 @@ public class ScoresheetTests : ApiTestBase
         Assert.Null(wizard.Review);
         // Kept: to try again or to type the moves.
         Assert.Equal(ScoresheetReadStatus.Failed, (await GetWizardAsync(game.Id))!.ReadStatus);
+
+        // The administrator sees the failure in the activity log (also among the problems), with the reason.
+        using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
+        var problems = await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity?problemsOnly=true"));
+        var entry = Assert.Single(problems.Entries, e => e.Action == "Games.ReadScoresheet");
+        Assert.Equal((200, "Lezen mislukt: Er zijn geen zetten gevonden op de foto."), (entry.StatusCode, entry.Error));
+    }
+
+    [Fact]
+    public async Task RefusedAction_IsLoggedWithItsStatusAndReason()
+    {
+        var (_, game) = await PlayedGameAsync();
+        var photo = await UploadAsync(game.Id);
+        await PostReadAsync(game.Id, photo.Id); // Ollama: needs Claude
+
+        using var admin = await CreateClientAsync(AdminUserName, AdminPassword);
+        var log = await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity?problemsOnly=true"));
+        var entry = Assert.Single(log.Entries, e => e.Action == "Games.ReadScoresheet");
+        Assert.Equal((409, "ScoresheetNeedsClaude"), (entry.StatusCode, entry.Error));
     }
 
     [Fact]

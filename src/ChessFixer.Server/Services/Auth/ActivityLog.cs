@@ -1,4 +1,5 @@
 using ChessFixer.Server.Data;
+using ChessFixer.Server.Errors;
 using ChessFixer.Server.Services.Activity;
 using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -27,8 +28,13 @@ public class ActivityLog(IServiceScopeFactory scopes, TimeProvider time, ILogger
     /// <summary>Set by a revert, so its entry refers to the entry it reverted.</summary>
     public const string RevertOfItemsKey = "ChessFixer.RevertOf";
 
+    /// <summary>Set by an action that answered OK but where something went wrong that the administrator should see
+    /// (a string); the entry then counts as a problem.</summary>
+    public const string ProblemItemsKey = "ChessFixer.ActivityProblem";
+
     /// <summary>A change through the API, with the status code of the answer and (when it succeeded) what it changed.</summary>
-    public Task LogActionAsync(HttpContext http, int statusCode)
+    /// <param name="error">Why it failed (an exception).</param>
+    public Task LogActionAsync(HttpContext http, int statusCode, string? error = null)
     {
         var action = http.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
         var changes = statusCode < 400 ? ChangeCapture.Of(http) : [];
@@ -42,6 +48,7 @@ public class ActivityLog(IServiceScopeFactory scopes, TimeProvider time, ILogger
             Path = Truncate(http.Request.Path.Value, 300),
             StatusCode = statusCode,
             RevertOfId = statusCode < 400 && http.Items.TryGetValue(RevertOfItemsKey, out var revertOf) ? revertOf as long? : null,
+            Error = Truncate(error ?? (http.Items.TryGetValue(ProblemItemsKey, out var problem) ? problem as string : null), 1000),
             Changes = changes.Select((change, i) => change.ToEntity(i)).ToList()
         });
     }
@@ -91,9 +98,15 @@ public class ActivityLogMiddleware(RequestDelegate next, ActivityLog log)
         {
             await next(http);
         }
-        catch
+        catch (ApiException e)
         {
-            await log.LogActionAsync(http, StatusCodes.Status500InternalServerError);
+            // A business rule (answered by the ApiExceptionHandler further out): its status and what was wrong.
+            await log.LogActionAsync(http, e.StatusCode, e.Detail is null ? e.Code.ToString() : $"{e.Code}: {e.Detail}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            await log.LogActionAsync(http, StatusCodes.Status500InternalServerError, $"{e.GetType().Name}: {e.Message}");
             throw;
         }
         await log.LogActionAsync(http, http.Response.StatusCode);

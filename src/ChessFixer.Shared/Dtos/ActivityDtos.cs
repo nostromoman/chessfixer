@@ -11,11 +11,13 @@ namespace ChessFixer.Shared.Dtos;
 /// <param name="CanRevert">The administrator can try to revert this action (it may still turn out to be changed since).</param>
 /// <param name="RevertedBy">The revert of this action, when it was reverted.</param>
 /// <param name="RevertOfId">For a revert: the entry it reverted.</param>
+/// <param name="Error">What went wrong: the error of a failed action, or a problem in an action that answered OK.</param>
 public record ActivityLogEntryDto(
     long Id, DateTime At, int? UserId, string UserName, string? DisplayName, ActivityKind Kind,
     string? Action, string? Method, string? Path, int? StatusCode, string? IpAddress, string? UserAgent,
     int? TournamentId, string? TournamentTitle,
-    IReadOnlyList<ActivityChangeDto> Changes, bool CanRevert, ActivityRevertDto? RevertedBy, long? RevertOfId);
+    IReadOnlyList<ActivityChangeDto> Changes, bool CanRevert, ActivityRevertDto? RevertedBy, long? RevertOfId,
+    string? Error = null);
 
 /// <summary>One row that an action added, changed or deleted.</summary>
 /// <param name="EntityType">The kind of row: "Player", "Tournament", "Game", ...</param>

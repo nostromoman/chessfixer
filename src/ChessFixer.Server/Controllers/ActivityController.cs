@@ -25,7 +25,7 @@ public partial class ActivityController(ChessFixerDbContext db, ActivityRevertSe
     {
         var query = db.ActivityLog.AsQueryable();
         if (userId is { } id) query = query.Where(e => e.UserId == id);
-        if (problemsOnly) query = query.Where(e => e.Kind == ActivityKind.LoginFailed || e.StatusCode >= 400);
+        if (problemsOnly) query = query.Where(e => e.Kind == ActivityKind.LoginFailed || e.StatusCode >= 400 || e.Error != null);
 
         var total = await query.CountAsync();
         var entries = await query
@@ -54,7 +54,7 @@ public partial class ActivityController(ChessFixerDbContext db, ActivityRevertSe
             var reverted = revertedBy.GetValueOrDefault(e.Id);
             return new ActivityLogEntryDto(e.Id, e.At, e.UserId, e.UserName, e.DisplayName, e.Kind, e.Action, e.Method,
                 e.Path, e.StatusCode, e.IpAddress, e.UserAgent, tournamentId, tournamentId is { } t ? titles[t] : null,
-                changes, ActivityRevertService.IsRevertible(e, changes, reverted is not null), reverted, e.RevertOfId);
+                changes, ActivityRevertService.IsRevertible(e, changes, reverted is not null), reverted, e.RevertOfId, e.Error);
         }).ToList());
     }
 

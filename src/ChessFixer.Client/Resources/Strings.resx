@@ -938,4 +938,5 @@
   <data name="WizardContinue" xml:space="preserve"><value>Verdergaan</value></data>
   <data name="ActivityAction_Games_ReadScoresheet" xml:space="preserve"><value>Foto van notatieformulier laten lezen</value></data>
   <data name="ActivityAction_Games_CloseWizard" xml:space="preserve"><value>Inlezen van notatieformulier opnieuw begonnen</value></data>
+  <data name="ActivityProblem" xml:space="preserve"><value>Uitgevoerd, met een probleem</value></data>
 </root>

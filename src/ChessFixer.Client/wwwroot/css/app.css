@@ -1946,3 +1946,11 @@ button.schedule-slot {
 .review-board .chess-board {
     max-width: 300px;
 }
+
+/* Activity log: what went wrong, under the result (may be a long message). */
+.activity-error {
+    white-space: normal;
+    max-width: 360px;
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+}

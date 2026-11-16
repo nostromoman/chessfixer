@@ -453,6 +453,10 @@ public class ActivityLogEntry
     /// <summary>For a revert by the administrator: the entry whose changes were reverted.</summary>
     public long? RevertOfId { get; set; }
 
+    /// <summary>What went wrong (for the administrator): the error of a failed action, or a problem in an action that
+    /// still answered OK (e.g. Claude could not read a scoresheet photo).</summary>
+    public string? Error { get; set; }
+
     /// <summary>For a successful action: what it changed in the database, in the order it was saved.</summary>
     public List<ActivityChange> Changes { get; set; } = [];
 }

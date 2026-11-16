@@ -1,6 +1,7 @@
 using ChessFixer.Server.Services.Analysis;
 using ChessFixer.Server.Services.Auth;
 using ChessFixer.Shared.Dtos;
+using ChessFixer.Shared.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChessFixer.Server.Controllers;
@@ -62,7 +63,14 @@ public class GamesController(GameAnalysisService service, ScoresheetService scor
     /// returned in the wizard, not as an error; the reading goes on when the client goes away.
     /// </summary>
     [HttpPost("{gameId:int}/scoresheets/{photoId:int}/read")]
-    public Task<ScoresheetWizardDto> ReadScoresheet(int gameId, int photoId) => scoresheets.ReadAsync(gameId, photoId);
+    public async Task<ScoresheetWizardDto> ReadScoresheet(int gameId, int photoId)
+    {
+        var wizard = await scoresheets.ReadAsync(gameId, photoId);
+        // Answered OK (the wizard shows the failure), but the administrator should see it in the activity log.
+        if (wizard.ReadStatus == ScoresheetReadStatus.Failed)
+            HttpContext.Items[ActivityLog.ProblemItemsKey] = $"Lezen mislukt: {wizard.ReadError}";
+        return wizard;
+    }
 
     /// <summary>Saves the moves the user is checking. Called while the user works, so not in the activity log.</summary>
     [HttpPut("{gameId:int}/scoresheets/{photoId:int}/review")]

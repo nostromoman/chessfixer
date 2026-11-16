@@ -234,6 +234,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             entry.Property(e => e.Path).HasMaxLength(300);
             entry.Property(e => e.IpAddress).HasMaxLength(50);
             entry.Property(e => e.UserAgent).HasMaxLength(300);
+            entry.Property(e => e.Error).HasMaxLength(1000);
             entry.HasIndex(e => e.RevertOfId);
             // The changes go with the entry (also when old entries are cleaned up at startup).
             entry.HasMany(e => e.Changes).WithOne().HasForeignKey(c => c.EntryId).OnDelete(DeleteBehavior.Cascade);
