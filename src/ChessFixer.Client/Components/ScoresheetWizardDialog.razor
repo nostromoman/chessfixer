@@ -130,32 +130,29 @@
         @if (!HasPhoto)
         {
             <div class="wizard-photo-sources">
-                <div style="flex: 1; min-width: 240px">
-                    <MudText Typo="Typo.body2" Class="mb-3">@L["WizardPhotoHelp"]</MudText>
-                    <div class="d-flex flex-wrap gap-2">
-                        <InputFile id="@_fileInputId" OnChange="PhotoChosenAsync" accept="image/*" hidden disabled="@_busy" />
-                        <MudButton HtmlTag="label" for="@_fileInputId" Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Upload" Disabled="_busy">@L["WizardChoosePhoto"]</MudButton>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PhotoCamera"
-                                   OnClick="TakePhotoAsync" Disabled="_busy">@L["WizardTakePhoto"]</MudButton>
-                    </div>
-                    @if (_busy)
-                    {
-                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-3" />
-                    }
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["WizardPhotoHelp"]</MudText>
+                <div class="wizard-source-buttons">
+                    <InputFile id="@_fileInputId" OnChange="PhotoChosenAsync" accept="image/*" hidden disabled="@_busy" />
+                    <MudButton HtmlTag="label" for="@_fileInputId" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.Computer" Disabled="_busy">@L["WizardChoosePhoto"]</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.Videocam" OnClick="TakePhotoAsync" Disabled="_busy">@L["WizardTakePhoto"]</MudButton>
                 </div>
+                @if (_busy)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                }
+                <div class="wizard-or"><span>@L["WizardOr"]</span></div>
                 @PhoneLink
             </div>
         }
         else
         {
-            <img class="wizard-preview" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
-            @if (_phonePhotoId is not null)
-            {
-                <MudText Typo="Typo.body2" Class="mud-success-text d-block mt-2">@L["WizardQrReceived"]</MudText>
-            }
-            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2 mb-2">@L["WizardPhotoCheck"]</MudText>
-            <div class="d-flex flex-wrap gap-2 justify-end">
+            <div class="wizard-preview-box">
+                <img class="wizard-preview" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
+            </div>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary d-block mt-3 mb-2 text-center">@L["WizardPhotoCheck"]</MudText>
+            <div class="d-flex flex-wrap gap-2 justify-center">
                 <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Replay" OnClick="OtherPhoto" Disabled="_busy">
                     @L["WizardOtherPhoto"]
                 </MudButton>
@@ -233,10 +230,13 @@
     private RenderFragment PhoneLink => __builder =>
     {
         <div class="wizard-qr">
-            <MudText Typo="Typo.subtitle2" Class="mb-1">@L["WizardQrTitle"]</MudText>
+            <div class="d-flex align-center justify-center gap-2 mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Smartphone" Color="Color.Primary" />
+                <MudText Typo="Typo.subtitle1"><b>@L["WizardQrTitle"]</b></MudText>
+            </div>
             @if (_link is null)
             {
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="my-6" />
             }
             else
             {
@@ -244,8 +244,8 @@
                 {
                     case ScoresheetLinkStatus.Waiting:
                         <div class="wizard-qr-code">@((MarkupString)(_qrSvg ?? ""))</div>
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">@L["WizardQrHelp"]</MudText>
-                        <MudText Typo="Typo.caption" Class="d-block mt-1">
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["WizardQrHelp"]</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-1">
                             @L["WizardQrValidUntil", _link.ExpiresAt.ToLocalTime().ToString("HH:mm")]
                         </MudText>
                         @if (LocalAddress)
@@ -254,18 +254,18 @@
                         }
                         break;
                     case ScoresheetLinkStatus.Opened:
-                        <div class="d-flex align-center gap-2 my-3">
-                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
-                            <MudText Typo="Typo.body2">@L["WizardQrOpened"]</MudText>
+                        <div class="d-flex flex-column align-center gap-3 my-6">
+                            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                            <MudText Typo="Typo.body1">@L["WizardQrOpened"]</MudText>
                         </div>
                         <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Close"
                                    OnClick="CancelLinkAsync">@L["Cancel"]</MudButton>
                         break;
                     case ScoresheetLinkStatus.Uploaded:
-                        <MudText Typo="Typo.body2">@L["WizardQrReceived"]</MudText>
+                        <MudText Typo="Typo.body1" Class="mud-success-text my-6">@L["WizardQrReceived"]</MudText>
                         break;
                     default:
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary my-4">
                             @(_link.Status == ScoresheetLinkStatus.Expired ? L["WizardQrExpired"] : L["WizardQrCancelled"])
                         </MudText>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.QrCode2"
@@ -309,9 +309,11 @@
                 _link = link;
                 if (link is { Status: ScoresheetLinkStatus.Uploaded, PhotoId: { } photoId } && _step == 1 && !HasPhoto)
                 {
-                    // On to the usual next step: the photo to check, then read.
+                    // Taken on the phone: no need to confirm it here, Claude reads it right away.
                     _phonePhotoId = photoId;
                     _photoUrl = TournamentApi.ScoresheetImageUrl(Game.Id, photoId);
+                    await UploadAndReadAsync();
+                    return;
                 }
                 StateHasChanged();
             }
@@ -441,7 +443,7 @@
             if (_disposed) return; // closed meanwhile: the result is kept on the server
             _wizard = wizard;
             if (wizard.ReadStatus == ScoresheetReadStatus.Reading) await PollAsync(); // already being read elsewhere
-            else if (wizard.Review is { } review) StartReview(review);
+            else if (wizard.Review is { } review) await ReviewReadyAsync(review);
         }
         catch (ApiClientException e) when (e.Code is ApiErrorCode.ScoresheetNeedsClaude)
         {
@@ -481,7 +483,11 @@
                     return;
                 }
                 _wizard = wizard;
-                if (wizard.Review is { } review && wizard.ReadStatus != ScoresheetReadStatus.Reading) StartReview(review);
+                if (wizard.Review is { } review && wizard.ReadStatus != ScoresheetReadStatus.Reading)
+                {
+                    await ReviewReadyAsync(review);
+                    return;
+                }
                 StateHasChanged();
             }
             catch (Exception e) when (e is ApiClientException or HttpRequestException)
@@ -490,6 +496,26 @@
             }
         }
     }
+
+    /// <summary>
+    /// Claude has read the photo. When every move is possible and Claude was sure of all of them, there is nothing to
+    /// check: the moves are saved right away and the analysis is shown. Otherwise the user checks them (step 3).
+    /// </summary>
+    private async Task ReviewReadyAsync(ScoresheetReviewDto review)
+    {
+        StartReview(review);
+        if (CanSave)
+        {
+            _autoSaving = true;
+            StateHasChanged();
+            await SaveAsync();
+            _autoSaving = false;
+        }
+        if (!_disposed) StateHasChanged();
+    }
+
+    /// <summary>Saving right after reading (nothing to check).</summary>
+    private bool _autoSaving;
 
     /// <summary>Reading failed: the user types the moves (or enters them on the board) next to the photo.</summary>
     private async Task TypeMovesAsync()
@@ -587,6 +613,10 @@
     {
         if (_wizard is null) return;
         <div>
+        @if (_autoSaving)
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-2">@L["WizardAllReadSaving"]</MudAlert>
+        }
         @if (!string.IsNullOrWhiteSpace(_wizard.Remarks))
         {
             <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">@L["WizardRemarks"] <i>@_wizard.Remarks</i></MudAlert>

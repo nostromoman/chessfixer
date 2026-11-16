@@ -3,6 +3,7 @@
 @attribute [AllowAnonymous]
 @inject TournamentApi Api
 @inject IStringLocalizer<Strings> L
+@inject ISnackbar Snackbar
 
 @* The page behind the QR code of the scoresheet wizard, opened on a phone: no login (the token in the link is the
    key), only to take one photo of the scoresheet and send it. Opening it tells the wizard that it waits for the photo. *@
@@ -33,26 +34,21 @@
             @info.Tournament · @L["WizardQrValidUntil", info.ExpiresAt.ToLocalTime().ToString("HH:mm")]
         </MudText>
 
-        @if (_photoUrl is null)
+        @if (_busy)
         {
-            <MudText Typo="Typo.body2" Class="mb-4">@L["PhoneUploadHelp"]</MudText>
-            <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden disabled="@_busy" />
-            <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_busy">@L["PhoneUploadTake"]</MudButton>
+            @if (_photoUrl is not null)
+            {
+                <img class="wizard-preview mb-3" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
+            }
+            <MudText Typo="Typo.body2" Class="mb-2">@L["PhoneUploadSending"]</MudText>
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
         }
         else
         {
-            <img class="wizard-preview mb-3" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
-            <div class="d-flex gap-2">
-                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Replay" OnClick="Retake" Disabled="_busy"
-                           Style="flex: 1">@L["PhoneUploadRetake"]</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send" OnClick="SendAsync"
-                           Disabled="_busy" Style="flex: 1">@L["PhoneUploadSend"]</MudButton>
-            </div>
-        }
-        @if (_busy)
-        {
-            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-3" />
+            <MudText Typo="Typo.body2" Class="mb-4">@L["PhoneUploadHelp"]</MudText>
+            <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden />
+            <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.PhotoCamera">@L["PhoneUploadTake"]</MudButton>
         }
     }
 </MudPaper>
@@ -66,7 +62,6 @@
 
     private ScoresheetUploadInfoDto? _info;
     private string? _error;
-    private byte[]? _photo;
     private string? _photoUrl;
     private bool _busy;
     private bool _sent;
@@ -83,6 +78,7 @@
         }
     }
 
+    /// <summary>The photo is sent right away (the phone's camera already asked to keep it); the computer goes on.</summary>
     private async Task PhotoTakenAsync(InputFileChangeEventArgs e)
     {
         _busy = true;
@@ -92,41 +88,28 @@
             await using var stream = photo.OpenReadStream(MaxUploadBytes);
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
-            _photo = buffer.ToArray();
-            _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(_photo)}";
+            var bytes = buffer.ToArray();
+            _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
+            StateHasChanged();
+            await Api.UploadScoresheetViaLinkAsync(Token, bytes, "image/jpeg");
+            _sent = true;
         }
         catch (IOException)
         {
-            _error = L["Error_InvalidScoresheetImage"];
+            Snackbar.Add(L["Error_InvalidScoresheetImage"], Severity.Error); // try another photo
+        }
+        catch (ApiClientException ex) when (ex.Code is ApiErrorCode.InvalidScoresheetImage)
+        {
+            Snackbar.Add(L["Error_InvalidScoresheetImage"], Severity.Error);
+        }
+        catch (Exception ex) when (ex is ApiClientException or HttpRequestException)
+        {
+            _error = ErrorText(ex);
         }
         finally
         {
             _busy = false;
-        }
-    }
-
-    private void Retake()
-    {
-        _photo = null;
-        _photoUrl = null;
-    }
-
-    private async Task SendAsync()
-    {
-        if (_photo is null) return;
-        _busy = true;
-        try
-        {
-            await Api.UploadScoresheetViaLinkAsync(Token, _photo, "image/jpeg");
-            _sent = true;
-        }
-        catch (Exception e) when (e is ApiClientException or HttpRequestException)
-        {
-            _error = ErrorText(e);
-        }
-        finally
-        {
-            _busy = false;
+            _photoUrl = null;
         }
     }
 

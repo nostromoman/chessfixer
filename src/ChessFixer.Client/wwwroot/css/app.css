@@ -1955,24 +1955,61 @@ button.schedule-slot {
     overflow-wrap: anywhere;
 }
 
-/* Wizard step 1: the ways to get a photo, with the QR code for a phone on the right. */
+/* Wizard step 1: the ways to get a photo, one below the other: this computer, the webcam, "of", the phone's QR code. */
 .wizard-photo-sources {
     display: flex;
-    flex-wrap: wrap;
-    gap: 24px;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 560px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.wizard-source-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.wizard-source-buttons .mud-button-root {
+    min-height: 56px;
+}
+
+.wizard-or {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.875rem;
+}
+
+.wizard-or::before,
+.wizard-or::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid var(--mud-palette-lines-default);
 }
 
 .wizard-qr {
-    width: 240px;
-    padding: 12px;
+    padding: 16px;
     border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 12px;
+    background: var(--mud-palette-background-gray);
+    text-align: center;
+}
+
+.wizard-preview-box {
+    display: flex;
+    justify-content: center;
+    padding: 8px;
     border-radius: 8px;
+    background: var(--mud-palette-background-gray);
 }
 
 .wizard-qr-code svg {
     display: block;
-    width: 200px;
-    height: 200px;
-    margin: 4px auto 8px;
+    width: 220px;
+    height: 220px;
+    margin: 8px auto 12px;
+    border-radius: 8px;
 }
