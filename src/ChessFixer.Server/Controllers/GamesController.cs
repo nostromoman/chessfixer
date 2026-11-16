@@ -1,4 +1,5 @@
 using ChessFixer.Server.Services.Analysis;
+using ChessFixer.Server.Services.Auth;
 using ChessFixer.Shared.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,6 +41,42 @@ public class GamesController(GameAnalysisService service, ScoresheetService scor
         await scoresheets.DeleteAsync(gameId, photoId);
         return NoContent();
     }
+
+    // ----- The wizard that reads the moves from a photo; the user checks them -----
+
+    /// <summary>The wizard in progress for the game (to continue); 204 when there is none.</summary>
+    [HttpGet("{gameId:int}/scoresheet-wizard")]
+    public async Task<ActionResult<ScoresheetWizardDto>> GetWizard(int gameId) =>
+        await scoresheets.GetWizardAsync(gameId) is { } wizard ? wizard : NoContent();
+
+    /// <summary>Starts over: closes the wizard of the game (the photos are kept).</summary>
+    [HttpDelete("{gameId:int}/scoresheet-wizard")]
+    public async Task<IActionResult> CloseWizard(int gameId)
+    {
+        await scoresheets.CloseWizardAsync(gameId);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Opens the wizard for a kept photo and reads the moves with Claude (takes a minute or two). A failed reading is
+    /// returned in the wizard, not as an error; the reading goes on when the client goes away.
+    /// </summary>
+    [HttpPost("{gameId:int}/scoresheets/{photoId:int}/read")]
+    public Task<ScoresheetWizardDto> ReadScoresheet(int gameId, int photoId) => scoresheets.ReadAsync(gameId, photoId);
+
+    /// <summary>Saves the moves the user is checking. Called while the user works, so not in the activity log.</summary>
+    [HttpPut("{gameId:int}/scoresheets/{photoId:int}/review")]
+    [NoActivityLog]
+    public async Task<IActionResult> SaveReview(int gameId, int photoId, ScoresheetReviewDto review)
+    {
+        await scoresheets.SaveReviewAsync(gameId, photoId, review);
+        return NoContent();
+    }
+
+    /// <summary>The checked moves as PGN with the game's tags (checked on the board again); not saved.</summary>
+    [HttpPost("{gameId:int}/scoresheet-pgn")]
+    [NoActivityLog]
+    public Task<GamePgnDto> BuildPgn(int gameId, ScoresheetPgnRequest request) => scoresheets.BuildPgnAsync(gameId, request);
 
     // ----- Games with moves and their analysis -----
 

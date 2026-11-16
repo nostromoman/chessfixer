@@ -96,20 +96,6 @@ public class TournamentsController(TournamentService service) : ControllerBase
     public Task<TournamentDto> SetPgn(int id, int gameId, SetPgnRequest request) =>
         service.SetPgnAsync(id, gameId, request.Pgn);
 
-    /// <summary>
-    /// Reads the moves from a photo of the handwritten scoresheet (body: the image, JPEG/PNG/GIF/WebP, max 5 MB)
-    /// with Claude and returns them as PGN to check. The photo is kept (also when reading fails); the PGN is not saved.
-    /// </summary>
-    [HttpPost("{id:int}/games/{gameId:int}/scoresheet")]
-    [RequestSizeLimit(ScoresheetService.MaxImageBytes + 1024)]
-    public async Task<ScoresheetResultDto> ReadScoresheet(int id, int gameId, [FromServices] ScoresheetService scoresheets,
-        CancellationToken cancellationToken)
-    {
-        using var buffer = new MemoryStream();
-        await Request.Body.CopyToAsync(buffer, cancellationToken);
-        return await scoresheets.ReadAsync(id, gameId, buffer.ToArray(), Request.ContentType, User, cancellationToken);
-    }
-
     /// <summary>Competition: everyone against everyone, with the games played and still to play.</summary>
     [HttpGet("{id:int}/schedule")]
     public Task<CompetitionScheduleDto> GetSchedule(int id) => service.GetScheduleAsync(id);

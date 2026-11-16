@@ -296,6 +296,27 @@ public class GameScoresheet
 
     /// <summary>Display name of the user who uploaded it, as it was then.</summary>
     public string? UploadedBy { get; set; }
+
+    // ----- The wizard that turns the photo into moves (read by Claude, checked by the user) -----
+
+    public ScoresheetReadStatus ReadStatus { get; set; } = ScoresheetReadStatus.None;
+    public DateTime? ReadStartedAt { get; set; }
+
+    /// <summary>Why reading failed (Dutch).</summary>
+    public string? ReadError { get; set; }
+
+    /// <summary>The Claude model that read the photo.</summary>
+    public string? ReadModel { get; set; }
+
+    /// <summary>Notes of the reader (Dutch), e.g. about illegible rows.</summary>
+    public string? ReadRemarks { get; set; }
+
+    /// <summary>The moves the user is checking (JSON of a ScoresheetReviewDto); saved while the user works.</summary>
+    public string? Review { get; set; }
+
+    /// <summary>The wizard for this photo is in progress: it is offered to continue until the moves are saved or the
+    /// user starts over. At most one photo of a game has an open wizard.</summary>
+    public bool ReviewOpen { get; set; }
 }
 
 /// <summary>Application-wide settings; there is exactly one row (Id 1).</summary>

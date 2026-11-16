@@ -425,6 +425,32 @@ namespace ChessFixer.Server.Data.Migrations
                     b.Property<int>("GameId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ReadError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReadModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReadRemarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReadStartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReadStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Review")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ReviewOpen")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("TEXT");
 

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Anthropic.Models.Beta.Messages;
 using ChessFixer.Core.Chess;
 using ChessFixer.Server.Data;
+using ChessFixer.Shared.Enums;
 
 namespace ChessFixer.Server.Services.Ai;
 
@@ -42,9 +43,12 @@ public class ClaudeScoresheetReader : IScoresheetReader
         - Captures may be written with "x", ":" or not at all, checks with "+" or not. Transcribe what is written;
           do not add or drop captures or checks by guessing.
         - A move that is crossed out and rewritten: take the move that was meant to stand.
-        - When you are not sure what is written, give your best reading in "text", other plausible readings in
-          "alternatives" (most likely first) and set "certain" to false. Use the game so far to judge which reading
-          is plausible, but transcribe: never replace a clearly written move by a better move.
+        - "confidence" says how sure you are that "text" is what is written: "high" when it is clearly legible and
+          fits the game, "medium" when it is probably right but another reading is possible, "low" when it is hard
+          to read or a guess. Be honest: the user checks every move that is not "high" against the sheet, and a
+          wrong "high" slips through. Give other plausible readings in "alternatives" (most likely first). Use the
+          game so far to judge which reading is plausible, but transcribe: never replace a clearly written move by
+          a better move.
         - Stop at the last move that is written. Never invent or complete moves; skip empty rows.
         - "number" is the move number of the row, "color" is "white" or "black".
         - Copy the player names, the date and the result when they are on the sheet; otherwise an empty string.
@@ -84,9 +88,9 @@ public class ClaudeScoresheetReader : IScoresheetReader
                         color = new { type = "string", @enum = new[] { "white", "black" } },
                         text = new { type = "string" },
                         alternatives = new { type = "array", items = new { type = "string" } },
-                        certain = new { type = "boolean" }
+                        confidence = new { type = "string", @enum = new[] { "high", "medium", "low" } }
                     },
-                    ["required"] = new[] { "number", "color", "text", "alternatives", "certain" }
+                    ["required"] = new[] { "number", "color", "text", "alternatives", "confidence" }
                 }
             },
             remarks = new { type = "string" }
@@ -103,7 +107,7 @@ public class ClaudeScoresheetReader : IScoresheetReader
     };
 
     private sealed record ReadAnswer(string White, string Black, string Date, string Result, List<ReadAnswerMove> Moves, string Remarks);
-    private sealed record ReadAnswerMove(int Number, string Color, string Text, List<string>? Alternatives, bool Certain);
+    private sealed record ReadAnswerMove(int Number, string Color, string Text, List<string>? Alternatives, string? Confidence);
     private sealed record RepairAnswer(string Move);
 
     public async Task<ScoresheetReading> ReadAsync(AppSettings settings, byte[] image, string mediaType, string context,
@@ -115,7 +119,12 @@ public class ClaudeScoresheetReader : IScoresheetReader
                      ?? throw new InvalidOperationException("Claude gaf een leeg antwoord.");
 
         var moves = answer.Moves
-            .Select(m => new ReadMove(m.Number, m.Color != "black", m.Text, m.Alternatives ?? [], m.Certain))
+            .Select(m => new ReadMove(m.Number, m.Color != "black", m.Text, m.Alternatives ?? [], m.Confidence switch
+            {
+                "high" => MoveConfidence.High,
+                "medium" => MoveConfidence.Medium,
+                _ => MoveConfidence.Low
+            }))
             .ToList();
         return new ScoresheetReading(answer.White, answer.Black, answer.Date, answer.Result, moves, answer.Remarks);
     }

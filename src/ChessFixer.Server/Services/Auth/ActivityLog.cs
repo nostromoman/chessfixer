@@ -104,5 +104,13 @@ public class ActivityLogMiddleware(RequestDelegate next, ActivityLog log)
         && !HttpMethods.IsGet(http.Request.Method) && !HttpMethods.IsHead(http.Request.Method)
         && !HttpMethods.IsOptions(http.Request.Method)
         && http.Request.Path.StartsWithSegments("/api")
-        && !http.Request.Path.StartsWithSegments("/api/auth");
+        && !http.Request.Path.StartsWithSegments("/api/auth")
+        && http.GetEndpoint()?.Metadata.GetMetadata<NoActivityLogAttribute>() is null;
 }
+
+/// <summary>
+/// An action that is not written to the activity log, e.g. saving a work in progress while the user types (that
+/// would flood the log). Its changes are not recorded either.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class NoActivityLogAttribute : Attribute;

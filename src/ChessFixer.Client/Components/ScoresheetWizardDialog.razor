@@ -1,0 +1,868 @@
+@using ChessFixer.Core.Chess
+@using Position = ChessFixer.Core.Chess.Position
+@implements IAsyncDisposable
+@inject TournamentApi Api
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<Strings> L
+
+@* Reads the moves of a game from a photo of the handwritten scoresheet, in three steps:
+   1. a photo (chosen, or taken with the camera), 2. Claude reads it, 3. the user checks every move against the photo,
+   with the position on a board: a move Claude was sure of is checked already, the others the user checks, corrects
+   (typing, or on the board) or adds. Every move is checked on the board while typing. The wizard is kept on the
+   server (also when the dialog is closed), so the user can continue later. Closes with the PGN to save. *@
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" />
+            <MudText Typo="Typo.h6">@L["WizardTitle", Game.White.Name, Game.Black?.Name ?? ""]</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="wizard-steps">
+            @StepLabel(1, L["WizardStepPhoto"])
+            @StepLabel(2, L["WizardStepRead"])
+            @StepLabel(3, L["WizardStepCheck"])
+        </div>
+
+        @switch (_step)
+        {
+            case 1:
+                @PhotoStep
+                break;
+            case 2:
+                @ReadStep
+                break;
+            default:
+                @ReviewStep
+                break;
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_step > 1 && _wizard is not null)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.RestartAlt"
+                       OnClick="StartOverAsync" Disabled="_busy">@L["WizardStartOver"]</MudButton>
+        }
+        <MudSpacer />
+        @if (_step == 3)
+        {
+            <MudText Typo="Typo.body2" Class="@(CanSave ? "mud-success-text mr-2" : "mud-text-secondary mr-2")">@SaveHint</MudText>
+        }
+        <MudButton OnClick="CloseAsync">@L["Close"]</MudButton>
+        @if (_step == 3)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.QueryStats"
+                       Disabled="@(!CanSave || _busy)" OnClick="SaveAsync">@L["WizardSave"]</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    [Parameter, EditorRequired] public GameDto Game { get; set; } = null!;
+
+    /// <summary>The wizard to continue; null to start with a new photo.</summary>
+    [Parameter] public ScoresheetWizardDto? Wizard { get; set; }
+
+    /// <summary>Phone photos are scaled down to this size before uploading: plenty to read handwriting.</summary>
+    private const int MaxPhotoPixels = 2000;
+    private const long MaxUploadBytes = 5 * 1024 * 1024;
+
+    private int _step = 1;
+    private bool _busy;
+    private bool _disposed;
+    private ScoresheetWizardDto? _wizard;
+
+    protected override void OnInitialized()
+    {
+        _wizard = Wizard;
+        if (_wizard is null) return;
+        if (_wizard.Review is { } review) StartReview(review);
+        else _step = 2;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Continued while Claude is still reading (the dialog was closed meanwhile): wait for it.
+        if (firstRender && _wizard is { ReadStatus: ScoresheetReadStatus.Reading }) await PollAsync();
+    }
+
+    private RenderFragment StepLabel(int step, string label) => __builder =>
+    {
+        var css = "wizard-step" + (step == _step ? " active" : step < _step ? " done" : "");
+        <div class="@css">
+            <span class="wizard-step-number">
+                @if (step < _step)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Style="font-size: 16px" />
+                }
+                else
+                {
+                    @step
+                }
+            </span>
+            <span>@label</span>
+            @if (step < 3)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+            }
+        </div>
+    };
+
+    // ----- Step 1: the photo -----
+
+    private readonly string _fileInputId = $"wizard-photo-{Guid.NewGuid():N}";
+    private byte[]? _photo;
+    private string? _photoUrl;
+
+    private RenderFragment PhotoStep => __builder =>
+    {
+        <div>
+        @if (_photo is null)
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">@L["WizardPhotoHelp"]</MudText>
+            <div class="d-flex flex-wrap gap-2">
+                <InputFile id="@_fileInputId" OnChange="PhotoChosenAsync" accept="image/*" hidden disabled="@_busy" />
+                <MudButton HtmlTag="label" for="@_fileInputId" Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Upload" Disabled="_busy">@L["WizardChoosePhoto"]</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PhotoCamera"
+                           OnClick="TakePhotoAsync" Disabled="_busy">@L["WizardTakePhoto"]</MudButton>
+            </div>
+            @if (_busy)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-3" />
+            }
+        }
+        else
+        {
+            <img class="wizard-preview" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2 mb-2">@L["WizardPhotoCheck"]</MudText>
+            <div class="d-flex flex-wrap gap-2 justify-end">
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Replay" OnClick="OtherPhoto" Disabled="_busy">
+                    @L["WizardOtherPhoto"]
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Save" OnClick="StoreOnlyAsync" Disabled="_busy">
+                    @L["ScoresheetUploadOnly"]
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="UploadAndReadAsync" Disabled="_busy">@L["WizardRead"]</MudButton>
+            </div>
+        }
+        </div>
+    };
+
+    /// <summary>A photo was chosen (on a phone the camera can be used here too): scaled down in the browser.</summary>
+    private async Task PhotoChosenAsync(InputFileChangeEventArgs e)
+    {
+        _busy = true;
+        try
+        {
+            var photo = await e.File.RequestImageFileAsync("image/jpeg", MaxPhotoPixels, MaxPhotoPixels);
+            await using var stream = photo.OpenReadStream(MaxUploadBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            SetPhoto(buffer.ToArray());
+        }
+        catch (IOException)
+        {
+            Snackbar.Add(L["Error_InvalidScoresheetImage"], Severity.Error); // still too large after scaling
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task TakePhotoAsync()
+    {
+        var dialog = await Dialogs.ShowAsync<WebcamDialog>(L["WizardTakePhoto"],
+            new DialogParameters<WebcamDialog> { { d => d.Size, MaxPhotoPixels }, { d => d.Document, true } },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false, Data: byte[] photo }) SetPhoto(photo);
+    }
+
+    private void SetPhoto(byte[] photo)
+    {
+        _photo = photo;
+        _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(photo)}";
+    }
+
+    private void OtherPhoto()
+    {
+        _photo = null;
+        _photoUrl = null;
+    }
+
+    /// <summary>Only keeps the photo with the game (e.g. to type the moves later).</summary>
+    private async Task StoreOnlyAsync()
+    {
+        if (_photo is null) return;
+        _busy = true;
+        try
+        {
+            await Api.UploadScoresheetAsync(Game.Id, _photo, "image/jpeg");
+            Snackbar.Add(L["ScoresheetStored"], Severity.Success);
+            Dialog.Cancel();
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            ShowError(e);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Keeps the photo with the game and lets Claude read it.</summary>
+    private async Task UploadAndReadAsync()
+    {
+        if (_photo is null) return;
+        _busy = true;
+        try
+        {
+            var photo = await Api.UploadScoresheetAsync(Game.Id, _photo, "image/jpeg");
+            _wizard = new ScoresheetWizardDto(photo.Id, Game.Id, photo.UploadedAt, ScoresheetReadStatus.Reading, null, null, "", null);
+            _step = 2;
+            _busy = false;
+            StateHasChanged();
+            await ReadAsync();
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            ShowError(e);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // ----- Step 2: Claude reads the photo -----
+
+    /// <summary>Set when reading is not possible at all (no Claude): the photo is kept, nothing more to do here.</summary>
+    private string? _readError;
+
+    private RenderFragment ReadStep => __builder =>
+    {
+        <div>
+        @if (_readError is not null)
+        {
+            <MudAlert Severity="Severity.Error">@_readError</MudAlert>
+        }
+        else if (_wizard is { ReadStatus: ScoresheetReadStatus.Failed } failed)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">
+                @L["WizardReadFailed"] @failed.ReadError
+            </MudAlert>
+            <div class="d-flex flex-wrap gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="ReadAsync" Disabled="_busy">@L["WizardReadAgain"]</MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Keyboard"
+                           OnClick="TypeMovesAsync" Disabled="_busy">@L["WizardTypeMoves"]</MudButton>
+            </div>
+        }
+        else if (_wizard is not null)
+        {
+            <div class="d-flex flex-wrap gap-4 align-start">
+                <img class="wizard-preview" style="max-width: 280px; max-height: 360px; margin: 0"
+                     src="@TournamentApi.ScoresheetImageUrl(_wizard.GameId, _wizard.PhotoId)" alt="@L["ScoresheetPhotos"]" />
+                <div style="flex: 1; min-width: 240px">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">@L["WizardReading"]</MudText>
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" />
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["WizardReadingHelp"]</MudText>
+                </div>
+            </div>
+        }
+        </div>
+    };
+
+    private async Task ReadAsync()
+    {
+        if (_wizard is null) return;
+        _busy = true;
+        _wizard = _wizard with { ReadStatus = ScoresheetReadStatus.Reading, ReadError = null };
+        StateHasChanged();
+        try
+        {
+            var wizard = await Api.ReadScoresheetPhotoAsync(_wizard.GameId, _wizard.PhotoId);
+            if (_disposed) return; // closed meanwhile: the result is kept on the server
+            _wizard = wizard;
+            if (wizard.ReadStatus == ScoresheetReadStatus.Reading) await PollAsync(); // already being read elsewhere
+            else if (wizard.Review is { } review) StartReview(review);
+        }
+        catch (ApiClientException e) when (e.Code is ApiErrorCode.ScoresheetNeedsClaude)
+        {
+            _readError = $"{L["Error_ScoresheetNeedsClaude"]} {L["ScoresheetStoredAnyway"]}";
+        }
+        catch (TaskCanceledException)
+        {
+            // The browser gave up waiting; the server goes on reading.
+            await PollAsync();
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            ShowError(e);
+            _wizard = _wizard with { ReadStatus = ScoresheetReadStatus.Failed, ReadError = null };
+        }
+        finally
+        {
+            _busy = false;
+        }
+        if (!_disposed) StateHasChanged();
+    }
+
+    /// <summary>Waits until the server has read the photo (the reading was started earlier).</summary>
+    private async Task PollAsync()
+    {
+        while (!_disposed && _wizard is { ReadStatus: ScoresheetReadStatus.Reading })
+        {
+            await Task.Delay(3000);
+            if (_disposed) return;
+            try
+            {
+                var wizard = await Api.GetScoresheetWizardAsync(Game.Id);
+                if (wizard is null || wizard.PhotoId != _wizard.PhotoId)
+                {
+                    // Finished or started over elsewhere.
+                    Dialog.Cancel();
+                    return;
+                }
+                _wizard = wizard;
+                if (wizard.Review is { } review && wizard.ReadStatus != ScoresheetReadStatus.Reading) StartReview(review);
+                StateHasChanged();
+            }
+            catch (Exception e) when (e is ApiClientException or HttpRequestException)
+            {
+                // Try again at the next tick.
+            }
+        }
+    }
+
+    /// <summary>Reading failed: the user types the moves (or enters them on the board) next to the photo.</summary>
+    private async Task TypeMovesAsync()
+    {
+        StartReview(new ScoresheetReviewDto([]));
+        _rows.Add(EmptyRow());
+        Validate();
+        await SaveReviewAsync();
+    }
+
+    // ----- Step 3: the user checks the moves -----
+
+    private sealed class Row
+    {
+        public string Text { get; set; } = "";
+        public string ReadAs { get; init; } = "";
+        public IReadOnlyList<string> Alternatives { get; init; } = [];
+        public MoveConfidence Confidence { get; init; } = MoveConfidence.Low;
+        public bool Checked { get; set; }
+    }
+
+    private enum MoveStatus { Legal, Illegal, Unknown }
+
+    /// <summary>A move replayed on the board: legal or not, and the positions before and after it.</summary>
+    private sealed record Check(MoveStatus Status, Position? Before, string? San = null, Move? Move = null, Position? After = null);
+
+    private readonly List<Row> _rows = [];
+    private List<Check> _checks = [];
+    private int _selected;
+    private bool _showAfter;
+    private bool _zoomed;
+    private int? _fromSquare;
+
+    private static Row EmptyRow() => new() { Confidence = MoveConfidence.Low };
+
+    private void StartReview(ScoresheetReviewDto review)
+    {
+        _rows.Clear();
+        _rows.AddRange(review.Moves.Select(m => new Row
+        {
+            Text = m.Text, ReadAs = m.ReadAs, Alternatives = m.Alternatives, Confidence = m.Confidence, Checked = m.Checked
+        }));
+        _selected = Math.Clamp(review.Selected, 0, Math.Max(0, _rows.Count - 1));
+        _step = 3;
+        Validate();
+    }
+
+    /// <summary>Replays all moves from the start: legal up to the first move that is not, unknown after it.</summary>
+    private void Validate()
+    {
+        var checks = new List<Check>(_rows.Count);
+        Position? position = Position.FromFen(Position.StartFen);
+        foreach (var row in _rows)
+        {
+            if (position is null)
+            {
+                checks.Add(new Check(MoveStatus.Unknown, null));
+                continue;
+            }
+            try
+            {
+                if (string.IsNullOrWhiteSpace(row.Text)) throw new FormatException();
+                var move = position.ParseSan(row.Text.Trim());
+                var after = position.Play(move);
+                checks.Add(new Check(MoveStatus.Legal, position, position.ToSan(move), move, after));
+                position = after;
+            }
+            catch (Exception e) when (e is FormatException or ArgumentException or InvalidOperationException)
+            {
+                checks.Add(new Check(MoveStatus.Illegal, position));
+                position = null;
+            }
+        }
+        _checks = checks;
+        _fromSquare = null;
+    }
+
+    private int FirstIllegal => _checks.FindIndex(c => c.Status != MoveStatus.Legal);
+    private int UncheckedCount => _rows.Count(r => !r.Checked);
+    private bool CanSave => _rows.Count > 0 && FirstIllegal < 0 && UncheckedCount == 0;
+
+    private string SaveHint
+    {
+        get
+        {
+            if (_rows.Count == 0) return L["WizardNoMoves"];
+            if (FirstIllegal is var i and >= 0) return L["WizardIllegalMove", MoveLabel(i)];
+            return UncheckedCount > 0 ? L["WizardToCheck", UncheckedCount] : L["WizardAllChecked", _rows.Count];
+        }
+    }
+
+    private static string MoveLabel(int index) => index % 2 == 0 ? $"{index / 2 + 1}." : $"{index / 2 + 1}...";
+
+    private RenderFragment ReviewStep => __builder =>
+    {
+        if (_wizard is null) return;
+        <div>
+        @if (!string.IsNullOrWhiteSpace(_wizard.Remarks))
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">@L["WizardRemarks"] <i>@_wizard.Remarks</i></MudAlert>
+        }
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@L["WizardCheckHelp"]</MudText>
+        <div class="review-layout">
+            <div class="review-photo @(_zoomed ? "zoomed" : "")" title="@L["WizardZoom"]" @onclick="() => _zoomed = !_zoomed">
+                <img src="@TournamentApi.ScoresheetImageUrl(_wizard.GameId, _wizard.PhotoId)" alt="@L["ScoresheetPhotos"]" />
+            </div>
+
+            <div>
+                <div class="review-moves">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th title="@L["WizardChecked"]"><MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" /></th>
+                                <th>#</th>
+                                <th>@L["WizardMove"]</th>
+                                <th>@L["WizardConfidence"]</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < _rows.Count; i++)
+                            {
+                                var index = i;
+                                var row = _rows[i];
+                                var check = _checks[i];
+                                var css = (index == _selected ? "selected" : "")
+                                          + (check.Status == MoveStatus.Illegal ? " illegal" : !row.Checked ? " unchecked" : "");
+                                <tr class="@css" @onclick="() => Select(index)">
+                                    <td>
+                                        <input type="checkbox" class="review-move-check" checked="@row.Checked"
+                                               aria-label="@L["WizardChecked"]" @onclick:stopPropagation="true"
+                                               @onchange="e => SetChecked(index, e.Value is true)" />
+                                    </td>
+                                    <td class="review-move-number">@MoveLabel(index)</td>
+                                    <td>
+                                        <input class="review-move-input @(check.Status == MoveStatus.Illegal ? "illegal" : "")"
+                                               value="@row.Text" maxlength="20" spellcheck="false" autocomplete="off"
+                                               aria-label="@L["WizardMove"]"
+                                               @onfocus="() => Select(index)"
+                                               @oninput="e => TextChanged(index, e.Value?.ToString())"
+                                               @onblur="() => Normalize(index)"
+                                               @onkeydown="e => KeyDownAsync(index, e)" />
+                                    </td>
+                                    <td>@ConfidenceChip(row)</td>
+                                    <td>@StatusIcon(check)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-2">
+                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAtEnd">
+                        @L["WizardAddMove"]
+                    </MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.PlaylistAdd"
+                               OnClick="InsertBefore" Disabled="@(_rows.Count == 0)">@L["WizardInsertMove"]</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Delete" Color="Color.Error"
+                               OnClick="DeleteSelected" Disabled="@(_rows.Count == 0)">@L["WizardDeleteMove"]</MudButton>
+                </div>
+            </div>
+
+            <div class="review-board">
+                @BoardPanel
+            </div>
+        </div>
+        </div>
+    };
+
+    private RenderFragment BoardPanel => __builder =>
+    {
+        if (_rows.Count == 0 || _selected >= _checks.Count)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["WizardNoMovesHelp"]</MudText>
+            return;
+        }
+        var row = _rows[_selected];
+        var check = _checks[_selected];
+        var white = _selected % 2 == 0;
+        <div>
+        <MudText Typo="Typo.subtitle2" Class="mb-1">
+            @MoveLabel(_selected) @(check.San ?? row.Text)
+        </MudText>
+        @if (check.Before is null)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true">@L["WizardFixEarlier", MoveLabel(FirstIllegal)]</MudAlert>
+        }
+        else
+        {
+            var showAfter = _showAfter && check.After is not null;
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">
+                @(showAfter ? L["WizardPositionAfter"] : L[white ? "WizardPositionBeforeWhite" : "WizardPositionBeforeBlack"])
+            </MudText>
+            @if (showAfter)
+            {
+                <ChessBoard Fen="@check.After!.ToFen()" LastMove="@check.Move?.ToUci()" IsCheckMarked="@check.After.InCheck" />
+            }
+            else
+            {
+                <ChessBoard Fen="@check.Before.ToFen()" Arrow="@check.Move?.ToUci()" IsCheckMarked="@check.Before.InCheck"
+                            OnSquareClick="SquareClickedAsync" SelectedSquare="_fromSquare" Targets="Targets" />
+            }
+            <div class="d-flex align-center flex-wrap gap-1 mt-1">
+                <MudTooltip Text="@L["WizardPrevious"]">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="@L["WizardPrevious"]"
+                                   OnClick="() => Select(_selected - 1)" Disabled="@(_selected == 0)" />
+                </MudTooltip>
+                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Check"
+                           OnClick="ConfirmAndNext" Disabled="@(check.Status != MoveStatus.Legal)">@L["WizardConfirm"]</MudButton>
+                <MudTooltip Text="@L["WizardNext"]">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="@L["WizardNext"]"
+                                   OnClick="() => Select(_selected + 1)" Disabled="@(_selected >= _rows.Count - 1)" />
+                </MudTooltip>
+                <MudSpacer />
+                <MudSwitch T="bool" @bind-Value="_showAfter" Size="Size.Small" Color="Color.Primary"
+                           Disabled="@(check.After is null)" Label="@L["WizardShowAfter"]" />
+            </div>
+            @if (!showAfter)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-1">@L["WizardBoardHelp"]</MudText>
+            }
+        }
+        @if (row.ReadAs.Length > 0)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2">@L["WizardReadAs"] <b>@row.ReadAs</b></MudText>
+        }
+        @if (row.Alternatives.Count > 0)
+        {
+            <div class="d-flex align-center flex-wrap gap-1 mt-1">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["WizardAlternatives"]</MudText>
+                @foreach (var alternative in row.Alternatives)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="() => UseText(_selected, alternative)">@alternative</MudChip>
+                }
+            </div>
+        }
+        </div>
+    };
+
+    private RenderFragment ConfidenceChip(Row row) => __builder =>
+    {
+        var (css, key) = row.Confidence switch
+        {
+            MoveConfidence.High => ("high", "ConfidenceHigh"),
+            MoveConfidence.Medium => ("medium", "ConfidenceMedium"),
+            _ => ("low", "ConfidenceLow")
+        };
+        if (row.ReadAs.Length == 0)
+        {
+            <span class="review-confidence low" title="@L["WizardAddedHelp"]">@L["WizardAdded"]</span>
+        }
+        else
+        {
+            <span class="review-confidence @css" title="@L[key + "Help"]">@L[key]</span>
+        }
+    };
+
+    private RenderFragment StatusIcon(Check check) => __builder =>
+    {
+        switch (check.Status)
+        {
+            case MoveStatus.Legal:
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Title="@L["WizardLegal"]" />
+                break;
+            case MoveStatus.Illegal:
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" Title="@L["WizardIllegal"]" />
+                break;
+            default:
+                <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" Class="mud-text-secondary" Title="@L["WizardUnknown"]" />
+                break;
+        }
+    };
+
+    private void Select(int index)
+    {
+        if (index < 0 || index >= _rows.Count || index == _selected) return;
+        _selected = index;
+        _fromSquare = null;
+        ScheduleSave();
+    }
+
+    private void SetChecked(int index, bool value)
+    {
+        _rows[index].Checked = value;
+        ScheduleSave();
+    }
+
+    /// <summary>Typed by the user: that is a checked move (the board says whether it is legal).</summary>
+    private void TextChanged(int index, string? text)
+    {
+        _rows[index].Text = (text ?? "").Trim();
+        _rows[index].Checked = true;
+        Validate();
+        ScheduleSave();
+    }
+
+    /// <summary>A legal move is written in standard notation (e.g. Pf3 becomes Nf3) when the user leaves the field.</summary>
+    private void Normalize(int index)
+    {
+        if (index < _checks.Count && _checks[index] is { Status: MoveStatus.Legal, San: { } san } && _rows[index].Text != san)
+        {
+            _rows[index].Text = san;
+            ScheduleSave();
+        }
+    }
+
+    private void UseText(int index, string text)
+    {
+        _rows[index].Text = text;
+        _rows[index].Checked = true;
+        Validate();
+        Normalize(index);
+        ScheduleSave();
+    }
+
+    /// <summary>Enter: the move is right, go to the next one; arrow keys move between the moves.</summary>
+    private Task KeyDownAsync(int index, KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+                Normalize(index);
+                if (_checks[index].Status == MoveStatus.Legal) ConfirmAndNext();
+                break;
+            case "ArrowDown":
+                Select(index + 1);
+                break;
+            case "ArrowUp":
+                Select(index - 1);
+                break;
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The selected move is right: check it and go to the next move that still has to be checked.</summary>
+    private void ConfirmAndNext()
+    {
+        if (_rows.Count == 0) return;
+        _rows[_selected].Checked = true;
+        var next = _rows.FindIndex(_selected + 1, r => !r.Checked);
+        if (next < 0) next = _rows.FindIndex(r => !r.Checked);
+        if (next < 0) next = Math.Min(_selected + 1, _rows.Count - 1);
+        _selected = next;
+        _fromSquare = null;
+        ScheduleSave();
+    }
+
+    private void AddAtEnd()
+    {
+        _rows.Add(EmptyRow());
+        _selected = _rows.Count - 1;
+        Validate();
+        ScheduleSave();
+    }
+
+    /// <summary>A move that was missed: an empty move before the selected one (the colors after it shift).</summary>
+    private void InsertBefore()
+    {
+        _rows.Insert(_selected, EmptyRow());
+        Validate();
+        ScheduleSave();
+    }
+
+    /// <summary>A move that was read twice or does not belong there (the colors after it shift).</summary>
+    private void DeleteSelected()
+    {
+        if (_rows.Count == 0) return;
+        _rows.RemoveAt(_selected);
+        _selected = Math.Clamp(_selected, 0, Math.Max(0, _rows.Count - 1));
+        Validate();
+        ScheduleSave();
+    }
+
+    // ----- Entering a move on the board: the piece, then the square it goes to -----
+
+    private IReadOnlyCollection<int>? Targets =>
+        _fromSquare is { } from && _checks[_selected].Before is { } position
+            ? position.LegalMoves().Where(m => m.From == from).Select(m => m.To).ToHashSet()
+            : null;
+
+    private Task SquareClickedAsync(int square)
+    {
+        if (_checks[_selected].Before is not { } position) return Task.CompletedTask;
+        var legal = position.LegalMoves();
+
+        if (_fromSquare is { } from && legal.Where(m => m.From == from && m.To == square).ToList() is { Count: > 0 } moves)
+        {
+            // A promotion becomes a queen; another piece can be typed (e.g. e8=N).
+            var move = moves.FirstOrDefault(m => m.Promotion is '\0' or 'Q');
+            if (move == default) move = moves[0];
+            _rows[_selected].Text = position.ToSan(move);
+            _rows[_selected].Checked = true;
+            Validate();
+            ScheduleSave();
+            return Task.CompletedTask;
+        }
+
+        _fromSquare = legal.Any(m => m.From == square) && square != _fromSquare ? square : null;
+        return Task.CompletedTask;
+    }
+
+    // ----- Saving: the work in progress (to continue later), and at the end the moves -----
+
+    private CancellationTokenSource? _saveDelay;
+    private bool _dirty;
+
+    /// <summary>Saves the work a moment after the last change (not on every key press).</summary>
+    private void ScheduleSave()
+    {
+        _dirty = true;
+        _saveDelay?.Cancel();
+        _saveDelay = new CancellationTokenSource();
+        _ = SaveLaterAsync(_saveDelay.Token);
+    }
+
+    private async Task SaveLaterAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(1000, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return; // a newer change saves
+        }
+        await SaveReviewAsync();
+    }
+
+    private async Task SaveReviewAsync()
+    {
+        if (_wizard is null || _step != 3) return;
+        _dirty = false;
+        var review = new ScoresheetReviewDto(
+            _rows.Select(r => new ScoresheetReviewMoveDto(r.Text, r.ReadAs, r.Alternatives, r.Confidence, r.Checked)).ToList(),
+            _selected);
+        try
+        {
+            await Api.SaveScoresheetReviewAsync(_wizard.GameId, _wizard.PhotoId, review);
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _dirty = true; // tried again with the next change, or when the dialog is closed
+        }
+    }
+
+    private async Task FlushAsync()
+    {
+        _saveDelay?.Cancel();
+        if (_dirty) await SaveReviewAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        await FlushAsync();
+        Dialog.Cancel();
+    }
+
+    /// <summary>Starts over with a new photo; the wizard so far is closed (its photo is kept).</summary>
+    private async Task StartOverAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(L["WizardStartOver"], L["WizardStartOverConfirm"],
+            yesText: L["WizardStartOver"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
+
+        _busy = true;
+        try
+        {
+            _saveDelay?.Cancel();
+            _dirty = false;
+            await Api.CloseScoresheetWizardAsync(Game.Id);
+            _wizard = null;
+            _rows.Clear();
+            _checks = [];
+            _readError = null;
+            OtherPhoto();
+            _step = 1;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            ShowError(e);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>The checked moves become the game's PGN (the caller saves it, which starts the analysis).</summary>
+    private async Task SaveAsync()
+    {
+        if (!CanSave) return;
+        _busy = true;
+        try
+        {
+            await FlushAsync();
+            var pgn = await Api.BuildScoresheetPgnAsync(Game.Id, _checks.Select(c => c.San!).ToList());
+            Dialog.Close(DialogResult.Ok(pgn.Pgn ?? ""));
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            ShowError(e);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ShowError(Exception e)
+    {
+        var message = e switch
+        {
+            ApiClientException { Code: { } code } api => L[$"Error_{code}"].Value + (api.Detail is { } detail ? " " + detail : ""),
+            ApiClientException => L["Error_Unknown"].Value,
+            _ => L["Error_ServerUnavailable"].Value
+        };
+        Snackbar.Add(message, Severity.Error);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        // Closed with Escape or the close icon: keep the work.
+        await FlushAsync();
+        _saveDelay?.Dispose();
+    }
+}

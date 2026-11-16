@@ -110,29 +110,44 @@ public record EvaluationDto(int? Centipawns, int? Mate, double WhiteWinChance);
 
 public record PgnMoveErrorDto(int MoveNumber, bool White, string Text);
 
-/// <summary>The moves read from a photo of the handwritten scoresheet, as PGN to check and save.</summary>
-/// <param name="Pgn">Tags from the app (event, players, result) and the moves that could be replayed; doubtful
-/// moves carry a comment with what was read, unread moves are in a comment at the end.</param>
-/// <param name="Moves">Number of half-moves in the PGN.</param>
-/// <param name="Uncertain">Moves that could only be read with doubt: check them on the sheet.</param>
-/// <param name="Stop">Where reading stopped (no legal move fitted what was written); null when all moves were read.</param>
-/// <param name="Remarks">Notes of the reader (Dutch), e.g. about illegible rows; may be empty.</param>
-public record ScoresheetResultDto(
-    string Pgn,
-    int Moves,
-    IReadOnlyList<ScoresheetUncertainMoveDto> Uncertain,
-    ScoresheetStopDto? Stop,
-    string Remarks,
-    string Model,
-    int ScoresheetId);
-
 /// <summary>A photo of the handwritten scoresheet of a game, kept for the records (the image: GET
 /// api/games/{GameId}/scoresheets/{Id}/image).</summary>
 /// <param name="UploadedBy">Display name of the user who uploaded it.</param>
 /// <param name="Bytes">Size of the image.</param>
 public record ScoresheetPhotoDto(int Id, int GameId, DateTime UploadedAt, string? UploadedBy, int Bytes);
 
-public record ScoresheetUncertainMoveDto(int MoveNumber, bool White, string San, string ReadAs);
+/// <summary>
+/// The wizard that turns a scoresheet photo into moves: the photo, how far reading it got, and the moves the user is
+/// checking. It stays open (also when the dialog is closed) until the moves are saved or the user starts over.
+/// </summary>
+/// <param name="ReadError">Why reading failed (Dutch), when <paramref name="ReadStatus"/> is Failed.</param>
+/// <param name="Model">The Claude model that read the photo.</param>
+/// <param name="Remarks">Notes of the reader (Dutch), e.g. about illegible rows; may be empty.</param>
+/// <param name="Review">The moves to check; null until the photo was read (or the user chose to type them).</param>
+public record ScoresheetWizardDto(
+    int PhotoId,
+    int GameId,
+    DateTime UploadedAt,
+    ScoresheetReadStatus ReadStatus,
+    string? ReadError,
+    string? Model,
+    string Remarks,
+    ScoresheetReviewDto? Review);
 
-/// <param name="Unread">Number of half-moves on the sheet from this move on that are not in the PGN.</param>
-public record ScoresheetStopDto(int MoveNumber, bool White, string ReadAs, int Unread);
+/// <summary>The moves of a scoresheet as the user is checking them, one per half-move in order (1. White, 1. Black, ...).</summary>
+/// <param name="Selected">The half-move the user is at.</param>
+public record ScoresheetReviewDto(IReadOnlyList<ScoresheetReviewMoveDto> Moves, int Selected = 0);
+
+/// <param name="Text">The move as it stands now (SAN, possibly corrected by the user); may be illegal or empty.</param>
+/// <param name="ReadAs">What the reader read on the sheet ("" for a move the user added).</param>
+/// <param name="Alternatives">Other possible readings.</param>
+/// <param name="Checked">The user (or a confident reading) confirmed the move.</param>
+public record ScoresheetReviewMoveDto(
+    string Text,
+    string ReadAs,
+    IReadOnlyList<string> Alternatives,
+    MoveConfidence Confidence,
+    bool Checked);
+
+/// <summary>The checked moves (SAN), to turn into PGN with the game's tags.</summary>
+public record ScoresheetPgnRequest(IReadOnlyList<string> Moves);

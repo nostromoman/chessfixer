@@ -1,6 +1,7 @@
 @* A chess board drawn from a FEN, with the last move highlighted and optionally an arrow (the engine's best move).
+   With OnSquareClick the squares can be clicked (e.g. to enter a move: piece, then target square).
    Pieces are the "cburnett" SVG set (wwwroot/pieces/cburnett, GPLv2+, see LICENSE.txt there). *@
-<div class="chess-board @(Flipped ? "flipped" : "")" role="img" aria-label="@Fen">
+<div class="chess-board @(Flipped ? "flipped" : "") @(Clickable ? "clickable" : "")" role="@(Clickable ? "grid" : "img")" aria-label="@Fen">
     @for (var row = 0; row < 8; row++)
     {
         @for (var col = 0; col < 8; col++)
@@ -9,8 +10,10 @@
             var piece = _board[square];
             var css = "chess-square " + ((square / 8 + square % 8) % 2 == 0 ? "dark" : "light")
                       + (square == _lastFrom || square == _lastTo ? " last-move" : "")
-                      + (square == _checkSquare ? " in-check" : "");
-            <div class="@css">
+                      + (square == _checkSquare ? " in-check" : "")
+                      + (square == SelectedSquare ? " selected" : "")
+                      + (Targets?.Contains(square) == true ? (piece == '\0' ? " target" : " target-capture") : "");
+            <div class="@css" @onclick="() => ClickAsync(square)">
                 @if (piece != '\0')
                 {
                     <img class="chess-piece" src="@PieceUrl(piece)" alt="@PieceName(piece)" draggable="false" />
@@ -50,6 +53,19 @@
 
     /// <summary>Black at the bottom.</summary>
     [Parameter] public bool Flipped { get; set; }
+
+    /// <summary>A square was clicked (0 = a1, 63 = h8).</summary>
+    [Parameter] public EventCallback<int> OnSquareClick { get; set; }
+
+    /// <summary>A highlighted square, e.g. the piece about to move.</summary>
+    [Parameter] public int? SelectedSquare { get; set; }
+
+    /// <summary>Squares marked with a dot, e.g. where the selected piece can go.</summary>
+    [Parameter] public IReadOnlyCollection<int>? Targets { get; set; }
+
+    private bool Clickable => OnSquareClick.HasDelegate;
+
+    private Task ClickAsync(int square) => Clickable ? OnSquareClick.InvokeAsync(square) : Task.CompletedTask;
 
     private readonly char[] _board = new char[64];
     private int _lastFrom = -1, _lastTo = -1, _checkSquare = -1;

@@ -1,11 +1,14 @@
 using ChessFixer.Core.Chess;
+using ChessFixer.Shared.Enums;
 
 namespace ChessFixer.Core.Tests.Chess;
 
 public class ScoresheetReconstructionTests
 {
-    private static ReadMove W(int n, string text, bool certain = true, params string[] alternatives) => new(n, true, text, alternatives, certain);
-    private static ReadMove B(int n, string text, bool certain = true, params string[] alternatives) => new(n, false, text, alternatives, certain);
+    private static ReadMove W(int n, string text, bool certain = true, params string[] alternatives) =>
+        new(n, true, text, alternatives, certain ? MoveConfidence.High : MoveConfidence.Low);
+    private static ReadMove B(int n, string text, bool certain = true, params string[] alternatives) =>
+        new(n, false, text, alternatives, certain ? MoveConfidence.High : MoveConfidence.Low);
 
     private static Task<string?> NoRepair(RepairQuestion _) => Task.FromResult<string?>(null);
 
@@ -27,6 +30,7 @@ public class ScoresheetReconstructionTests
             [W(1, "e4"), B(1, "e5"), W(2, "Nf5", false, "Nf3"), B(2, "Nc6")], NoRepair);
         Assert.Equal(["e4", "e5", "Nf3", "Nc6"], game.Moves);
         Assert.Equal(new UncertainMove(2, true, "Nf3", "Nf5"), Assert.Single(game.Uncertain));
+        Assert.Equal([MoveSource.AsRead, MoveSource.AsRead, MoveSource.Alternative, MoveSource.AsRead], game.Sources);
     }
 
     [Fact]
@@ -52,6 +56,7 @@ public class ScoresheetReconstructionTests
         Assert.Contains("Nf6", asked.LegalMoves);
         Assert.Equal(20, asked.LegalMoves.Count);
         Assert.Equal(["e4", "Nf6", "d4"], game.Moves);
+        Assert.Equal(MoveSource.Repaired, game.Sources[1]);
         Assert.Null(game.Stop);
     }
 

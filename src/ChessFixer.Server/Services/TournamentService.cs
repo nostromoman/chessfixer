@@ -651,6 +651,8 @@ public class TournamentService(
         });
 
         if (changed) await analyses.ResetAsync(gameId);
+        // Moves saved: a scoresheet photo that was being read for this game is done.
+        if (PgnText.Normalize(pgn) is not null) await ScoresheetService.CloseWizardsAsync(db, gameId);
         return dto;
     }
 

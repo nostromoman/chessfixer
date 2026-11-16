@@ -43,6 +43,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
         StoreAsText<ActivityKind>();
         StoreAsText<ActivityChangeKind>();
         StoreAsText<AnalysisStatus>();
+        StoreAsText<ScoresheetReadStatus>();
 
         // All times are UTC. SQLite does not keep DateTimeKind, so mark the values as UTC again when reading.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcConverter>();
@@ -195,6 +196,9 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             sheet.HasOne(s => s.Game).WithMany(g => g.Scoresheets).HasForeignKey(s => s.GameId).OnDelete(DeleteBehavior.Cascade);
             sheet.Property(s => s.ContentType).HasMaxLength(50);
             sheet.Property(s => s.UploadedBy).HasMaxLength(100);
+            sheet.Property(s => s.ReadError).HasMaxLength(1000);
+            sheet.Property(s => s.ReadModel).HasMaxLength(100);
+            sheet.Property(s => s.ReadRemarks).HasMaxLength(2000);
         });
 
         modelBuilder.Entity<AppSettings>(settings =>

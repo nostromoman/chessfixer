@@ -61,95 +61,206 @@ public class ScoresheetTests : ApiTestBase
         return (id, game);
     }
 
-    private Task<HttpResponseMessage> PostPhotoAsync(int id, int gameId, string contentType = "image/jpeg")
+    private Task<HttpResponseMessage> PostPhotoAsync(int gameId, string contentType = "image/jpeg")
     {
         var content = new ByteArrayContent(Photo);
         content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-        return Client.PostAsync($"api/tournaments/{id}/games/{gameId}/scoresheet", content);
+        return Client.PostAsync($"api/games/{gameId}/scoresheets", content);
     }
 
-    private static ReadMove W(int n, string text, bool certain = true, params string[] alternatives) => new(n, true, text, alternatives, certain);
-    private static ReadMove B(int n, string text, bool certain = true, params string[] alternatives) => new(n, false, text, alternatives, certain);
+    private async Task<ScoresheetPhotoDto> UploadAsync(int gameId) => await ReadAsync<ScoresheetPhotoDto>(await PostPhotoAsync(gameId));
+
+    private Task<HttpResponseMessage> PostReadAsync(int gameId, int photoId) =>
+        Client.PostAsync($"api/games/{gameId}/scoresheets/{photoId}/read", null);
+
+    private async Task<ScoresheetWizardDto> ReadPhotoAsync(int gameId, int photoId) =>
+        await ReadAsync<ScoresheetWizardDto>(await PostReadAsync(gameId, photoId));
+
+    private async Task<ScoresheetWizardDto?> GetWizardAsync(int gameId)
+    {
+        var response = await Client.GetAsync($"api/games/{gameId}/scoresheet-wizard");
+        return response.StatusCode == HttpStatusCode.NoContent ? null : await ReadAsync<ScoresheetWizardDto>(response);
+    }
+
+    private static ReadMove W(int n, string text, MoveConfidence confidence = MoveConfidence.High, params string[] alternatives) =>
+        new(n, true, text, alternatives, confidence);
+    private static ReadMove B(int n, string text, MoveConfidence confidence = MoveConfidence.High, params string[] alternatives) =>
+        new(n, false, text, alternatives, confidence);
 
     [Fact]
-    public async Task Photo_IsReadIntoPgn_WithDoubtsMarked_AndNothingSaved()
+    public async Task Photo_IsRead_IntoMovesToCheck_WithTheConfidence_AndNothingSaved()
     {
         await UseClaudeAsync();
         var (id, game) = await PlayedGameAsync();
         // Dutch notation; 2. Pf5 is impossible (the alternative Pf3 is taken); 2... "Pg6" fits nothing, the repair says Nc6.
-        _reader.Moves = [W(1, "e4"), B(1, "e5"), W(2, "Pf5", false, "Pf3"), B(2, "Pg6"), W(3, "Lb5")];
+        _reader.Moves = [W(1, "e4"), B(1, "e5"), W(2, "Pf5", MoveConfidence.High, "Pf3"), B(2, "Pg6"), W(3, "Lb5", MoveConfidence.Medium)];
         _reader.Repairs[(2, false)] = "Nc6";
+        var photo = await UploadAsync(game.Id);
 
-        var result = await ReadAsync<ScoresheetResultDto>(await PostPhotoAsync(id, game.Id));
+        var wizard = await ReadPhotoAsync(game.Id, photo.Id);
 
-        Assert.Equal(5, result.Moves);
-        Assert.Null(result.Stop);
-        Assert.Equal("Zet 3 is slordig.", result.Remarks);
-        Assert.Equal("claude-opus-5-5", result.Model);
-        Assert.Equal([(2, true, "Nf3", "Pf5"), (2, false, "Nc6", "Pg6")],
-            result.Uncertain.Select(u => (u.MoveNumber, u.White, u.San, u.ReadAs)));
+        Assert.Equal((photo.Id, ScoresheetReadStatus.Done, "claude-opus-5-5", "Zet 3 is slordig."),
+            (wizard.PhotoId, wizard.ReadStatus, wizard.Model, wizard.Remarks));
+        // Only what Claude was sure of, and is what was read, is checked in advance.
+        Assert.Equal(
+        [
+            ("e4", "e4", MoveConfidence.High, true),
+            ("e5", "e5", MoveConfidence.High, true),
+            ("Nf3", "Pf5", MoveConfidence.Medium, false), // another reading was taken
+            ("Nc6", "Pg6", MoveConfidence.Low, false), // repaired
+            ("Bb5", "Lb5", MoveConfidence.Medium, false)
+        ], wizard.Review!.Moves.Select(m => (m.Text, m.ReadAs, m.Confidence, m.Checked)));
+        Assert.Equal(["Pf3"], wizard.Review.Moves[2].Alternatives);
 
         var question = Assert.Single(_reader.Asked);
         Assert.Equal(["e4", "e5", "Nf3"], question.PlayedSoFar);
         Assert.Contains($"White: {game.White.Name} - Black: {game.Black!.Name}, result 1-0", _reader.Context);
         Assert.Equal("image/jpeg", _reader.MediaType);
 
-        // The tags come from the app, the moves are in SAN with comments on the doubtful ones.
-        Assert.Contains($"[White \"{game.White.Name}\"]", result.Pgn);
-        Assert.Contains($"[Black \"{game.Black.Name}\"]", result.Pgn);
-        Assert.Contains("[Result \"1-0\"]", result.Pgn);
-        Assert.Contains("1. e4 e5 2. Nf3 {onzeker, gelezen als: Pf5} 2... Nc6 {onzeker, gelezen als: Pg6} 3. Bb5 1-0",
-            result.Pgn.Replace('\n', ' ')); // lines are wrapped at 80 characters
-        Assert.All(result.Pgn.Split('\n').Where(line => !line.StartsWith('[')), line => Assert.True(line.Length <= 80));
-        Assert.Null(PgnGame.Parse(result.Pgn).Error);
-
-        // Reading does not save anything: the user checks and saves in the dialog.
+        // The wizard is kept, to continue later; nothing is saved as moves yet.
+        var kept = await GetWizardAsync(game.Id);
+        Assert.Equal((photo.Id, ScoresheetReadStatus.Done, 5), (kept!.PhotoId, kept.ReadStatus, kept.Review!.Moves.Count));
         Assert.False(Assert.Single((await GetRoundsAsync(id))[0].Games).HasPgn);
     }
 
     [Fact]
-    public async Task UnreadableMove_StopsThere_RestInAComment()
+    public async Task UnreadableMove_TheRestIsListedAsRead()
     {
         await UseClaudeAsync();
-        var (id, game) = await PlayedGameAsync();
-        _reader.Moves = [W(1, "d4"), B(1, "d5"), W(2, "Kxx"), B(2, "Nf6")];
+        var (_, game) = await PlayedGameAsync();
+        _reader.Moves = [W(1, "d4"), B(1, "d5"), W(2, "Kxx"), B(2, "Nf6", MoveConfidence.Low)];
 
-        var result = await ReadAsync<ScoresheetResultDto>(await PostPhotoAsync(id, game.Id));
+        var wizard = await ReadPhotoAsync(game.Id, (await UploadAsync(game.Id)).Id);
 
-        Assert.Equal(2, result.Moves);
-        Assert.Equal((2, true, "Kxx", 2), (result.Stop!.MoveNumber, result.Stop.White, result.Stop.ReadAs, result.Stop.Unread));
-        Assert.Contains("1. d4 d5 {niet gelezen vanaf zet 2: 2. Kxx 2... Nf6} 1-0", result.Pgn.Replace('\n', ' '));
-        Assert.Null(PgnGame.Parse(result.Pgn).Error);
+        Assert.Equal(["d4", "d5", "Kxx", "Nf6"], wizard.Review!.Moves.Select(m => m.Text));
+        Assert.Equal(["d4", "d5", "Kxx", "Nf6"], wizard.Review.Moves.Select(m => m.ReadAs));
+        Assert.Equal(MoveConfidence.Low, wizard.Review.Moves[3].Confidence);
     }
 
     [Fact]
-    public async Task NeedsClaude_ValidImage_PlayedGame()
+    public async Task NoMovesFound_TheWizardShowsTheFailure()
     {
-        var (id, game) = await PlayedGameAsync();
-        _reader.Moves = [W(1, "e4")];
+        await UseClaudeAsync();
+        var (_, game) = await PlayedGameAsync();
+        _reader.Moves = [];
+        var photo = await UploadAsync(game.Id);
+
+        var wizard = await ReadPhotoAsync(game.Id, photo.Id);
+
+        Assert.Equal((ScoresheetReadStatus.Failed, "Er zijn geen zetten gevonden op de foto."), (wizard.ReadStatus, wizard.ReadError));
+        Assert.Null(wizard.Review);
+        // Kept: to try again or to type the moves.
+        Assert.Equal(ScoresheetReadStatus.Failed, (await GetWizardAsync(game.Id))!.ReadStatus);
+    }
+
+    [Fact]
+    public async Task ReadingNeedsClaude_ThePhotoIsKeptAnyway()
+    {
+        var (_, game) = await PlayedGameAsync();
+        var photo = await UploadAsync(game.Id);
 
         // Default AI provider is Ollama.
-        await AssertErrorAsync(await PostPhotoAsync(id, game.Id), HttpStatusCode.Conflict, ApiErrorCode.ScoresheetNeedsClaude);
+        await AssertErrorAsync(await PostReadAsync(game.Id, photo.Id), HttpStatusCode.Conflict, ApiErrorCode.ScoresheetNeedsClaude);
 
-        await UseClaudeAsync();
-        await AssertErrorAsync(await PostPhotoAsync(id, game.Id, "text/plain"), HttpStatusCode.BadRequest, ApiErrorCode.InvalidScoresheetImage);
-
-        var (forfeitId, forfeit) = await PlayedGameAsync(GameResult.WhiteWinsByForfeit);
-        await AssertErrorAsync(await PostPhotoAsync(forfeitId, forfeit.Id), HttpStatusCode.Conflict, ApiErrorCode.PgnNotAllowed);
+        Assert.Null(await GetWizardAsync(game.Id));
+        Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+        await AssertErrorAsync(await PostReadAsync(game.Id, photo.Id + 100), HttpStatusCode.NotFound, ApiErrorCode.ScoresheetNotFound);
     }
 
     [Fact]
-    public async Task Photo_IsKept_AlsoWhenReadingIsNotPossible()
+    public async Task Review_IsSavedToContinue_NotInTheActivityLog_AndStartOverClosesIt()
     {
+        await UseClaudeAsync();
+        var (_, game) = await PlayedGameAsync();
+        _reader.Moves = [W(1, "e4"), B(1, "e5", MoveConfidence.Low)];
+        var photo = await UploadAsync(game.Id);
+        await ReadPhotoAsync(game.Id, photo.Id);
+
+        var review = new ScoresheetReviewDto(
+        [
+            new ScoresheetReviewMoveDto("e4", "e4", [], MoveConfidence.High, true),
+            new ScoresheetReviewMoveDto(" c5 ", "e5", ["c5"], MoveConfidence.Low, true),
+            new ScoresheetReviewMoveDto("Pf3", "", [], MoveConfidence.Low, false)
+        ], Selected: 2);
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await Client.PutAsJsonAsync($"api/games/{game.Id}/scoresheets/{photo.Id}/review", review)).StatusCode);
+
+        var kept = (await GetWizardAsync(game.Id))!.Review!;
+        Assert.Equal(["e4", "c5", "Pf3"], kept.Moves.Select(m => m.Text));
+        Assert.Equal([true, true, false], kept.Moves.Select(m => m.Checked));
+        Assert.Equal(2, kept.Selected);
+
+        // Saving while the user works does not flood the activity log; reading is logged.
+        using (var admin = await CreateClientAsync(AdminUserName, AdminPassword))
+        {
+            var log = await ReadAsync<ActivityLogPageDto>(await admin.GetAsync("api/activity?take=100"));
+            var actions = log.Entries.Select(e => e.Action).ToList();
+            Assert.Contains("Games.ReadScoresheet", actions);
+            Assert.DoesNotContain("Games.SaveReview", actions);
+        }
+
+        // Starting over closes the wizard; the photo is kept.
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/games/{game.Id}/scoresheet-wizard")).StatusCode);
+        Assert.Null(await GetWizardAsync(game.Id));
+        Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+        // A late save (e.g. from another tab) does not reopen it.
+        await Client.PutAsJsonAsync($"api/games/{game.Id}/scoresheets/{photo.Id}/review", review);
+        Assert.Null(await GetWizardAsync(game.Id));
+    }
+
+    [Fact]
+    public async Task ReadingAnotherPhoto_ReplacesTheWizard()
+    {
+        await UseClaudeAsync();
+        var (_, game) = await PlayedGameAsync();
+        _reader.Moves = [W(1, "e4")];
+        var first = await UploadAsync(game.Id);
+        var second = await UploadAsync(game.Id);
+
+        await ReadPhotoAsync(game.Id, first.Id);
+        await ReadPhotoAsync(game.Id, second.Id);
+
+        Assert.Equal(second.Id, (await GetWizardAsync(game.Id))!.PhotoId);
+    }
+
+    [Fact]
+    public async Task CheckedMoves_BecomePgn_AndSavingThemClosesTheWizard()
+    {
+        await UseClaudeAsync();
         var (id, game) = await PlayedGameAsync();
+        _reader.Moves = [W(1, "e4")];
+        await ReadPhotoAsync(game.Id, (await UploadAsync(game.Id)).Id);
 
-        // Ollama is the AI: reading is not possible, but the photo is kept.
-        await AssertErrorAsync(await PostPhotoAsync(id, game.Id), HttpStatusCode.Conflict, ApiErrorCode.ScoresheetNeedsClaude);
+        // Dutch letters are accepted and written in standard notation.
+        var pgn = (await PostAsync<GamePgnDto>($"api/games/{game.Id}/scoresheet-pgn",
+            new ScoresheetPgnRequest(["e4", "e5", "Pf3", "Pc6", "Lb5"]))).Pgn!;
+        Assert.Contains($"[White \"{game.White.Name}\"]", pgn);
+        Assert.Contains($"[Black \"{game.Black!.Name}\"]", pgn);
+        Assert.Contains("[Result \"1-0\"]", pgn);
+        Assert.Contains("1. e4 e5 2. Nf3 Nc6 3. Bb5 1-0", pgn);
+        Assert.Null(PgnGame.Parse(pgn).Error);
 
-        var photo = Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+        var response = await Client.PostAsJsonAsync($"api/games/{game.Id}/scoresheet-pgn", new ScoresheetPgnRequest(["e4", "e4"]));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        Assert.Equal((ApiErrorCode.InvalidPgn, "Zet 1... e4 is niet mogelijk."), (error!.Code, error.Detail));
+
+        // Saving the moves finishes the wizard.
+        Assert.NotNull(await GetWizardAsync(game.Id));
+        Assert.Equal(HttpStatusCode.OK,
+            (await Client.PutAsJsonAsync($"api/tournaments/{id}/games/{game.Id}/pgn", new SetPgnRequest(pgn))).StatusCode);
+        Assert.Null(await GetWizardAsync(game.Id));
+    }
+
+    [Fact]
+    public async Task Photo_IsKept_WithoutReading()
+    {
+        var (_, game) = await PlayedGameAsync();
+
+        var photo = await UploadAsync(game.Id);
+
         Assert.Equal(LeaderDisplayName, photo.UploadedBy);
         Assert.Equal(Photo.Length, photo.Bytes);
-
         var image = await Client.GetAsync($"api/games/{game.Id}/scoresheets/{photo.Id}/image");
         Assert.Equal(HttpStatusCode.OK, image.StatusCode);
         Assert.Equal("image/jpeg", image.Content.Headers.ContentType?.MediaType);
@@ -164,31 +275,27 @@ public class ScoresheetTests : ApiTestBase
         Assert.Equal(AnalysisStatus.None, page.Analysis.Status);
         Assert.Equal(photo.Id, Assert.Single(page.Scoresheets!).Id);
         Assert.Equal(1, Assert.Single(await GetAsync<List<PlayerAnalysedGameDto>>($"api/players/{game.White.PlayerId}/games")).Scoresheets);
+        // Keeping a photo does not start a wizard.
+        Assert.Null(await GetWizardAsync(game.Id));
     }
 
     [Fact]
-    public async Task ReadPhoto_IsKept_UploadOnly_AndDelete()
+    public async Task Photos_CanBeDeleted()
     {
-        await UseClaudeAsync();
-        var (id, game) = await PlayedGameAsync();
-        _reader.Moves = [W(1, "e4")];
-
-        var read = await ReadAsync<ScoresheetResultDto>(await PostPhotoAsync(id, game.Id));
-
-        var upload = new ByteArrayContent(Photo);
-        upload.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-        var uploaded = await ReadAsync<ScoresheetPhotoDto>(await Client.PostAsync($"api/games/{game.Id}/scoresheets", upload));
+        var (_, game) = await PlayedGameAsync();
+        var first = await UploadAsync(game.Id);
+        var second = await UploadAsync(game.Id);
 
         var photos = await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets");
-        Assert.Equal([read.ScoresheetId, uploaded.Id], photos.Select(p => p.Id));
+        Assert.Equal([first.Id, second.Id], photos.Select(p => p.Id));
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{read.ScoresheetId}")).StatusCode);
-        await AssertErrorAsync(await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{read.ScoresheetId}"),
+        Assert.Equal(HttpStatusCode.NoContent, (await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{first.Id}")).StatusCode);
+        await AssertErrorAsync(await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{first.Id}"),
             HttpStatusCode.NotFound, ApiErrorCode.ScoresheetNotFound);
-        Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"api/games/{game.Id}/scoresheets/{read.ScoresheetId}/image")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"api/games/{game.Id}/scoresheets/{first.Id}/image")).StatusCode);
 
         // The last photo removed and no moves: the game is no longer in the list.
-        await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{uploaded.Id}");
+        await Client.DeleteAsync($"api/games/{game.Id}/scoresheets/{second.Id}");
         Assert.Empty(await GetAsync<List<AnalysedGameSummaryDto>>("api/games"));
         Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"api/games/{game.Id}")).StatusCode);
     }
@@ -196,31 +303,9 @@ public class ScoresheetTests : ApiTestBase
     [Fact]
     public async Task NoPhotoForAForfeit_OrAnInvalidImage()
     {
-        var (id, forfeit) = await PlayedGameAsync(GameResult.WhiteWinsByForfeit);
-        var upload = new ByteArrayContent(Photo);
-        upload.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-        await AssertErrorAsync(await Client.PostAsync($"api/games/{forfeit.Id}/scoresheets", upload),
-            HttpStatusCode.Conflict, ApiErrorCode.PgnNotAllowed);
-
-        var text = new ByteArrayContent(Photo);
-        text.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-        await AssertErrorAsync(await Client.PostAsync($"api/games/{forfeit.Id}/scoresheets", text),
-            HttpStatusCode.BadRequest, ApiErrorCode.InvalidScoresheetImage);
-
+        var (_, forfeit) = await PlayedGameAsync(GameResult.WhiteWinsByForfeit);
+        await AssertErrorAsync(await PostPhotoAsync(forfeit.Id), HttpStatusCode.Conflict, ApiErrorCode.PgnNotAllowed);
+        await AssertErrorAsync(await PostPhotoAsync(forfeit.Id, "text/plain"), HttpStatusCode.BadRequest, ApiErrorCode.InvalidScoresheetImage);
         Assert.Empty(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{forfeit.Id}/scoresheets"));
-    }
-
-    [Fact]
-    public async Task NoMovesFound_IsAnErrorWithDetail()
-    {
-        await UseClaudeAsync();
-        var (id, game) = await PlayedGameAsync();
-        _reader.Moves = [];
-
-        var response = await PostPhotoAsync(id, game.Id);
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        var error = await response.Content.ReadFromJsonAsync<ApiError>();
-        Assert.Equal(ApiErrorCode.ScoresheetFailed, error!.Code);
-        Assert.Equal("Er zijn geen zetten gevonden op de foto.", error.Detail);
     }
 }

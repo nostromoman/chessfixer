@@ -1,11 +1,16 @@
 // Webcam access for WebcamDialog: shows the camera in a <video> element and takes a square snapshot.
 
-/** Starts the camera in the video element. Returns null on success, otherwise the error name (e.g. NotAllowedError). */
-export async function start(video) {
+/**
+ * Starts the camera in the video element: the front camera for a profile photo, the rear camera in high resolution
+ * for a document. Returns null on success, otherwise the error name (e.g. NotAllowedError).
+ */
+export async function start(video, documentMode) {
     if (!navigator.mediaDevices?.getUserMedia) return "NotSupportedError";
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+            video: documentMode
+                ? { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1920 } }
+                : { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: false
         });
         video.srcObject = stream;
@@ -39,6 +44,21 @@ export async function capture(video, size) {
     context.translate(size, 0);
     context.scale(-1, 1);
     context.drawImage(video, (width - side) / 2, (height - side) / 2, side, side, 0, 0, size, size);
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+}
+
+/** Takes a snapshot of the whole video (not mirrored), at most maxSide pixels on the longest side, as JPEG bytes. */
+export async function captureDocument(video, maxSide) {
+    const width = video.videoWidth, height = video.videoHeight;
+    if (!width || !height) return null;
+
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.9));
     return blob ? new Uint8Array(await blob.arrayBuffer()) : null;

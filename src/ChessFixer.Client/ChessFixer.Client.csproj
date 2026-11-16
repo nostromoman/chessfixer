@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ChessFixer.Shared\ChessFixer.Shared.csproj" />
+    <!-- The chess rules: the scoresheet wizard checks every move on the board while the user types. -->
+    <ProjectReference Include="..\ChessFixer.Core\ChessFixer.Core.csproj" />
   </ItemGroup>
 
 </Project>

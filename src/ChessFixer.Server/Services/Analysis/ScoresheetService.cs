@@ -15,9 +15,9 @@ namespace ChessFixer.Server.Services.Analysis;
 
 /// <summary>
 /// Photos of handwritten scoresheets. Every photo is kept for the records (also when reading it fails), and can be
-/// turned into PGN: Claude reads the moves, the board checks them (the first legal reading wins; when none is
-/// legal Claude is asked which legal move is written), and the result is returned as PGN for the user to check.
-/// The PGN itself is not saved here: the user saves it in the dialog.
+/// turned into moves in a wizard: Claude reads them, the board checks them, and the user checks every move against
+/// the photo (with the position on a board) before the moves are saved as PGN. The wizard is kept with the photo, so
+/// the user can continue later.
 /// </summary>
 public class ScoresheetService(
     ChessFixerDbContext db,
@@ -109,51 +109,206 @@ public class ScoresheetService(
         return photo;
     }
 
-    // ----- Reading a photo -----
+    // ----- The wizard: read the photo with Claude, the user checks the moves -----
+
+    /// <summary>A reading that has not finished after this long was interrupted (e.g. the server restarted).</summary>
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromMinutes(10);
+
+    private const int MaxReviewMoves = 400;
+    private const int MaxMoveText = 20;
+
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    /// <summary>The wizard in progress for a game (the latest photo with an open wizard); null when there is none.</summary>
+    public async Task<ScoresheetWizardDto?> GetWizardAsync(int gameId)
+    {
+        if (!await db.Games.AnyAsync(g => g.Id == gameId)) throw new ApiException(ApiErrorCode.GameNotFound);
+        var photo = await db.GameScoresheets.AsNoTracking()
+            .Where(s => s.GameId == gameId && s.ReviewOpen)
+            .OrderByDescending(s => s.Id)
+            .Select(s => new
+            {
+                s.Id, s.GameId, s.UploadedAt, s.ReadStatus, s.ReadStartedAt, s.ReadError, s.ReadModel, s.ReadRemarks, s.Review
+            })
+            .FirstOrDefaultAsync();
+        return photo is null
+            ? null
+            : Wizard(photo.Id, photo.GameId, photo.UploadedAt, photo.ReadStatus, photo.ReadStartedAt, photo.ReadError,
+                photo.ReadModel, photo.ReadRemarks, photo.Review);
+    }
+
+    private static ScoresheetWizardDto Wizard(GameScoresheet photo) =>
+        Wizard(photo.Id, photo.GameId, photo.UploadedAt, photo.ReadStatus, photo.ReadStartedAt, photo.ReadError,
+            photo.ReadModel, photo.ReadRemarks, photo.Review);
+
+    private static ScoresheetWizardDto Wizard(int id, int gameId, DateTime uploadedAt, ScoresheetReadStatus status,
+        DateTime? startedAt, string? error, string? model, string? remarks, string? review)
+    {
+        if (status == ScoresheetReadStatus.Reading && startedAt < DateTime.UtcNow - ReadTimeout)
+            (status, error) = (ScoresheetReadStatus.Failed, "Het lezen is onderbroken; probeer het opnieuw.");
+        return new ScoresheetWizardDto(id, gameId, uploadedAt, status, error, model, remarks ?? "",
+            review is null ? null : JsonSerializer.Deserialize<ScoresheetReviewDto>(review, Json));
+    }
 
     /// <summary>
-    /// Keeps the photo (always, also when reading fails afterwards) and reads the moves from it with Claude.
+    /// Opens the wizard for a kept photo (closing any other wizard of the game) and reads the moves with Claude. Reading
+    /// goes on when the user closes the dialog: the result is kept with the photo and offered when the dialog is
+    /// opened again. A failed reading is not an error here: the wizard shows it and offers to try again or to type
+    /// the moves. The moves are checked on the board: the first legal reading wins, and when none is legal Claude is
+    /// asked which legal move is written.
     /// </summary>
-    public async Task<ScoresheetResultDto> ReadAsync(int tournamentId, int gameId, byte[] image, string? contentType,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+    public async Task<ScoresheetWizardDto> ReadAsync(int gameId, int photoId)
     {
-        var mediaType = ValidImageType(image, contentType);
-        var game = await LoadPlayedGameAsync(g => g.Id == gameId && g.Round.TournamentId == tournamentId, cancellationToken);
-        var photo = await StoreAsync(game, image, mediaType, user);
-
+        var photo = await db.GameScoresheets.SingleOrDefaultAsync(s => s.Id == photoId && s.GameId == gameId)
+                    ?? throw new ApiException(ApiErrorCode.ScoresheetNotFound);
+        var game = await LoadPlayedGameAsync(g => g.Id == gameId, CancellationToken.None);
         if (await aiSettings.GetGeneratorAsync() is not { Generator.Provider: AiProvider.Claude } ai)
             throw new ApiException(ApiErrorCode.ScoresheetNeedsClaude);
         var settings = ai.Settings;
 
-        var result = ResultTag(game.Result);
-        ScoresheetReading reading;
-        ReconstructedGame reconstructed;
+        // Already being read (a second click, or a second device): that reading goes on.
+        if (photo.ReviewOpen && Wizard(photo).ReadStatus == ScoresheetReadStatus.Reading) return Wizard(photo);
+
+        await db.GameScoresheets.Where(s => s.GameId == gameId && s.ReviewOpen && s.Id != photoId)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.ReviewOpen, false));
+        photo.ReviewOpen = true;
+        photo.ReadStatus = ScoresheetReadStatus.Reading;
+        photo.ReadStartedAt = DateTime.UtcNow;
+        photo.ReadError = null;
+        photo.ReadModel = settings.ClaudeModel.Trim();
+        photo.ReadRemarks = null;
+        photo.Review = null;
+        await db.SaveChangesAsync();
+
         try
         {
-            reading = await reader.ReadAsync(settings, image, mediaType,
-                $"White: {game.White.Player.Name} - Black: {game.Black!.Player.Name}, result {result}", cancellationToken);
-            if (reading.Moves.Count == 0)
-                throw new ApiException(ApiErrorCode.ScoresheetFailed, "Er zijn geen zetten gevonden op de foto.");
+            // Not cancelled when the user closes the dialog: the result is kept for when they come back.
+            var cancellationToken = CancellationToken.None;
+            var image = photo.Data;
+            var reading = await reader.ReadAsync(settings, image, photo.ContentType,
+                $"White: {game.White.Player.Name} - Black: {game.Black!.Player.Name}, result {ResultTag(game.Result)}",
+                cancellationToken);
+            if (reading.Moves.Count == 0) throw new InvalidOperationException("Er zijn geen zetten gevonden op de foto.");
 
             var ordered = reading.Moves.OrderBy(m => m.Number).ThenBy(m => m.White ? 0 : 1).ToList();
-            reconstructed = await ScoresheetReconstruction.ReconstructAsync(ordered,
-                question => reader.RepairAsync(settings, image, mediaType, question, cancellationToken));
+            var reconstructed = await ScoresheetReconstruction.ReconstructAsync(ordered,
+                question => reader.RepairAsync(settings, image, photo.ContentType, question, cancellationToken));
+
+            photo.Review = JsonSerializer.Serialize(InitialReview(ordered, reconstructed), Json);
+            photo.ReadRemarks = Truncate(reading.Remarks.Trim(), 2000);
+            photo.ReadStatus = ScoresheetReadStatus.Done;
         }
-        catch (Exception e) when (e is InvalidOperationException or JsonException)
+        catch (Exception e)
         {
             logger.LogWarning(e, "Reading the scoresheet of game {GameId} failed.", gameId);
-            throw new ApiException(ApiErrorCode.ScoresheetFailed,
-                e is JsonException ? "Het antwoord van Claude was onleesbaar." : e.Message);
+            photo.ReadStatus = ScoresheetReadStatus.Failed;
+            photo.ReadError = Truncate(e switch
+            {
+                JsonException => "Het antwoord van Claude was onleesbaar.",
+                InvalidOperationException => e.Message, // already a message for the user (see ClaudeTextGenerator)
+                _ => "Het lezen is mislukt; probeer het opnieuw."
+            }, 1000);
         }
+        await db.SaveChangesAsync();
+        return Wizard(photo);
+    }
 
-        return new ScoresheetResultDto(
-            BuildPgn(game, reconstructed, result),
-            reconstructed.Moves.Count,
-            reconstructed.Uncertain.Select(u => new ScoresheetUncertainMoveDto(u.Number, u.White, u.San, u.ReadAs)).ToList(),
-            reconstructed.Stop is { } stop ? new ScoresheetStopDto(stop.Number, stop.White, stop.ReadAs, stop.Unread.Count) : null,
-            reading.Remarks.Trim(),
-            settings.ClaudeModel.Trim(),
-            photo.Id);
+    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
+
+    /// <summary>
+    /// The moves to check, one per half-move: the ones that could be replayed (in SAN), then the rest as read. A move
+    /// is checked in advance only when Claude was sure and it is what was read; the user checks the others.
+    /// </summary>
+    public static ScoresheetReviewDto InitialReview(IReadOnlyList<ReadMove> ordered, ReconstructedGame reconstructed)
+    {
+        var moves = new List<ScoresheetReviewMoveDto>();
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var read = ordered[i];
+            if (i < reconstructed.Moves.Count)
+            {
+                var confidence = reconstructed.Sources[i] switch
+                {
+                    MoveSource.AsRead => read.Confidence,
+                    MoveSource.Alternative => read.Confidence == MoveConfidence.High ? MoveConfidence.Medium : read.Confidence,
+                    _ => MoveConfidence.Low
+                };
+                moves.Add(new ScoresheetReviewMoveDto(reconstructed.Moves[i], read.Text, read.Alternatives, confidence,
+                    confidence == MoveConfidence.High));
+            }
+            else
+            {
+                // Not replayed: the user corrects the first one, the board then checks the rest.
+                moves.Add(new ScoresheetReviewMoveDto(read.Text, read.Text, read.Alternatives, read.Confidence,
+                    read.Confidence == MoveConfidence.High));
+            }
+        }
+        return new ScoresheetReviewDto(moves);
+    }
+
+    /// <summary>Saves the moves the user is checking (while they work; not in the activity log).</summary>
+    public async Task SaveReviewAsync(int gameId, int photoId, ScoresheetReviewDto review)
+    {
+        if (review.Moves is null || review.Moves.Count > MaxReviewMoves
+            || review.Moves.Any(m => m is null || (m.Text?.Length ?? 0) > MaxMoveText || (m.ReadAs?.Length ?? 0) > 100
+                                     || (m.Alternatives?.Count ?? 0) > 10))
+            throw new ApiException(ApiErrorCode.InvalidPgn);
+        var photo = await db.GameScoresheets.SingleOrDefaultAsync(s => s.Id == photoId && s.GameId == gameId)
+                    ?? throw new ApiException(ApiErrorCode.ScoresheetNotFound);
+        if (!photo.ReviewOpen) return; // finished or started over meanwhile (e.g. in another tab)
+
+        var clean = new ScoresheetReviewDto(
+            review.Moves.Select(m => m with
+            {
+                Text = (m.Text ?? "").Trim(),
+                ReadAs = m.ReadAs ?? "",
+                Alternatives = m.Alternatives ?? []
+            }).ToList(),
+            Math.Clamp(review.Selected, 0, Math.Max(0, review.Moves.Count - 1)));
+        photo.Review = JsonSerializer.Serialize(clean, Json);
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Starts over: the wizard of the game is closed (the photos are kept).</summary>
+    public async Task CloseWizardAsync(int gameId)
+    {
+        if (!await db.Games.AnyAsync(g => g.Id == gameId)) throw new ApiException(ApiErrorCode.GameNotFound);
+        await CloseWizardsAsync(db, gameId);
+    }
+
+    /// <summary>Closes the wizard of a game, e.g. because its moves were saved.</summary>
+    public static Task CloseWizardsAsync(ChessFixerDbContext db, int gameId) =>
+        db.GameScoresheets.Where(s => s.GameId == gameId && s.ReviewOpen)
+            .ExecuteUpdateAsync(u => u.SetProperty(s => s.ReviewOpen, false));
+
+    /// <summary>
+    /// The checked moves as PGN with the game's tags, to save. Every move is checked on the board again; nothing is
+    /// saved here.
+    /// </summary>
+    public async Task<GamePgnDto> BuildPgnAsync(int gameId, ScoresheetPgnRequest request)
+    {
+        var game = await LoadPlayedGameAsync(g => g.Id == gameId, CancellationToken.None);
+        if (request.Moves is not { Count: > 0 } || request.Moves.Count > MaxReviewMoves)
+            throw new ApiException(ApiErrorCode.InvalidPgn);
+
+        var position = Position.FromFen(Position.StartFen);
+        var sans = new List<string>();
+        foreach (var text in request.Moves)
+        {
+            Move move;
+            try
+            {
+                move = position.ParseSan(text ?? "");
+            }
+            catch (FormatException)
+            {
+                throw new ApiException(ApiErrorCode.InvalidPgn,
+                    $"Zet {position.FullmoveNumber}{(position.WhiteToMove ? "." : "...")} {text} is niet mogelijk.");
+            }
+            sans.Add(position.ToSan(move));
+            position = position.Play(move);
+        }
+        return new GamePgnDto(BuildPgn(game, sans, ResultTag(game.Result)));
     }
 
     private static string ResultTag(GameResult result) => result switch
@@ -165,11 +320,10 @@ public class ScoresheetService(
     };
 
     /// <summary>
-    /// The tags come from the app (not from the sheet: names there are often abbreviated); the moves are the ones
-    /// that could be replayed. A doubtful move gets a comment with what was read, so the user can check it; the
-    /// moves that could not be read are kept in a comment at the end.
+    /// The tags come from the app (not from the sheet: names there are often abbreviated), the moves in SAN, in lines
+    /// of at most 80 characters as is usual in PGN.
     /// </summary>
-    public static string BuildPgn(Game game, ReconstructedGame reconstructed, string result)
+    public static string BuildPgn(Game game, IReadOnlyList<string> moves, string result)
     {
         var pgn = new StringBuilder();
         void Tag(string name, string value) =>
@@ -182,26 +336,17 @@ public class ScoresheetService(
         Tag("White", game.White.Player.Name);
         Tag("Black", game.Black!.Player.Name);
         Tag("Result", result);
-        Tag("Annotator", "Gelezen van een foto van het notatieformulier");
+        Tag("Annotator", "Ingelezen van een foto van het notatieformulier");
         pgn.Append('\n');
 
-        var doubtful = reconstructed.Uncertain.ToDictionary(u => (u.Number, u.White), u => u.ReadAs);
         var tokens = new List<string>();
-        var afterComment = false;
-        for (var i = 0; i < reconstructed.Moves.Count; i++)
+        for (var i = 0; i < moves.Count; i++)
         {
-            var (number, white) = (i / 2 + 1, i % 2 == 0);
-            if (white) tokens.Add($"{number}.");
-            else if (afterComment) tokens.Add($"{number}...");
-            tokens.Add(reconstructed.Moves[i]);
-            afterComment = doubtful.TryGetValue((number, white), out var readAs);
-            if (afterComment) tokens.Add($"{{onzeker, gelezen als: {Comment(readAs!)}}}");
+            if (i % 2 == 0) tokens.Add($"{i / 2 + 1}.");
+            tokens.Add(moves[i]);
         }
-        if (reconstructed.Stop is { } stop)
-            tokens.Add($"{{niet gelezen vanaf zet {stop.Number}{(stop.White ? "" : " van zwart")}: {Comment(string.Join(" ", stop.Unread))}}}");
         tokens.Add(result);
 
-        // Lines of at most 80 characters, as is usual in PGN.
         var line = new StringBuilder();
         foreach (var token in tokens)
         {
@@ -215,6 +360,4 @@ public class ScoresheetService(
         }
         return pgn.Append(line).Append('\n').ToString();
     }
-
-    private static string Comment(string text) => text.Replace('{', '(').Replace('}', ')');
 }

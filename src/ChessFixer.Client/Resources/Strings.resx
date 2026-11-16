@@ -853,14 +853,8 @@
   <data name="PlayerGamesCountsHelp" xml:space="preserve"><value>{0} onnauwkeurigheden, {1} fouten, {2} blunders</value></data>
   <data name="AnalysisPendingShort" xml:space="preserve"><value>wacht op analyse</value></data>
   <data name="AnalysisRunningShort" xml:space="preserve"><value>analyse {0}/{1}</value></data>
-  <data name="ScoresheetButton" xml:space="preserve"><value>Foto laten lezen</value></data>
-  <data name="ScoresheetHelp" xml:space="preserve"><value>Maak of kies een foto van het handgeschreven notatieformulier. ‘Foto laten lezen’: Claude leest de zetten en zet ze hieronder (de foto gaat daarvoor naar Anthropic). ‘Foto alleen bewaren’: alleen bewaren, bijvoorbeeld om de zetten later zelf over te typen. De foto wordt altijd bij de partij bewaard, ook als het lezen niet lukt.</value></data>
-  <data name="ScoresheetReading" xml:space="preserve"><value>Claude leest het notatieformulier en de zetten worden op het bord gecontroleerd… Dit kan een minuut duren.</value></data>
-  <data name="ScoresheetRead" xml:space="preserve"><value>{0} zetten gelezen ({1}). Controleer ze met het notatieformulier voordat je opslaat.</value></data>
-  <data name="ScoresheetUncertain" xml:space="preserve"><value>Onzeker gelezen, controleer:</value></data>
-  <data name="ScoresheetUncertainMove" xml:space="preserve"><value>{0} (gelezen als ‘{1}’)</value></data>
-  <data name="ScoresheetStopped" xml:space="preserve"><value>Gestopt bij zet {0}: ‘{1}’ past bij geen enkele mogelijke zet. De {2} halve zetten vanaf daar staan als commentaar onderaan; vul ze zelf aan.</value></data>
-  <data name="ScoresheetTimeout" xml:space="preserve"><value>Het lezen van de foto duurde te lang. Probeer het opnieuw, eventueel met een scherpere foto.</value></data>
+  <data name="ScoresheetButton" xml:space="preserve"><value>Inlezen vanaf foto</value></data>
+  <data name="ScoresheetHelp" xml:space="preserve"><value>Maak of kies een foto van het handgeschreven notatieformulier. Claude leest de zetten (de foto gaat daarvoor naar Anthropic) en daarna controleer je elke zet naast de foto, met de stelling op een bord. De foto wordt altijd bij de partij bewaard, ook als het lezen niet lukt.</value></data>
   <data name="Error_InvalidScoresheetImage" xml:space="preserve"><value>Dit is geen bruikbare foto (JPEG, PNG, GIF of WebP, maximaal 5 MB).</value></data>
   <data name="Error_ScoresheetNeedsClaude" xml:space="preserve"><value>Een foto lezen kan alleen met Claude als AI. Stel dat in bij Instellingen → AI.</value></data>
   <data name="Error_ScoresheetFailed" xml:space="preserve"><value>De foto kon niet gelezen worden.</value></data>
@@ -882,4 +876,66 @@
   <data name="Error_ScoresheetNotFound" xml:space="preserve"><value>Deze foto bestaat niet (meer).</value></data>
   <data name="ActivityAction_Games_UploadScoresheet" xml:space="preserve"><value>Foto van notatieformulier bewaren</value></data>
   <data name="ActivityAction_Games_DeleteScoresheet" xml:space="preserve"><value>Foto van notatieformulier verwijderen</value></data>
+  <data name="WizardTitle" xml:space="preserve"><value>Zetten inlezen van foto: {0} – {1}</value></data>
+  <data name="WizardStepPhoto" xml:space="preserve"><value>Foto</value></data>
+  <data name="WizardStepRead" xml:space="preserve"><value>Lezen door AI</value></data>
+  <data name="WizardStepCheck" xml:space="preserve"><value>Controleren</value></data>
+  <data name="WizardStartOver" xml:space="preserve"><value>Opnieuw beginnen</value></data>
+  <data name="WizardStartOverConfirm" xml:space="preserve"><value>Opnieuw beginnen met een nieuwe foto? Wat je tot nu toe hebt gecontroleerd vervalt; de foto zelf blijft bij de partij bewaard.</value></data>
+  <data name="WizardSave" xml:space="preserve"><value>Opslaan en analyseren</value></data>
+  <data name="WizardPhotoHelp" xml:space="preserve"><value>Kies een foto van het notatieformulier of maak er een met de camera. Leg het formulier plat, in goed licht, en zorg dat alle zetten scherp in beeld zijn.</value></data>
+  <data name="WizardChoosePhoto" xml:space="preserve"><value>Foto kiezen</value></data>
+  <data name="WizardTakePhoto" xml:space="preserve"><value>Foto maken met camera</value></data>
+  <data name="WizardPhotoCheck" xml:space="preserve"><value>Staan alle zetten scherp en leesbaar op de foto? Dan kan Claude ze lezen.</value></data>
+  <data name="WizardOtherPhoto" xml:space="preserve"><value>Andere foto</value></data>
+  <data name="WizardRead" xml:space="preserve"><value>Laten lezen</value></data>
+  <data name="WizardReadFailed" xml:space="preserve"><value>Het lezen is niet gelukt.</value></data>
+  <data name="WizardReadAgain" xml:space="preserve"><value>Opnieuw laten lezen</value></data>
+  <data name="WizardTypeMoves" xml:space="preserve"><value>Zelf invoeren</value></data>
+  <data name="WizardReading" xml:space="preserve"><value>Claude leest het notatieformulier…</value></data>
+  <data name="WizardReadingHelp" xml:space="preserve"><value>Dit duurt meestal een tot twee minuten. Je mag dit venster sluiten: het lezen gaat door, en als je later weer op ‘Zetten toevoegen’ klikt, kun je verdergaan met controleren.</value></data>
+  <data name="WizardNoMoves" xml:space="preserve"><value>Nog geen zetten</value></data>
+  <data name="WizardIllegalMove" xml:space="preserve"><value>Zet {0} is niet mogelijk</value></data>
+  <data name="WizardToCheck" xml:space="preserve"><value>Nog {0} zet(ten) te controleren</value></data>
+  <data name="WizardAllChecked" xml:space="preserve"><value>Alle {0} zetten gecontroleerd</value></data>
+  <data name="WizardRemarks" xml:space="preserve"><value>Opmerking van Claude:</value></data>
+  <data name="WizardCheckHelp" xml:space="preserve"><value>Vergelijk elke zet met de foto. Een zet waar Claude zeker van was, is al aangevinkt; vink de andere aan als ze kloppen. Klopt een zet niet, typ dan de juiste zet (bijvoorbeeld Pf3 of Nf3) of zet hem op het bord. Elke zet wordt op het bord nagespeeld: een rode zet is niet mogelijk.</value></data>
+  <data name="WizardZoom" xml:space="preserve"><value>Klik om in of uit te zoomen</value></data>
+  <data name="WizardChecked" xml:space="preserve"><value>Gecontroleerd</value></data>
+  <data name="WizardMove" xml:space="preserve"><value>Zet</value></data>
+  <data name="WizardConfidence" xml:space="preserve"><value>Zekerheid</value></data>
+  <data name="WizardAddMove" xml:space="preserve"><value>Zet toevoegen</value></data>
+  <data name="WizardInsertMove" xml:space="preserve"><value>Zet invoegen</value></data>
+  <data name="WizardDeleteMove" xml:space="preserve"><value>Zet verwijderen</value></data>
+  <data name="WizardNoMovesHelp" xml:space="preserve"><value>Voeg de eerste zet toe en typ hem, of zet hem op het bord.</value></data>
+  <data name="WizardFixEarlier" xml:space="preserve"><value>Verbeter eerst zet {0}: vanaf daar kan het bord de zetten niet naspelen.</value></data>
+  <data name="WizardPositionAfter" xml:space="preserve"><value>Stelling na de zet</value></data>
+  <data name="WizardPositionBeforeWhite" xml:space="preserve"><value>Stelling vóór de zet, wit aan zet. De pijl is de gelezen zet.</value></data>
+  <data name="WizardPositionBeforeBlack" xml:space="preserve"><value>Stelling vóór de zet, zwart aan zet. De pijl is de gelezen zet.</value></data>
+  <data name="WizardPrevious" xml:space="preserve"><value>Vorige zet</value></data>
+  <data name="WizardNext" xml:space="preserve"><value>Volgende zet</value></data>
+  <data name="WizardConfirm" xml:space="preserve"><value>Klopt</value></data>
+  <data name="WizardShowAfter" xml:space="preserve"><value>Na de zet</value></data>
+  <data name="WizardBoardHelp" xml:space="preserve"><value>Klopt de pijl niet? Klik op het stuk en dan op het veld waar het heen ging.</value></data>
+  <data name="WizardReadAs" xml:space="preserve"><value>Gelezen als:</value></data>
+  <data name="WizardAlternatives" xml:space="preserve"><value>Ook mogelijk:</value></data>
+  <data name="ConfidenceHigh" xml:space="preserve"><value>zeker</value></data>
+  <data name="ConfidenceMedium" xml:space="preserve"><value>twijfel</value></data>
+  <data name="ConfidenceLow" xml:space="preserve"><value>onzeker</value></data>
+  <data name="ConfidenceHighHelp" xml:space="preserve"><value>Claude kon deze zet duidelijk lezen.</value></data>
+  <data name="ConfidenceMediumHelp" xml:space="preserve"><value>Waarschijnlijk goed gelezen, maar een andere lezing is mogelijk.</value></data>
+  <data name="ConfidenceLowHelp" xml:space="preserve"><value>Slecht leesbaar of geraden: controleer deze zet goed.</value></data>
+  <data name="WizardAdded" xml:space="preserve"><value>toegevoegd</value></data>
+  <data name="WizardAddedHelp" xml:space="preserve"><value>Zelf toegevoegd (niet door Claude gelezen).</value></data>
+  <data name="WizardLegal" xml:space="preserve"><value>Mogelijke zet</value></data>
+  <data name="WizardIllegal" xml:space="preserve"><value>Deze zet is niet mogelijk in deze stelling</value></data>
+  <data name="WizardUnknown" xml:space="preserve"><value>Nog niet te controleren: een eerdere zet is niet mogelijk</value></data>
+  <data name="WizardResumeTitle" xml:space="preserve"><value>Je was bezig met het inlezen van een foto van het notatieformulier.</value></data>
+  <data name="WizardResumeCheck" xml:space="preserve"><value>Foto van {0}: {1} van de {2} zetten gecontroleerd. Wil je verdergaan of opnieuw beginnen?</value></data>
+  <data name="WizardResumeReading" xml:space="preserve"><value>Claude is de foto van {0} nog aan het lezen. Wil je verdergaan of opnieuw beginnen?</value></data>
+  <data name="WizardResumeFailed" xml:space="preserve"><value>Het lezen van de foto van {0} is niet gelukt. Wil je verdergaan (opnieuw laten lezen of zelf invoeren) of opnieuw beginnen?</value></data>
+  <data name="WizardResumePhoto" xml:space="preserve"><value>Foto van {0}. Wil je verdergaan of opnieuw beginnen?</value></data>
+  <data name="WizardContinue" xml:space="preserve"><value>Verdergaan</value></data>
+  <data name="ActivityAction_Games_ReadScoresheet" xml:space="preserve"><value>Foto van notatieformulier laten lezen</value></data>
+  <data name="ActivityAction_Games_CloseWizard" xml:space="preserve"><value>Inlezen van notatieformulier opnieuw begonnen</value></data>
 </root>

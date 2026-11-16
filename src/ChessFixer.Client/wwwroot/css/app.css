@@ -465,6 +465,19 @@ html, body {
     transform: scaleX(-1);
 }
 
+/* Webcam photo of a document (scoresheet): the whole frame, not cropped. */
+.webcam.webcam-doc {
+    max-width: 720px;
+    aspect-ratio: auto;
+    min-height: 240px;
+}
+
+.webcam.webcam-doc .webcam-view {
+    height: auto;
+    max-height: 70vh;
+    object-fit: contain;
+}
+
 .webcam-overlay {
     position: absolute;
     inset: 0;
@@ -1718,4 +1731,218 @@ button.schedule-slot {
     gap: 4px;
     font-size: 0.75rem;
     color: var(--mud-palette-text-secondary);
+}
+
+/* A board that can be clicked: the piece to move and where it can go. */
+.chess-board.clickable .chess-square {
+    cursor: pointer;
+}
+
+.chess-square.selected {
+    box-shadow: inset 0 0 0 3px rgba(20, 85, 30, 0.75);
+}
+
+.chess-square.target::after {
+    content: "";
+    position: absolute;
+    left: 37%;
+    top: 37%;
+    width: 26%;
+    height: 26%;
+    border-radius: 50%;
+    background: rgba(20, 85, 30, 0.45);
+    pointer-events: none;
+}
+
+.chess-square.target-capture::after {
+    content: "";
+    position: absolute;
+    inset: 4%;
+    border-radius: 50%;
+    border: 4px solid rgba(20, 85, 30, 0.45);
+    pointer-events: none;
+}
+
+/* ----- Scoresheet wizard: the photo, the moves to check and the board side by side ----- */
+.wizard-steps {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.wizard-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.wizard-step .wizard-step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--mud-palette-lines-default);
+    font-size: 0.75rem;
+}
+
+.wizard-step.active {
+    color: var(--mud-palette-text-primary);
+    font-weight: 500;
+}
+
+.wizard-step.active .wizard-step-number {
+    background: var(--mud-palette-primary);
+    border-color: var(--mud-palette-primary);
+    color: var(--mud-palette-primary-text);
+}
+
+.wizard-step.done .wizard-step-number {
+    border-color: var(--mud-palette-success);
+    color: var(--mud-palette-success);
+}
+
+.wizard-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 55vh;
+    margin: 0 auto;
+    border-radius: 4px;
+    border: 1px solid var(--mud-palette-lines-default);
+}
+
+.review-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 330px 300px;
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .review-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .review-photo {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 700px) {
+    .review-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.review-photo {
+    max-height: 72vh;
+    overflow: auto;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 4px;
+    background: var(--mud-palette-background-gray);
+}
+
+.review-photo img {
+    display: block;
+    width: 100%;
+}
+
+.review-photo.zoomed img {
+    width: 200%;
+    max-width: none;
+}
+
+.review-moves {
+    max-height: 72vh;
+    overflow-y: auto;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 4px;
+}
+
+.review-moves table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.review-moves th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--mud-palette-surface);
+    text-align: left;
+    font-weight: 500;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+.review-moves td {
+    padding: 1px 6px;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+    vertical-align: middle;
+}
+
+.review-moves tr {
+    cursor: pointer;
+}
+
+.review-moves tr.selected td {
+    background: var(--mud-palette-action-default-hover);
+}
+
+.review-moves tr.illegal td.review-move-number {
+    box-shadow: inset 3px 0 0 var(--mud-palette-error);
+}
+
+.review-moves tr.unchecked td.review-move-number {
+    box-shadow: inset 3px 0 0 var(--mud-palette-warning);
+}
+
+.review-move-number {
+    white-space: nowrap;
+    color: var(--mud-palette-text-secondary);
+    width: 1%;
+}
+
+.review-move-input {
+    width: 7.5em;
+    font: inherit;
+    padding: 3px 6px;
+    border: 1px solid var(--mud-palette-lines-inputs);
+    border-radius: 4px;
+    background: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+}
+
+.review-move-input.illegal {
+    border-color: var(--mud-palette-error);
+    color: var(--mud-palette-error);
+}
+
+.review-move-check {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--mud-palette-success);
+}
+
+.review-confidence {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    border: 1px solid currentColor;
+}
+
+.review-confidence.high { color: var(--mud-palette-success); }
+.review-confidence.medium { color: var(--mud-palette-warning-darken); }
+.review-confidence.low { color: var(--mud-palette-error); }
+
+.review-board .chess-board {
+    max-width: 300px;
 }

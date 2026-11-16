@@ -3,7 +3,8 @@
 @inject IStringLocalizer<Strings> L
 
 @* Takes a profile photo with the webcam. Closes with the photo as JPEG bytes (Size x Size pixels).
-   Open it with IDialogService.ShowAsync<WebcamDialog>. *@
+   With Document: a photo of a document (a scoresheet) with the rear camera, the whole frame, not mirrored, at most
+   Size pixels on the longest side. Open it with IDialogService.ShowAsync<WebcamDialog>. *@
 <MudDialog>
     <DialogContent>
         @if (_error is not null)
@@ -12,9 +13,9 @@
         }
         else
         {
-            <div class="webcam">
+            <div class="@(Document ? "webcam webcam-doc" : "webcam")">
                 @* The video stays in the DOM while the snapshot is shown, so "retake" does not restart the camera. *@
-                <video @ref="_video" class="webcam-view webcam-mirrored" style="@(_photoUrl is null ? null : "display: none")"
+                <video @ref="_video" class="@(Document ? "webcam-view" : "webcam-view webcam-mirrored")" style="@(_photoUrl is null ? null : "display: none")"
                        autoplay playsinline muted></video>
                 @if (_photoUrl is not null)
                 {
@@ -52,6 +53,9 @@
     /// <summary>Width and height of the photo in pixels.</summary>
     [Parameter] public int Size { get; set; } = 400;
 
+    /// <summary>A photo of a document: rear camera, whole frame, not mirrored.</summary>
+    [Parameter] public bool Document { get; set; }
+
     private IJSObjectReference? _module;
     private ElementReference _video;
     private bool _ready;
@@ -67,7 +71,7 @@
         try
         {
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/WebcamDialog.razor.js");
-            var error = await _module.InvokeAsync<string?>("start", _video);
+            var error = await _module.InvokeAsync<string?>("start", _video, Document);
             if (error is null) _ready = true;
             else _error = ErrorText(error);
         }
@@ -93,7 +97,9 @@
         _busy = true;
         try
         {
-            var photo = await _module.InvokeAsync<byte[]?>("capture", _video, Size);
+            var photo = Document
+                ? await _module.InvokeAsync<byte[]?>("captureDocument", _video, Size)
+                : await _module.InvokeAsync<byte[]?>("capture", _video, Size);
             if (photo is { Length: > 0 })
             {
                 _photo = photo;

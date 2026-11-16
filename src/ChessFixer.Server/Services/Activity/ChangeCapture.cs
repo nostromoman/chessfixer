@@ -34,7 +34,10 @@ public class ChangeCapture(IHttpContextAccessor http) : SaveChangesInterceptor
     /// <summary>Bookkeeping that is not interesting in the log.</summary>
     private static readonly HashSet<(string Entity, string Property)> Ignored =
     [
-        (nameof(AppUser), nameof(AppUser.LastSeenAt))
+        (nameof(AppUser), nameof(AppUser.LastSeenAt)),
+        // The moves of a scoresheet the user is checking: a work in progress, saved while typing.
+        (nameof(GameScoresheet), nameof(GameScoresheet.Review)),
+        (nameof(GameScoresheet), nameof(GameScoresheet.ReadStartedAt))
     ];
 
     /// <summary>The log itself is not recorded.</summary>

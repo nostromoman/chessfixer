@@ -126,13 +126,34 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     /// <summary>The URL of a scoresheet photo, for an img or a link.</summary>
     public static string ScoresheetImageUrl(int gameId, int photoId) => $"api/games/{gameId}/scoresheets/{photoId}/image";
 
-    /// <summary>Reads the moves from a photo of the handwritten scoresheet (Claude); the photo is kept, the PGN is not saved.</summary>
-    public Task<ScoresheetResultDto> ReadScoresheetAsync(int id, int gameId, byte[] image, string contentType)
+    /// <summary>The scoresheet wizard in progress for the game (to continue); null when there is none.</summary>
+    public async Task<ScoresheetWizardDto?> GetScoresheetWizardAsync(int gameId)
     {
-        var content = new ByteArrayContent(image);
-        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-        return SendAsync<ScoresheetResultDto>(HttpMethod.Post, $"api/tournaments/{id}/games/{gameId}/scoresheet", content);
+        using var response = await SendCoreAsync(HttpMethod.Get, $"api/games/{gameId}/scoresheet-wizard");
+        return response.StatusCode == System.Net.HttpStatusCode.NoContent
+            ? null
+            : await response.Content.ReadFromJsonAsync<ScoresheetWizardDto>();
     }
+
+    /// <summary>Starts over: closes the scoresheet wizard of the game (the photos are kept).</summary>
+    public async Task CloseScoresheetWizardAsync(int gameId)
+    {
+        using var _ = await SendCoreAsync(HttpMethod.Delete, $"api/games/{gameId}/scoresheet-wizard");
+    }
+
+    /// <summary>Opens the wizard for a kept photo and lets Claude read it (takes a minute or two).</summary>
+    public Task<ScoresheetWizardDto> ReadScoresheetPhotoAsync(int gameId, int photoId) =>
+        SendAsync<ScoresheetWizardDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheets/{photoId}/read");
+
+    /// <summary>Saves the moves the user is checking, so the wizard can be continued later.</summary>
+    public async Task SaveScoresheetReviewAsync(int gameId, int photoId, ScoresheetReviewDto review)
+    {
+        using var _ = await SendCoreAsync(HttpMethod.Put, $"api/games/{gameId}/scoresheets/{photoId}/review", review);
+    }
+
+    /// <summary>The checked moves as PGN with the game's tags (not saved).</summary>
+    public Task<GamePgnDto> BuildScoresheetPgnAsync(int gameId, IReadOnlyList<string> moves) =>
+        SendAsync<GamePgnDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheet-pgn", new ScoresheetPgnRequest(moves));
 
     public Task<List<StandingDto>> GetStandingsAsync(int id) =>
         SendAsync<List<StandingDto>>(HttpMethod.Get, $"api/tournaments/{id}/standings");
