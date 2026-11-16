@@ -77,5 +77,7 @@ public enum ApiErrorCode
     /// <summary>Scoresheet photo: Claude could not read it (the detail says why), or found no moves.</summary>
     ScoresheetFailed,
     /// <summary>The scoresheet photo does not exist (any more).</summary>
-    ScoresheetNotFound
+    ScoresheetNotFound,
+    /// <summary>The QR code (link) to send a scoresheet photo is unknown, expired, used or cancelled.</summary>
+    UploadLinkInvalid
 }

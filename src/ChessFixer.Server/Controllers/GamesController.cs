@@ -43,6 +43,19 @@ public class GamesController(GameAnalysisService service, ScoresheetService scor
         return NoContent();
     }
 
+    // ----- A QR code to take the photo with a phone (shown in the wizard, polled while it is shown) -----
+
+    [HttpPost("{gameId:int}/scoresheet-links")]
+    [NoActivityLog]
+    public Task<ScoresheetLinkDto> CreateLink(int gameId) => scoresheets.CreateLinkAsync(gameId, User);
+
+    [HttpGet("{gameId:int}/scoresheet-links/{linkId:int}")]
+    public Task<ScoresheetLinkDto> GetLink(int gameId, int linkId) => scoresheets.GetLinkAsync(gameId, linkId);
+
+    [HttpDelete("{gameId:int}/scoresheet-links/{linkId:int}")]
+    [NoActivityLog]
+    public Task<ScoresheetLinkDto> CancelLink(int gameId, int linkId) => scoresheets.CancelLinkAsync(gameId, linkId);
+
     // ----- The wizard that reads the moves from a photo; the user checks them -----
 
     /// <summary>The wizard in progress for the game (to continue); 204 when there is none.</summary>

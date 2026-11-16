@@ -24,3 +24,17 @@ public enum ScoresheetReadStatus
     Done,
     Failed
 }
+
+/// <summary>A QR code to send a scoresheet photo from a phone (see ScoresheetLinkDto).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ScoresheetLinkStatus>))]
+public enum ScoresheetLinkStatus
+{
+    /// <summary>Not scanned yet.</summary>
+    Waiting,
+    /// <summary>The page was opened on a phone: waiting for the photo.</summary>
+    Opened,
+    /// <summary>The photo was sent (and the link can no longer be used).</summary>
+    Uploaded,
+    Expired,
+    Cancelled
+}

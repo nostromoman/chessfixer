@@ -939,4 +939,20 @@
   <data name="ActivityAction_Games_ReadScoresheet" xml:space="preserve"><value>Foto van notatieformulier laten lezen</value></data>
   <data name="ActivityAction_Games_CloseWizard" xml:space="preserve"><value>Inlezen van notatieformulier opnieuw begonnen</value></data>
   <data name="ActivityProblem" xml:space="preserve"><value>Uitgevoerd, met een probleem</value></data>
+  <data name="WizardQrTitle" xml:space="preserve"><value>Of gebruik je telefoon</value></data>
+  <data name="WizardQrHelp" xml:space="preserve"><value>Scan deze QR-code met de camera van je telefoon (op hetzelfde netwerk) en maak daar de foto. Op de telefoon hoef je niet in te loggen.</value></data>
+  <data name="WizardQrValidUntil" xml:space="preserve"><value>Geldig tot {0}</value></data>
+  <data name="WizardQrLocalhost" xml:space="preserve"><value>Je gebruikt ChessFixer via {0}: dat adres werkt niet op een telefoon. Open ChessFixer via het netwerkadres van de server (bijvoorbeeld http://192.168.…:5016) om de QR-code te gebruiken.</value></data>
+  <data name="WizardQrOpened" xml:space="preserve"><value>De pagina is geopend op een telefoon. Wachten op de foto…</value></data>
+  <data name="WizardQrExpired" xml:space="preserve"><value>De QR-code is verlopen.</value></data>
+  <data name="WizardQrCancelled" xml:space="preserve"><value>De QR-code is geannuleerd.</value></data>
+  <data name="WizardQrNew" xml:space="preserve"><value>Nieuwe QR-code</value></data>
+  <data name="WizardQrReceived" xml:space="preserve"><value>Foto ontvangen van de telefoon.</value></data>
+  <data name="PhoneUploadTitle" xml:space="preserve"><value>Foto van notatieformulier</value></data>
+  <data name="PhoneUploadHelp" xml:space="preserve"><value>Maak een foto van het hele notatieformulier: leg het plat neer, zorg voor goed licht en houd alle zetten scherp in beeld.</value></data>
+  <data name="PhoneUploadTake" xml:space="preserve"><value>Foto maken</value></data>
+  <data name="PhoneUploadRetake" xml:space="preserve"><value>Opnieuw</value></data>
+  <data name="PhoneUploadSend" xml:space="preserve"><value>Versturen</value></data>
+  <data name="PhoneUploadSent" xml:space="preserve"><value>De foto is verstuurd. Ga verder op de computer; je kunt deze pagina sluiten.</value></data>
+  <data name="Error_UploadLinkInvalid" xml:space="preserve"><value>Deze QR-code is verlopen, al gebruikt of geannuleerd. Vraag om een nieuwe QR-code.</value></data>
 </root>

@@ -319,6 +319,32 @@ public class GameScoresheet
     public bool ReviewOpen { get; set; }
 }
 
+/// <summary>
+/// A link (a QR code in the wizard) with which a phone can send one scoresheet photo for a game without logging in.
+/// The random token is the only key; it works for 20 minutes, until a photo is sent or the wizard cancels it.
+/// </summary>
+public class ScoresheetUploadLink
+{
+    public int Id { get; set; }
+    public int GameId { get; set; }
+    public Game Game { get; set; } = null!;
+
+    public required string Token { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+
+    /// <summary>Display name of the user who showed the QR code.</summary>
+    public string? CreatedBy { get; set; }
+
+    /// <summary>When the page was first opened on the phone.</summary>
+    public DateTime? OpenedAt { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public DateTime? UsedAt { get; set; }
+
+    /// <summary>The photo that was sent.</summary>
+    public int? PhotoId { get; set; }
+}
+
 /// <summary>Application-wide settings; there is exactly one row (Id 1).</summary>
 public class AppSettings
 {

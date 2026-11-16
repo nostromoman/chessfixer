@@ -1,0 +1,139 @@
+@page "/foto/{Token}"
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@inject TournamentApi Api
+@inject IStringLocalizer<Strings> L
+
+@* The page behind the QR code of the scoresheet wizard, opened on a phone: no login (the token in the link is the
+   key), only to take one photo of the scoresheet and send it. Opening it tells the wizard that it waits for the photo. *@
+<PageTitle>@L["PhoneUploadTitle"] – @L["AppTitle"]</PageTitle>
+
+<MudPaper Elevation="3" Class="pa-6" Style="width: 100%; max-width: 30em">
+    <div class="d-flex align-center gap-2 mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Color="Color.Primary" Size="Size.Large" />
+        <MudText Typo="Typo.h6">@L["PhoneUploadTitle"]</MudText>
+    </div>
+
+    @if (_info is null && _error is null)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+    else if (_sent)
+    {
+        <MudAlert Severity="Severity.Success">@L["PhoneUploadSent"]</MudAlert>
+    }
+    else if (_info is { } info)
+    {
+        <MudText Typo="Typo.subtitle1"><b>@info.White</b> – <b>@info.Black</b></MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            @info.Tournament · @L["WizardQrValidUntil", info.ExpiresAt.ToLocalTime().ToString("HH:mm")]
+        </MudText>
+
+        @if (_photoUrl is null)
+        {
+            <MudText Typo="Typo.body2" Class="mb-4">@L["PhoneUploadHelp"]</MudText>
+            <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden disabled="@_busy" />
+            <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_busy">@L["PhoneUploadTake"]</MudButton>
+        }
+        else
+        {
+            <img class="wizard-preview mb-3" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Replay" OnClick="Retake" Disabled="_busy"
+                           Style="flex: 1">@L["PhoneUploadRetake"]</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send" OnClick="SendAsync"
+                           Disabled="_busy" Style="flex: 1">@L["PhoneUploadSend"]</MudButton>
+            </div>
+        }
+        @if (_busy)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-3" />
+        }
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public string Token { get; set; } = "";
+
+    /// <summary>Scaled down on the phone before sending: plenty to read handwriting.</summary>
+    private const int MaxPhotoPixels = 2000;
+    private const long MaxUploadBytes = 5 * 1024 * 1024;
+
+    private ScoresheetUploadInfoDto? _info;
+    private string? _error;
+    private byte[]? _photo;
+    private string? _photoUrl;
+    private bool _busy;
+    private bool _sent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _info = await Api.OpenScoresheetUploadAsync(Token);
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _error = ErrorText(e);
+        }
+    }
+
+    private async Task PhotoTakenAsync(InputFileChangeEventArgs e)
+    {
+        _busy = true;
+        try
+        {
+            var photo = await e.File.RequestImageFileAsync("image/jpeg", MaxPhotoPixels, MaxPhotoPixels);
+            await using var stream = photo.OpenReadStream(MaxUploadBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            _photo = buffer.ToArray();
+            _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(_photo)}";
+        }
+        catch (IOException)
+        {
+            _error = L["Error_InvalidScoresheetImage"];
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Retake()
+    {
+        _photo = null;
+        _photoUrl = null;
+    }
+
+    private async Task SendAsync()
+    {
+        if (_photo is null) return;
+        _busy = true;
+        try
+        {
+            await Api.UploadScoresheetViaLinkAsync(Token, _photo, "image/jpeg");
+            _sent = true;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _error = ErrorText(e);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private string ErrorText(Exception e) => e switch
+    {
+        ApiClientException { Code: { } code } => L[$"Error_{code}"],
+        ApiClientException => L["Error_Unknown"],
+        _ => L["Error_ServerUnavailable"]
+    };
+}

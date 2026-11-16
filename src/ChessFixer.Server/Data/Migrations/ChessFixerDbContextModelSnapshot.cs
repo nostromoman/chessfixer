@@ -688,6 +688,52 @@ namespace ChessFixer.Server.Data.Migrations
                     b.ToTable("RoundReports");
                 });
 
+            modelBuilder.Entity("ChessFixer.Server.Data.ScoresheetUploadLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PhotoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("ScoresheetUploadLinks");
+                });
+
             modelBuilder.Entity("ChessFixer.Server.Data.Tournament", b =>
                 {
                     b.Property<int>("Id")
@@ -1010,6 +1056,17 @@ namespace ChessFixer.Server.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Round");
+                });
+
+            modelBuilder.Entity("ChessFixer.Server.Data.ScoresheetUploadLink", b =>
+                {
+                    b.HasOne("ChessFixer.Server.Data.Game", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
                 });
 
             modelBuilder.Entity("ChessFixer.Server.Data.TournamentPlayer", b =>

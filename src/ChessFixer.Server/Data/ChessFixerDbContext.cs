@@ -23,6 +23,7 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
     public DbSet<Game> Games => Set<Game>();
     public DbSet<GameAnalysis> GameAnalyses => Set<GameAnalysis>();
     public DbSet<GameScoresheet> GameScoresheets => Set<GameScoresheet>();
+    public DbSet<ScoresheetUploadLink> ScoresheetUploadLinks => Set<ScoresheetUploadLink>();
     public DbSet<AppSettings> AppSettings => Set<AppSettings>();
     public DbSet<WritingStyle> WritingStyles => Set<WritingStyle>();
     public DbSet<Club> Clubs => Set<Club>();
@@ -199,6 +200,14 @@ public class ChessFixerDbContext(DbContextOptions<ChessFixerDbContext> options) 
             sheet.Property(s => s.ReadError).HasMaxLength(1000);
             sheet.Property(s => s.ReadModel).HasMaxLength(100);
             sheet.Property(s => s.ReadRemarks).HasMaxLength(2000);
+        });
+
+        modelBuilder.Entity<ScoresheetUploadLink>(link =>
+        {
+            link.HasOne(l => l.Game).WithMany().HasForeignKey(l => l.GameId).OnDelete(DeleteBehavior.Cascade);
+            link.Property(l => l.Token).HasMaxLength(64);
+            link.HasIndex(l => l.Token).IsUnique();
+            link.Property(l => l.CreatedBy).HasMaxLength(100);
         });
 
         modelBuilder.Entity<AppSettings>(settings =>

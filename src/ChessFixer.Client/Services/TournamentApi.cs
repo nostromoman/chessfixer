@@ -151,6 +151,28 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
         using var _ = await SendCoreAsync(HttpMethod.Put, $"api/games/{gameId}/scoresheets/{photoId}/review", review);
     }
 
+    /// <summary>A QR code (link) to take the scoresheet photo with a phone; an earlier open one is cancelled.</summary>
+    public Task<ScoresheetLinkDto> CreateScoresheetLinkAsync(int gameId) =>
+        SendAsync<ScoresheetLinkDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheet-links");
+
+    public Task<ScoresheetLinkDto> GetScoresheetLinkAsync(int gameId, int linkId) =>
+        SendAsync<ScoresheetLinkDto>(HttpMethod.Get, $"api/games/{gameId}/scoresheet-links/{linkId}");
+
+    public Task<ScoresheetLinkDto> CancelScoresheetLinkAsync(int gameId, int linkId) =>
+        SendAsync<ScoresheetLinkDto>(HttpMethod.Delete, $"api/games/{gameId}/scoresheet-links/{linkId}");
+
+    /// <summary>The phone page (no login): which game the photo is for; tells the wizard the page was opened.</summary>
+    public Task<ScoresheetUploadInfoDto> OpenScoresheetUploadAsync(string token) =>
+        SendAsync<ScoresheetUploadInfoDto>(HttpMethod.Post, $"api/scoresheet-upload/{Uri.EscapeDataString(token)}/open");
+
+    /// <summary>The phone page (no login): sends the photo; the link can then no longer be used.</summary>
+    public async Task UploadScoresheetViaLinkAsync(string token, byte[] image, string contentType)
+    {
+        var content = new ByteArrayContent(image);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        using var _ = await SendCoreAsync(HttpMethod.Post, $"api/scoresheet-upload/{Uri.EscapeDataString(token)}", content);
+    }
+
     /// <summary>The checked moves as PGN with the game's tags (not saved).</summary>
     public Task<GamePgnDto> BuildScoresheetPgnAsync(int gameId, IReadOnlyList<string> moves) =>
         SendAsync<GamePgnDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheet-pgn", new ScoresheetPgnRequest(moves));

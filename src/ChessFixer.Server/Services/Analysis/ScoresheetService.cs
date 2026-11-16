@@ -109,6 +109,114 @@ public class ScoresheetService(
         return photo;
     }
 
+    // ----- A QR code to send the photo from a phone (no login there) -----
+
+    /// <summary>How long a QR code can be used.</summary>
+    public static readonly TimeSpan LinkLifetime = TimeSpan.FromMinutes(20);
+
+    /// <summary>A new QR code for the game; an earlier one that is still open is cancelled.</summary>
+    public async Task<ScoresheetLinkDto> CreateLinkAsync(int gameId, ClaimsPrincipal user)
+    {
+        await LoadPlayedGameAsync(g => g.Id == gameId, CancellationToken.None);
+        var now = DateTime.UtcNow;
+        await db.ScoresheetUploadLinks
+            .Where(l => l.GameId == gameId && l.UsedAt == null && l.CancelledAt == null && l.ExpiresAt > now)
+            .ExecuteUpdateAsync(u => u.SetProperty(l => l.CancelledAt, now));
+
+        var userId = UserSession.GetUserId(user);
+        var link = new ScoresheetUploadLink
+        {
+            GameId = gameId,
+            // 192 random bits: the token is the only thing that protects the page.
+            Token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24))
+                .Replace('+', '-').Replace('/', '_'),
+            CreatedAt = now,
+            ExpiresAt = now + LinkLifetime,
+            CreatedBy = userId is { } id ? await db.Users.Where(u => u.Id == id).Select(u => u.DisplayName).SingleOrDefaultAsync() : null
+        };
+        db.ScoresheetUploadLinks.Add(link);
+        await db.SaveChangesAsync();
+        return LinkDto(link, now);
+    }
+
+    public async Task<ScoresheetLinkDto> GetLinkAsync(int gameId, int linkId)
+    {
+        var link = await db.ScoresheetUploadLinks.AsNoTracking().SingleOrDefaultAsync(l => l.Id == linkId && l.GameId == gameId)
+                   ?? throw new ApiException(ApiErrorCode.UploadLinkInvalid);
+        return LinkDto(link, DateTime.UtcNow);
+    }
+
+    /// <summary>Cancels the QR code: the phone can no longer send a photo with it.</summary>
+    public async Task<ScoresheetLinkDto> CancelLinkAsync(int gameId, int linkId)
+    {
+        var link = await db.ScoresheetUploadLinks.SingleOrDefaultAsync(l => l.Id == linkId && l.GameId == gameId)
+                   ?? throw new ApiException(ApiErrorCode.UploadLinkInvalid);
+        if (link.UsedAt is null && link.CancelledAt is null)
+        {
+            link.CancelledAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+        return LinkDto(link, DateTime.UtcNow);
+    }
+
+    private static ScoresheetLinkDto LinkDto(ScoresheetUploadLink link, DateTime now) =>
+        new(link.Id, link.Token, link.ExpiresAt, Status(link, now), link.PhotoId);
+
+    private static ScoresheetLinkStatus Status(ScoresheetUploadLink link, DateTime now) =>
+        link.UsedAt is not null ? ScoresheetLinkStatus.Uploaded
+        : link.CancelledAt is not null ? ScoresheetLinkStatus.Cancelled
+        : link.ExpiresAt <= now ? ScoresheetLinkStatus.Expired
+        : link.OpenedAt is not null ? ScoresheetLinkStatus.Opened
+        : ScoresheetLinkStatus.Waiting;
+
+    /// <summary>A link that can still be used (open or waiting), with its game; otherwise UploadLinkInvalid.</summary>
+    private async Task<ScoresheetUploadLink> UsableLinkAsync(string token)
+    {
+        var link = await db.ScoresheetUploadLinks
+                       .Include(l => l.Game).ThenInclude(g => g.Round).ThenInclude(r => r.Tournament)
+                       .Include(l => l.Game).ThenInclude(g => g.White).ThenInclude(p => p.Player)
+                       .Include(l => l.Game).ThenInclude(g => g.Black!).ThenInclude(p => p.Player)
+                       .SingleOrDefaultAsync(l => l.Token == token)
+                   ?? throw new ApiException(ApiErrorCode.UploadLinkInvalid);
+        if (Status(link, DateTime.UtcNow) is not (ScoresheetLinkStatus.Waiting or ScoresheetLinkStatus.Opened))
+            throw new ApiException(ApiErrorCode.UploadLinkInvalid);
+        return link;
+    }
+
+    /// <summary>The phone opened the page: the wizard shows that it waits for the photo.</summary>
+    public async Task<ScoresheetUploadInfoDto> OpenLinkAsync(string token)
+    {
+        var link = await UsableLinkAsync(token);
+        link.OpenedAt ??= DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        var game = link.Game;
+        return new ScoresheetUploadInfoDto(game.White.Player.Name, game.Black?.Player.Name ?? "", game.Round.Tournament.Title,
+            link.ExpiresAt);
+    }
+
+    /// <summary>The photo from the phone: kept with the game, and the link can no longer be used.</summary>
+    public async Task UploadViaLinkAsync(string token, byte[] image, string? contentType)
+    {
+        var mediaType = ValidImageType(image, contentType);
+        var link = await UsableLinkAsync(token);
+        var game = await LoadPlayedGameAsync(g => g.Id == link.GameId, CancellationToken.None);
+        var photo = new GameScoresheet
+        {
+            GameId = game.Id,
+            Data = image,
+            ContentType = mediaType,
+            UploadedAt = DateTime.UtcNow,
+            UploadedBy = Truncate(link.CreatedBy is null ? "telefoon (QR-code)" : $"{link.CreatedBy} (telefoon)", 100)
+        };
+        db.GameScoresheets.Add(photo);
+        await db.SaveChangesAsync();
+
+        link.UsedAt = DateTime.UtcNow;
+        link.OpenedAt ??= link.UsedAt;
+        link.PhotoId = photo.Id;
+        await db.SaveChangesAsync();
+    }
+
     // ----- The wizard: read the photo with Claude, the user checks the moves -----
 
     /// <summary>A reading that has not finished after this long was interrupted (e.g. the server restarted).</summary>

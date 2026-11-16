@@ -16,7 +16,7 @@ public sealed class ApiException(ApiErrorCode code, string? detail = null) : Exc
     {
         ApiErrorCode.TournamentNotFound or ApiErrorCode.PlayerNotFound or ApiErrorCode.GameNotFound
             or ApiErrorCode.UserNotFound or ApiErrorCode.WritingStyleNotFound or ApiErrorCode.ClubNotFound
-            or ApiErrorCode.ScoresheetNotFound
+            or ApiErrorCode.ScoresheetNotFound or ApiErrorCode.UploadLinkInvalid
             => StatusCodes.Status404NotFound,
         ApiErrorCode.TitleRequired or ApiErrorCode.FirstNameRequired or ApiErrorCode.InvalidSettings or ApiErrorCode.InvalidResult
             or ApiErrorCode.InvalidPhoto or ApiErrorCode.InvalidRating

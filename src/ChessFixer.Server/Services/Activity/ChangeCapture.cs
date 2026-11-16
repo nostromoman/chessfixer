@@ -41,7 +41,8 @@ public class ChangeCapture(IHttpContextAccessor http) : SaveChangesInterceptor
     ];
 
     /// <summary>The log itself is not recorded.</summary>
-    private static readonly HashSet<Type> NotRecorded = [typeof(ActivityLogEntry), typeof(ActivityChange), typeof(GameAnalysis)];
+    private static readonly HashSet<Type> NotRecorded =
+        [typeof(ActivityLogEntry), typeof(ActivityChange), typeof(GameAnalysis), typeof(ScoresheetUploadLink)];
 
     private sealed record Pending(EntityEntry Entry, ActivityChangeKind Kind, Dictionary<string, object?> Before);
 

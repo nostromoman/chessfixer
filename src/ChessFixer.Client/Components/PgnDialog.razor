@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 @inject TournamentApi Api
 @inject IDialogService Dialogs
+@inject NavigationManager Navigation
 
 @* The moves of a played game in PGN (Portable Game Notation): paste them from a notation app or a scoresheet
    typed out, or read them from a photo of the handwritten scoresheet (a wizard: Claude reads, the user checks), and
@@ -145,17 +146,22 @@
     }
 
     /// <summary>
-    /// The wizard (a new one, or the one to continue). It closes with the checked moves as PGN: this dialog then closes
-    /// with them, so they are saved (and analysed). Closed before that: the work is kept, and offered again here.
+    /// The wizard (a new one, or the one to continue). When it saved the moves, this dialog closes and the analysis page
+    /// of the game is shown (Stockfish starts right away). Closed before that: the work is kept, and offered again here.
     /// </summary>
     private async Task OpenWizardAsync(ScoresheetWizardDto? wizard)
     {
         var dialog = await Dialogs.ShowAsync<ScoresheetWizardDialog>(null,
-            new DialogParameters<ScoresheetWizardDialog> { { d => d.Game, Game }, { d => d.Wizard, wizard } },
+            new DialogParameters<ScoresheetWizardDialog>
+            {
+                { d => d.Game, Game }, { d => d.Wizard, wizard }, { d => d.TournamentId, TournamentId }
+            },
             new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseOnEscapeKey = false, BackdropClick = false });
-        if (await dialog.Result is { Canceled: false, Data: string pgn } && pgn.Length > 0)
+        if (await dialog.Result is { Canceled: false, Data: true })
         {
-            Dialog.Close(pgn);
+            Snackbar.Add(L["PgnSaved"], Severity.Success);
+            Dialog.Cancel(); // saved already; the caller reloads
+            Navigation.NavigateTo($"games/{Game.Id}");
             return;
         }
         await LoadPhotosAsync();

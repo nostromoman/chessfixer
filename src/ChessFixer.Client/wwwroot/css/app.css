@@ -1954,3 +1954,25 @@ button.schedule-slot {
     font-size: 0.75rem;
     overflow-wrap: anywhere;
 }
+
+/* Wizard step 1: the ways to get a photo, with the QR code for a phone on the right. */
+.wizard-photo-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.wizard-qr {
+    width: 240px;
+    padding: 12px;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 8px;
+}
+
+.wizard-qr-code svg {
+    display: block;
+    width: 200px;
+    height: 200px;
+    margin: 4px auto 8px;
+}

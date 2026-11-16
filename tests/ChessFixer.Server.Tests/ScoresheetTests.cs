@@ -320,6 +320,62 @@ public class ScoresheetTests : ApiTestBase
     }
 
     [Fact]
+    public async Task QrCode_ThePhoneSendsOnePhoto_WithoutLogin()
+    {
+        var (_, game) = await PlayedGameAsync();
+        var link = await PostAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links", null);
+        Assert.Equal(ScoresheetLinkStatus.Waiting, link.Status);
+        Assert.True(link.ExpiresAt > DateTime.UtcNow.AddMinutes(19) && link.ExpiresAt <= DateTime.UtcNow.AddMinutes(20));
+        Assert.True(link.Token.Length >= 32);
+
+        using var phone = await CreateClientAsync(); // not logged in
+        var info = await ReadAsync<ScoresheetUploadInfoDto>(await phone.PostAsync($"api/scoresheet-upload/{link.Token}/open", null));
+        Assert.Equal((game.White.Name, game.Black!.Name), (info.White, info.Black));
+        Assert.Equal(ScoresheetLinkStatus.Opened,
+            (await GetAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links/{link.Id}")).Status);
+
+        var content = new ByteArrayContent(Photo);
+        content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        Assert.Equal(HttpStatusCode.NoContent, (await phone.PostAsync($"api/scoresheet-upload/{link.Token}", content)).StatusCode);
+
+        var sent = await GetAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links/{link.Id}");
+        Assert.Equal(ScoresheetLinkStatus.Uploaded, sent.Status);
+        var photo = Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+        Assert.Equal((sent.PhotoId, $"{LeaderDisplayName} (telefoon)"), (photo.Id, photo.UploadedBy));
+
+        // Used: the QR code no longer works.
+        await AssertErrorAsync(await phone.PostAsync($"api/scoresheet-upload/{link.Token}/open", null),
+            HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
+        var again = new ByteArrayContent(Photo);
+        again.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        await AssertErrorAsync(await phone.PostAsync($"api/scoresheet-upload/{link.Token}", again),
+            HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
+        Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+    }
+
+    [Fact]
+    public async Task QrCode_Cancelled_OrReplaced_OrUnknown_DoesNotWork()
+    {
+        var (_, game) = await PlayedGameAsync();
+        var first = await PostAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links", null);
+        var second = await PostAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links", null);
+        Assert.Equal(ScoresheetLinkStatus.Cancelled,
+            (await GetAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links/{first.Id}")).Status);
+
+        var cancelled = await ReadAsync<ScoresheetLinkDto>(await Client.DeleteAsync($"api/games/{game.Id}/scoresheet-links/{second.Id}"));
+        Assert.Equal(ScoresheetLinkStatus.Cancelled, cancelled.Status);
+
+        using var phone = await CreateClientAsync();
+        foreach (var token in new[] { first.Token, second.Token, "onbekend" })
+        {
+            await AssertErrorAsync(await phone.PostAsync($"api/scoresheet-upload/{token}/open", null),
+                HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
+        }
+        // The rest of the API still needs a login.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await phone.GetAsync($"api/games/{game.Id}/scoresheet-links/{first.Id}")).StatusCode);
+    }
+
+    [Fact]
     public async Task NoPhotoForAForfeit_OrAnInvalidImage()
     {
         var (_, forfeit) = await PlayedGameAsync(GameResult.WhiteWinsByForfeit);
