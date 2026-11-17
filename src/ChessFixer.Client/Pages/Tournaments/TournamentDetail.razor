@@ -459,11 +459,7 @@ else
     {
         if (!game.HasPgn)
         {
-            if (await ScoresheetWizardDialog.ShowAsync(Dialogs, Api, game, Id))
-            {
-                Snackbar.Add(L["PgnSaved"], Severity.Success);
-                Navigation.NavigateTo($"games/{game.Id}");
-            }
+            Navigation.NavigateTo(CreateAnalysis.Url(Id, game.Id, Navigation.ToBaseRelativePath(Navigation.Uri)));
             return;
         }
 

@@ -1828,64 +1828,62 @@ button.schedule-slot {
     border: 1px solid var(--mud-palette-lines-default);
 }
 
-/* The digital chess board: the photo (when there is one), the board, and the list of moves side by side. */
+/* ----- 'Analyse aanmaken': a page of its own ----- */
+.create-analysis-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin-bottom: 12px;
+}
+
+.create-analysis-header .wizard-steps {
+    margin-bottom: 0;
+}
+
+.create-analysis-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.create-analysis-panel {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+/* Checking on the board: everything on one screen, without scrolling the page (the app bar, the page padding and the
+   header above it take about 190 px). */
+.create-analysis.on-board {
+    --review-height: max(480px, calc(100dvh - 190px));
+}
+
+.create-analysis.on-board .review-layout {
+    height: var(--review-height);
+}
+
+/* The digital chess board: the photo small on the left (when there is one), the board, and the moves on the right. */
 .review-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px 300px;
+    grid-template-columns: minmax(180px, 280px) minmax(0, 1fr) minmax(290px, 330px);
+    grid-template-rows: minmax(0, 1fr);
     gap: 16px;
-    align-items: start;
 }
 
-/* Without a photo: only the board and the moves. */
 .review-layout.no-photo {
-    grid-template-columns: minmax(0, 420px) minmax(0, 330px);
-    justify-content: center;
-}
-
-@media (max-width: 1100px) {
-    .review-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .review-photo {
-        grid-column: 1 / -1;
-    }
-}
-
-/* A phone: one below the other, the photo smaller (it scrolls, and zooms on a tap). */
-@media (max-width: 700px) {
-    .review-layout,
-    .review-layout.no-photo {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .review-layout .review-photo {
-        max-height: 35vh;
-    }
-
-    .review-layout .review-moves {
-        max-height: 50vh;
-    }
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 330px);
 }
 
 .review-photo {
-        grid-column: 1 / -1;
-    }
-}
-
-@media (max-width: 700px) {
-    .review-layout,
-    .review-layout.no-photo {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
-.review-photo {
-    max-height: 72vh;
+    min-height: 0;
     overflow: auto;
     border: 1px solid var(--mud-palette-lines-default);
     border-radius: 4px;
     background: var(--mud-palette-background-gray);
+    cursor: zoom-in;
 }
 
 .review-photo img {
@@ -1893,16 +1891,74 @@ button.schedule-slot {
     width: 100%;
 }
 
+.review-photo.zoomed {
+    cursor: zoom-out;
+}
+
 .review-photo.zoomed img {
-    width: 200%;
+    width: 250%;
     max-width: none;
 }
 
+/* The board as large as fits in the height (the lines above and below it take about 150 px). */
+.review-board {
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.review-board > div {
+    width: 100%;
+    max-width: min(100%, calc(var(--review-height, 560px) - 150px));
+}
+
+.review-board .chess-board {
+    width: 100%;
+}
+
+.review-list {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.review-help {
+    display: block;
+    line-height: 1.35;
+}
+
 .review-moves {
-    max-height: 72vh;
+    flex: 1 1 auto;
+    min-height: 120px;
     overflow-y: auto;
     border: 1px solid var(--mud-palette-lines-default);
     border-radius: 4px;
+}
+
+/* Smaller screens: one below the other, the page scrolls. */
+@media (max-width: 900px) {
+    .review-layout,
+    .review-layout.no-photo {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto;
+    }
+
+    .create-analysis.on-board .review-layout {
+        height: auto;
+    }
+
+    .review-photo {
+        max-height: 35vh;
+    }
+
+    .review-board > div {
+        max-width: min(100%, 480px);
+    }
+
+    .review-moves {
+        max-height: 50vh;
+    }
 }
 
 .review-moves table {
@@ -1923,35 +1979,39 @@ button.schedule-slot {
 }
 
 .review-moves td {
-    padding: 1px 6px;
+    padding: 1px 2px;
     border-bottom: 1px solid var(--mud-palette-lines-default);
     vertical-align: middle;
+    width: 50%;
 }
 
-.review-moves tr {
+.review-moves td.review-move-number {
+    width: 1%;
+    padding: 1px 6px;
+    white-space: nowrap;
+    color: var(--mud-palette-text-secondary);
+    text-align: right;
+}
+
+/* One half-move: (checkbox,) the move, and a dot for how sure Claude was. */
+.review-half {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
     cursor: pointer;
 }
 
-.review-moves tr.selected td {
+.review-half.selected {
     background: var(--mud-palette-action-default-hover);
-}
-
-.review-moves tr.illegal td.review-move-number {
-    box-shadow: inset 3px 0 0 var(--mud-palette-error);
-}
-
-.review-moves tr.unchecked td.review-move-number {
-    box-shadow: inset 3px 0 0 var(--mud-palette-warning);
-}
-
-.review-move-number {
-    white-space: nowrap;
-    color: var(--mud-palette-text-secondary);
-    width: 1%;
+    box-shadow: inset 0 0 0 2px var(--mud-palette-primary);
 }
 
 .review-move-input {
-    width: 7.5em;
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 3.5em;
     font: inherit;
     padding: 3px 6px;
     border: 1px solid var(--mud-palette-lines-inputs);
@@ -1960,34 +2020,42 @@ button.schedule-slot {
     color: var(--mud-palette-text-primary);
 }
 
-.review-move-input.illegal {
+.review-half.unchecked .review-move-input {
+    border-color: var(--mud-palette-warning);
+    border-width: 2px;
+}
+
+.review-half.illegal .review-move-input {
     border-color: var(--mud-palette-error);
+    border-width: 2px;
     color: var(--mud-palette-error);
 }
 
+.review-half.unknown .review-move-input {
+    border-style: dashed;
+    color: var(--mud-palette-text-secondary);
+}
+
 .review-move-check {
-    width: 18px;
-    height: 18px;
+    flex: none;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     accent-color: var(--mud-palette-success);
 }
 
-.review-confidence {
-    display: inline-block;
-    font-size: 0.75rem;
-    padding: 1px 6px;
-    border-radius: 10px;
-    white-space: nowrap;
-    border: 1px solid currentColor;
+.review-confidence-dot {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
 }
 
-.review-confidence.high { color: var(--mud-palette-success); }
-.review-confidence.medium { color: var(--mud-palette-warning-darken); }
-.review-confidence.low { color: var(--mud-palette-error); }
+.review-confidence-dot.high { background: var(--mud-palette-success); }
+.review-confidence-dot.medium { background: var(--mud-palette-warning); }
+.review-confidence-dot.low { background: var(--mud-palette-error); }
+.review-confidence-dot.added { border: 2px solid var(--mud-palette-text-disabled); }
 
-.review-board .chess-board {
-    max-width: 400px;
-}
 
 /* Activity log: what went wrong, under the result (may be a long message). */
 .activity-error {

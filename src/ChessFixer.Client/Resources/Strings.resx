@@ -872,7 +872,6 @@
   <data name="Error_ScoresheetNotFound" xml:space="preserve"><value>Deze foto bestaat niet (meer).</value></data>
   <data name="ActivityAction_Games_UploadScoresheet" xml:space="preserve"><value>Foto van notatieformulier bewaren</value></data>
   <data name="ActivityAction_Games_DeleteScoresheet" xml:space="preserve"><value>Foto van notatieformulier verwijderen</value></data>
-  <data name="WizardTitle" xml:space="preserve"><value>Analyse aanmaken: {0} – {1}</value></data>
   <data name="WizardStepPhoto" xml:space="preserve"><value>Foto</value></data>
   <data name="WizardStepRead" xml:space="preserve"><value>Lezen door AI</value></data>
   <data name="WizardStepCheck" xml:space="preserve"><value>Controleren</value></data>
@@ -896,7 +895,6 @@
   <data name="WizardZoom" xml:space="preserve"><value>Klik om in of uit te zoomen</value></data>
   <data name="WizardChecked" xml:space="preserve"><value>Gecontroleerd</value></data>
   <data name="WizardMove" xml:space="preserve"><value>Zet</value></data>
-  <data name="WizardConfidence" xml:space="preserve"><value>Zekerheid</value></data>
   <data name="WizardAddMove" xml:space="preserve"><value>Zet toevoegen</value></data>
   <data name="WizardInsertMove" xml:space="preserve"><value>Zet invoegen</value></data>
   <data name="WizardDeleteMove" xml:space="preserve"><value>Zet verwijderen</value></data>
@@ -912,15 +910,10 @@
   <data name="WizardBoardHelp" xml:space="preserve"><value>Klopt de pijl niet? Sleep het stuk naar het juiste veld, of klik op het stuk en dan op het veld.</value></data>
   <data name="WizardReadAs" xml:space="preserve"><value>Gelezen als:</value></data>
   <data name="WizardAlternatives" xml:space="preserve"><value>Ook mogelijk:</value></data>
-  <data name="ConfidenceHigh" xml:space="preserve"><value>zeker</value></data>
-  <data name="ConfidenceMedium" xml:space="preserve"><value>twijfel</value></data>
-  <data name="ConfidenceLow" xml:space="preserve"><value>onzeker</value></data>
   <data name="ConfidenceHighHelp" xml:space="preserve"><value>Claude kon deze zet duidelijk lezen.</value></data>
   <data name="ConfidenceMediumHelp" xml:space="preserve"><value>Waarschijnlijk goed gelezen, maar een andere lezing is mogelijk.</value></data>
   <data name="ConfidenceLowHelp" xml:space="preserve"><value>Slecht leesbaar of geraden: controleer deze zet goed.</value></data>
-  <data name="WizardAdded" xml:space="preserve"><value>toegevoegd</value></data>
   <data name="WizardAddedHelp" xml:space="preserve"><value>Zelf toegevoegd (niet door Claude gelezen).</value></data>
-  <data name="WizardLegal" xml:space="preserve"><value>Mogelijke zet</value></data>
   <data name="WizardIllegal" xml:space="preserve"><value>Deze zet is niet mogelijk in deze stelling</value></data>
   <data name="WizardUnknown" xml:space="preserve"><value>Nog niet te controleren: een eerdere zet is niet mogelijk</value></data>
   <data name="ActivityAction_Games_ReadScoresheet" xml:space="preserve"><value>Foto van notatieformulier laten lezen</value></data>
@@ -974,4 +967,6 @@
   <data name="ActivityAction_ScoresheetUpload_Upload" xml:space="preserve"><value>Foto van notatieformulier via telefoon</value></data>
   <data name="ActivityAction_ScoresheetUpload_Read" xml:space="preserve"><value>Foto van notatieformulier laten lezen (telefoon)</value></data>
   <data name="ActivityAction_ScoresheetUpload_SaveMoves" xml:space="preserve"><value>Zetten opgeslagen via telefoon</value></data>
+  <data name="WizardWhite" xml:space="preserve"><value>Wit</value></data>
+  <data name="WizardBlack" xml:space="preserve"><value>Zwart</value></data>
 </root>

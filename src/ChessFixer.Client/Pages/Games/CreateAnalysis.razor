@@ -1,3 +1,4 @@
+@page "/games/{GameId:int}/analyse-aanmaken"
 @using ChessFixer.Shared.Pgn
 @implements IAsyncDisposable
 @inject TournamentApi Api
@@ -7,22 +8,29 @@
 @inject NavigationManager Navigation
 
 @* 'Analyse aanmaken': the moves of a played game, entered in one of three ways, that all end on the digital chess board
-   (MoveReview) where the user checks the moves before going on to the analysis:
-   1. a photo of the scoresheet (chosen on this computer, taken with the webcam, or with a phone via a QR code): Claude
-      reads it and the board starts with the moves read, to check against the photo. With the QR code the phone does
-      everything else; this dialog closes as soon as the phone opened the page, so the computer is free again.
+   (MoveReview, filling the screen: photo, board and moves side by side) where the user checks the moves before going
+   on to the analysis:
+   1. a photo of the scoresheet (uploaded, taken with the webcam, or with a phone via a QR code): Claude reads it and the
+      board starts with the moves read, to check against the photo. With the QR code the phone does everything else;
+      this page goes back as soon as the phone opened the page, so the computer is free again.
    2. replaying the game on the board: the board starts empty.
    3. pasted PGN: the board starts with its moves; a move that is not possible shows in red.
-   The work on a photo is kept on the server (also when the dialog is closed), so the user can continue later. At the
-   end the moves are saved (and analysed); the dialog then closes with true. *@
-<MudDialog>
-    <TitleContent>
-        <div class="d-flex align-center gap-2">
-            <MudIcon Icon="@Icons.Material.Filled.QueryStats" />
-            <MudText Typo="Typo.h6">@L["WizardTitle", Game.White.Name, Game.Black?.Name ?? ""]</MudText>
+   The work on a photo is kept on the server, so the user can continue later. At the end the moves are saved (and
+   analysed) and the analysis page opens. *@
+<PageTitle>@L["PgnAddMoves"] – @L["AppTitle"]</PageTitle>
+
+<NavigationLock OnBeforeInternalNavigation="ConfirmLeaveAsync" />
+
+<div class="create-analysis @(_stage == Stage.Board ? "on-board" : "")">
+    <div class="create-analysis-header">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="Leave" aria-label="@L["Cancel"]" />
+        <div class="create-analysis-title">
+            <MudText Typo="Typo.h5">@L["PgnAddMoves"]</MudText>
+            @if (_game is not null)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@_game.White.Name – @(_game.Black?.Name)</MudText>
+            }
         </div>
-    </TitleContent>
-    <DialogContent>
         <div class="wizard-steps">
             @{ var steps = Steps; }
             @for (var i = 0; i < steps.Count; i++)
@@ -30,88 +38,82 @@
                 @StepLabel(i, steps)
             }
         </div>
-
-        @switch (_stage)
-        {
-            case Stage.Choose:
-                @ChooseStage
-                break;
-            case Stage.Photo:
-                @PhotoStage
-                break;
-            case Stage.Read:
-                @ReadStage
-                break;
-            case Stage.Pgn:
-                @PgnStage
-                break;
-            default:
-                @BoardStage
-                break;
-        }
-    </DialogContent>
-    <DialogActions>
-        @if (_stage is Stage.Photo or Stage.Pgn || (_stage == Stage.Board && _method == Method.Board))
-        {
-            <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="BackToChoiceAsync" Disabled="_busy">@L["WizardOtherMethod"]</MudButton>
-        }
-        else if (_stage == Stage.Board && _method == Method.Pgn)
-        {
-            <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="() => _stage = Stage.Pgn">@L["WizardBackToPgn"]</MudButton>
-        }
         <MudSpacer />
-        @if (_stage == Stage.Board && _review is not null)
-        {
-            <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text mr-2" : "mud-text-secondary mr-2")">@_review.SaveHint</MudText>
-        }
-        <MudButton OnClick="CloseAsync">@L["Close"]</MudButton>
-        @if (_stage == Stage.Pgn)
-        {
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward"
-                       Disabled="@(!PgnValid)" OnClick="PgnToBoard">@L["WizardToBoard"]</MudButton>
-        }
-        @if (_stage == Stage.Board)
-        {
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.QueryStats"
-                       Disabled="@(_review is not { CanSave: true } || _busy)" OnClick="SaveAsync">@L["WizardSave"]</MudButton>
-        }
-    </DialogActions>
-</MudDialog>
+        <div class="create-analysis-actions">
+            @if (_stage is Stage.Photo or Stage.Pgn || (_stage == Stage.Board && _method == Method.Board))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="BackToChoiceAsync" Disabled="_busy">@L["WizardOtherMethod"]</MudButton>
+            }
+            else if (_stage == Stage.Board && _method == Method.Pgn)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="() => _stage = Stage.Pgn">@L["WizardBackToPgn"]</MudButton>
+            }
+            @if (_stage == Stage.Board && _review is not null)
+            {
+                <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text" : "mud-text-secondary")">@_review.SaveHint</MudText>
+            }
+            @if (_stage == Stage.Pgn)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward"
+                           Disabled="@(!PgnValid)" OnClick="PgnToBoard">@L["WizardToBoard"]</MudButton>
+            }
+            @if (_stage == Stage.Board)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.QueryStats"
+                           Disabled="@(_review is not { CanSave: true } || _busy)" OnClick="SaveAsync">@L["WizardSave"]</MudButton>
+            }
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Warning">@_error</MudAlert>
+    }
+    else if (_game is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_stage == Stage.Board)
+    {
+        <MoveReview @key="_boardKey" @ref="_review" Review="_startReview" Remarks="@_wizard?.Remarks" Help="@BoardHelp"
+                    PhotoUrl="@(_wizard is null ? null : TournamentApi.ScoresheetImageUrl(_wizard.GameId, _wizard.PhotoId))"
+                    OnChange="ScheduleSave" />
+    }
+    else
+    {
+        <MudPaper Outlined="true" Class="create-analysis-panel">
+            @switch (_stage)
+            {
+                case Stage.Choose:
+                    @ChooseStage
+                    break;
+                case Stage.Photo:
+                    @PhotoStage
+                    break;
+                case Stage.Read:
+                    @ReadStage
+                    break;
+                case Stage.Pgn:
+                    @PgnStage
+                    break;
+            }
+        </MudPaper>
+    }
+</div>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
-
-    [Parameter, EditorRequired] public GameDto Game { get; set; } = null!;
+    [Parameter] public int GameId { get; set; }
 
     /// <summary>The tournament of the game: the moves are saved there.</summary>
-    [Parameter, EditorRequired] public int TournamentId { get; set; }
+    [SupplyParameterFromQuery(Name = "toernooi")] public int TournamentId { get; set; }
 
-    /// <summary>The work on a photo to continue; null to start by choosing a method.</summary>
-    [Parameter] public ScoresheetWizardDto? Wizard { get; set; }
+    /// <summary>Where the user came from: back there when they cancel.</summary>
+    [SupplyParameterFromQuery(Name = "terug")] public string? ReturnUrl { get; set; }
 
-    /// <summary>
-    /// Opens the dialog to create the analysis of a game; unfinished work on a photo of that game is continued. True
-    /// when the moves were saved (the caller then shows the analysis).
-    /// </summary>
-    public static async Task<bool> ShowAsync(IDialogService dialogs, TournamentApi api, GameDto game, int tournamentId)
-    {
-        ScoresheetWizardDto? wizard = null;
-        try
-        {
-            wizard = await api.GetScoresheetWizardAsync(game.Id);
-        }
-        catch (Exception e) when (e is ApiClientException or HttpRequestException)
-        {
-            // Not essential: start by choosing a method.
-        }
-        var dialog = await dialogs.ShowAsync<ScoresheetWizardDialog>(null,
-            new DialogParameters<ScoresheetWizardDialog>
-            {
-                { d => d.Game, game }, { d => d.Wizard, wizard }, { d => d.TournamentId, tournamentId }
-            },
-            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseOnEscapeKey = false, BackdropClick = false });
-        return await dialog.Result is { Canceled: false, Data: true };
-    }
+    /// <summary>The address of this page for a game.</summary>
+    public static string Url(int tournamentId, int gameId, string? returnUrl = null) =>
+        $"games/{gameId}/analyse-aanmaken?toernooi={tournamentId}"
+        + (string.IsNullOrEmpty(returnUrl) ? "" : $"&terug={Uri.EscapeDataString(returnUrl)}");
 
     /// <summary>Photos are scaled down to this size before uploading: plenty to read handwriting.</summary>
     private const int MaxPhotoPixels = 2000;
@@ -120,17 +122,51 @@
     private enum Method { None, Photo, Board, Pgn }
     private enum Stage { Choose, Photo, Read, Pgn, Board }
 
+    private GameDto? _game;
+    private string? _error;
     private Method _method;
     private Stage _stage = Stage.Choose;
     private bool _busy;
     private bool _disposed;
 
+    /// <summary>Leaving without asking (after saving, or when the phone took over).</summary>
+    private bool _leaving;
+
     /// <summary>The work on a photo, kept on the server; null for the other methods.</summary>
     private ScoresheetWizardDto? _wizard;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _wizard = Wizard;
+        try
+        {
+            var rounds = await Api.GetRoundsAsync(TournamentId);
+            _game = rounds.SelectMany(r => r.Games).FirstOrDefault(g => g.Id == GameId);
+            if (_game is null)
+            {
+                _error = L["Error_GameNotFound"];
+                return;
+            }
+            if (_game.HasPgn)
+            {
+                // Already done (e.g. on a phone): show the analysis.
+                _leaving = true;
+                Navigation.NavigateTo($"games/{GameId}", replace: true);
+                return;
+            }
+            _wizard = await Api.GetScoresheetWizardAsync(GameId);
+        }
+        catch (ApiClientException e) when (e.Code is ApiErrorCode.TournamentNotFound or ApiErrorCode.GameNotFound)
+        {
+            _error = L["Error_GameNotFound"];
+            return;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _error = L["Error_ServerUnavailable"];
+            return;
+        }
+
+        // Continue the work on a photo.
         if (_wizard is null) return;
         _method = Method.Photo;
         if (_wizard.Review is { } review) ToBoard(review);
@@ -139,9 +175,24 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Continued while Claude is still reading (the dialog was closed meanwhile): wait for it.
+        // Continued while Claude is still reading: wait for it.
         if (firstRender && _wizard is { ReadStatus: ScoresheetReadStatus.Reading }) await PollAsync();
     }
+
+    /// <summary>Back to where the user came from (only an address within the app).</summary>
+    private void Leave() =>
+        Navigation.NavigateTo(ReturnUrl is { Length: > 0 } url && Uri.IsWellFormedUriString(url, UriKind.Relative)
+                              && !url.Contains(':') && !url.StartsWith('/') ? url : "games");
+
+    /// <summary>Moves played on the board or pasted are only kept when saved: ask before leaving them.</summary>
+    private async Task ConfirmLeaveAsync(LocationChangingContext context)
+    {
+        if (_leaving || _wizard is not null || _stage != Stage.Board || _review is not { MoveCount: > 0 }) return;
+        if (!await ConfirmDropAsync()) context.PreventNavigation();
+    }
+
+    private async Task<bool> ConfirmDropAsync() =>
+        await Dialogs.ShowMessageBoxAsync(L["PgnAddMoves"], L["WizardCloseUnsaved"], yesText: L["WizardDiscard"], cancelText: L["Cancel"]) == true;
 
     // ----- The steps at the top: they depend on the method -----
 
@@ -240,7 +291,7 @@
         return Task.CompletedTask;
     }
 
-    /// <summary>Back to the three methods; moves entered by hand or a pasted PGN are dropped (after asking).</summary>
+    /// <summary>Back to the three methods; moves played on the board are dropped (after asking).</summary>
     private async Task BackToChoiceAsync()
     {
         if (_stage == Stage.Board && _review is { MoveCount: > 0 } && !await ConfirmDropAsync()) return;
@@ -251,9 +302,6 @@
         _method = Method.None;
         _stage = Stage.Choose;
     }
-
-    private async Task<bool> ConfirmDropAsync() =>
-        await Dialogs.ShowMessageBoxAsync(L["Close"], L["WizardCloseUnsaved"], yesText: L["WizardDiscard"], cancelText: L["Cancel"]) == true;
 
     // ----- Method 1: a photo (this computer, the webcam, or a phone via the QR code) -----
 
@@ -266,7 +314,7 @@
         <div>
         @if (_photo is null)
         {
-            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L["WizardPhotoHelp"]</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4 text-center">@L["WizardPhotoHelp"]</MudText>
             <div class="wizard-photo-sources">
                 <div class="wizard-source-buttons">
                     <InputFile id="@_fileInputId" OnChange="PhotoChosenAsync" accept="image/*" hidden disabled="@_busy" />
@@ -394,7 +442,7 @@
         if (_disposed || _stage != Stage.Photo) return;
         try
         {
-            var link = await Api.CreateScoresheetLinkAsync(Game.Id);
+            var link = await Api.CreateScoresheetLinkAsync(GameId);
             _link = link;
             _qrSvg = QrCode.Svg(Navigation.ToAbsoluteUri($"foto/{link.Token}").ToString());
             StateHasChanged();
@@ -407,7 +455,7 @@
     }
 
     /// <summary>
-    /// Checks every 2 seconds whether a phone opened the page. Then the phone does the rest and this dialog closes,
+    /// Checks every 2 seconds whether a phone opened the page. Then the phone does the rest and this page goes back,
     /// so the computer is free for the next game.
     /// </summary>
     private async Task WatchLinkAsync(int linkId)
@@ -418,13 +466,14 @@
             if (_disposed || _link?.Id != linkId || !LinkUsable) return;
             try
             {
-                var link = await Api.GetScoresheetLinkAsync(Game.Id, linkId);
+                var link = await Api.GetScoresheetLinkAsync(GameId, linkId);
                 if (_disposed || _link?.Id != linkId) return;
                 _link = link;
                 if (link.Status is ScoresheetLinkStatus.Opened or ScoresheetLinkStatus.Uploaded)
                 {
-                    Snackbar.Add(L["WizardQrHandedOver", Game.White.Name, Game.Black?.Name ?? ""], Severity.Info);
-                    Dialog.Cancel();
+                    Snackbar.Add(L["WizardQrHandedOver", _game?.White.Name ?? "", _game?.Black?.Name ?? ""], Severity.Info);
+                    _leaving = true;
+                    Leave();
                     return;
                 }
                 StateHasChanged();
@@ -443,7 +492,7 @@
         _link = link with { Status = ScoresheetLinkStatus.Cancelled };
         try
         {
-            await Api.CancelScoresheetLinkAsync(Game.Id, link.Id);
+            await Api.CancelScoresheetLinkAsync(GameId, link.Id);
         }
         catch (Exception e) when (e is ApiClientException or HttpRequestException)
         {
@@ -458,9 +507,9 @@
         _busy = true;
         try
         {
-            var uploaded = await Api.UploadScoresheetAsync(Game.Id, _photo, "image/jpeg");
+            var uploaded = await Api.UploadScoresheetAsync(GameId, _photo, "image/jpeg");
             _ = CancelLinkAsync();
-            _wizard = new ScoresheetWizardDto(uploaded.Id, Game.Id, uploaded.UploadedAt, ScoresheetReadStatus.Reading, null, null, "", null);
+            _wizard = new ScoresheetWizardDto(uploaded.Id, GameId, uploaded.UploadedAt, ScoresheetReadStatus.Reading, null, null, "", null);
             _stage = Stage.Read;
             _busy = false;
             StateHasChanged();
@@ -521,7 +570,7 @@
         try
         {
             var wizard = await Api.ReadScoresheetPhotoAsync(_wizard.GameId, _wizard.PhotoId);
-            if (_disposed) return; // closed meanwhile: the result is kept on the server
+            if (_disposed) return; // left meanwhile: the result is kept on the server
             _wizard = wizard;
             if (wizard.ReadStatus == ScoresheetReadStatus.Reading) await PollAsync(); // already being read elsewhere
             else if (wizard.Review is { } review) ToBoard(review);
@@ -556,11 +605,12 @@
             if (_disposed) return;
             try
             {
-                var wizard = await Api.GetScoresheetWizardAsync(Game.Id);
+                var wizard = await Api.GetScoresheetWizardAsync(GameId);
                 if (wizard is null || wizard.PhotoId != _wizard.PhotoId)
                 {
                     // Finished or started over elsewhere.
-                    Dialog.Cancel();
+                    _leaving = true;
+                    Leave();
                     return;
                 }
                 _wizard = wizard;
@@ -585,7 +635,7 @@
         _busy = true;
         try
         {
-            await Api.CloseScoresheetWizardAsync(Game.Id);
+            await Api.CloseScoresheetWizardAsync(GameId);
             _wizard = null;
             _readError = null;
             _photo = null;
@@ -666,13 +716,6 @@
         _ => L["WizardManualHelp"]
     };
 
-    private RenderFragment BoardStage => __builder =>
-    {
-        <MoveReview @key="_boardKey" @ref="_review" Review="_startReview" Remarks="@_wizard?.Remarks" Help="@BoardHelp"
-                    PhotoUrl="@(_wizard is null ? null : TournamentApi.ScoresheetImageUrl(_wizard.GameId, _wizard.PhotoId))"
-                    OnChange="ScheduleSave" />
-    };
-
     // ----- Saving: the work on a photo (to continue later), and at the end the moves -----
 
     private CancellationTokenSource? _saveDelay;
@@ -681,7 +724,7 @@
     /// <summary>Saves the work on a photo a moment after the last change (not on every key press).</summary>
     private void ScheduleSave()
     {
-        if (_wizard is null) return; // entered by hand or pasted: kept only when saved
+        if (_wizard is null) return; // played on the board or pasted: kept only when saved
         _dirty = true;
         _saveDelay?.Cancel();
         _saveDelay = new CancellationTokenSource();
@@ -712,7 +755,7 @@
         }
         catch (Exception e) when (e is ApiClientException or HttpRequestException)
         {
-            _dirty = true; // tried again with the next change, or when the dialog is closed
+            _dirty = true; // tried again with the next change, or when the page is left
         }
     }
 
@@ -722,16 +765,8 @@
         if (_dirty) await SaveReviewAsync();
     }
 
-    private async Task CloseAsync()
-    {
-        // Moves entered by hand or pasted are not kept on the server.
-        if (_wizard is null && _stage == Stage.Board && _review is { MoveCount: > 0 } && !await ConfirmDropAsync()) return;
-        await FlushAsync();
-        Dialog.Cancel();
-    }
-
-    /// <summary>The moves are saved as the game's PGN (which closes the work on a photo and starts the analysis); the
-    /// caller then shows the analysis page.</summary>
+    /// <summary>The moves are saved as the game's PGN (which closes the work on a photo and starts the analysis); then
+    /// the analysis page opens.</summary>
     private async Task SaveAsync()
     {
         if (_review is not { CanSave: true } review) return;
@@ -739,9 +774,11 @@
         try
         {
             await FlushAsync();
-            var pgn = await Api.BuildScoresheetPgnAsync(Game.Id, review.Moves, fromPhoto: _wizard is not null);
-            await Api.SetPgnAsync(TournamentId, Game.Id, pgn.Pgn);
-            Dialog.Close(DialogResult.Ok(true));
+            var pgn = await Api.BuildScoresheetPgnAsync(GameId, review.Moves, fromPhoto: _wizard is not null);
+            await Api.SetPgnAsync(TournamentId, GameId, pgn.Pgn);
+            Snackbar.Add(L["PgnSaved"], Severity.Success);
+            _leaving = true;
+            Navigation.NavigateTo($"games/{GameId}");
         }
         catch (Exception e) when (e is ApiClientException or HttpRequestException)
         {
@@ -767,7 +804,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        // Closed: keep the work on a photo; a QR code that no phone opened can no longer be used.
+        // Left: keep the work on a photo; a QR code that no phone opened can no longer be used.
         await FlushAsync();
         await CancelLinkAsync();
         _saveDelay?.Dispose();

@@ -1,99 +1,72 @@
 @using ChessFixer.Core.Chess
 @using Position = ChessFixer.Core.Chess.Position
+@implements IAsyncDisposable
 @inject IStringLocalizer<Strings> L
+@inject IJSRuntime JS
 
-@* The digital chess board on which the moves of a game are entered or checked, one per half-move, next to the photo of
-   the scoresheet (when there is one). Every move is replayed on the board: a move that is not possible is red. A move
-   is typed (e4, Pf3 or Nf3) or played on the board by dragging or clicking the piece. Moves read by Claude are checked
-   off against the photo (a move Claude was sure of is checked already); moves entered by hand or pasted as PGN have
-   nothing to check off. Used by the 'Analyse aanmaken' wizard and by the phone page of the QR code; the parent saves
-   (OnChange) and decides when the moves are done (CanSave). *@
-<div>
-    @if (!string.IsNullOrWhiteSpace(Remarks))
+@* The digital chess board on which the moves of a game are entered or checked, filling the screen: the photo of the
+   scoresheet (when there is one) small on the left, the board in the middle and the moves on the right, White and Black
+   next to each other per move number as on a scoresheet. Every move is replayed on the board: a move that is not
+   possible is red. A move is typed (e4, Pf3 or Nf3) or played on the board by dragging or clicking the piece. Moves
+   read by Claude are checked off against the photo (a move Claude was sure of is checked already); moves played on the
+   board or pasted as PGN have nothing to check off. Used by the 'Analyse aanmaken' page and by the phone page of the
+   QR code; the parent saves (OnChange) and decides when the moves are done (CanSave). *@
+<div class="review-layout @(PhotoUrl is null ? "no-photo" : "")">
+    @if (PhotoUrl is not null)
     {
-        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">@L["WizardRemarks"] <i>@Remarks</i></MudAlert>
-    }
-    @if (Help is not null)
-    {
-        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@Help</MudText>
-    }
-    <div class="review-layout @(PhotoUrl is null ? "no-photo" : "")">
-        @if (PhotoUrl is not null)
-        {
-            <div class="review-photo @(_zoomed ? "zoomed" : "")" title="@L["WizardZoom"]" @onclick="() => _zoomed = !_zoomed">
-                <img src="@PhotoUrl" alt="@L["ScoresheetPhotos"]" />
-            </div>
-        }
-
-        <div class="review-board">
-            @BoardPanel
+        <div class="review-photo @(_zoomed ? "zoomed" : "")" title="@L["WizardZoom"]" @onclick="() => _zoomed = !_zoomed">
+            <img src="@PhotoUrl" alt="@L["ScoresheetPhotos"]" />
         </div>
+    }
 
-        <div class="review-list">
-            <div class="review-moves">
-                <table>
-                    <thead>
+    <div class="review-board">
+        @BoardPanel
+    </div>
+
+    <div class="review-list">
+        @if (!string.IsNullOrWhiteSpace(Remarks))
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">@L["WizardRemarks"] <i>@Remarks</i></MudAlert>
+        }
+        @if (Help is not null)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary review-help">@Help</MudText>
+        }
+        <div class="review-moves" @ref="_list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>@L["WizardWhite"]</th>
+                        <th>@L["WizardBlack"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < _rows.Count; i += 2)
+                    {
+                        var white = i;
                         <tr>
-                            @if (!Manual)
-                            {
-                                <th title="@L["WizardChecked"]"><MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" /></th>
-                            }
-                            <th>#</th>
-                            <th>@L["WizardMove"]</th>
-                            @if (!Manual)
-                            {
-                                <th>@L["WizardConfidence"]</th>
-                            }
-                            <th></th>
+                            <td class="review-move-number">@(white / 2 + 1).</td>
+                            <td>@HalfMove(white)</td>
+                            <td>
+                                @if (white + 1 < _rows.Count)
+                                {
+                                    @HalfMove(white + 1)
+                                }
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @for (var i = 0; i < _rows.Count; i++)
-                        {
-                            var index = i;
-                            var row = _rows[i];
-                            var check = _checks[i];
-                            var css = (index == _selected ? "selected" : "")
-                                      + (check.Status == MoveStatus.Illegal ? " illegal"
-                                          : !row.Checked && !Manual && check.Status != MoveStatus.Empty ? " unchecked" : "");
-                            <tr class="@css" @onclick="() => Select(index)">
-                                @if (!Manual)
-                                {
-                                    <td>
-                                        <input type="checkbox" class="review-move-check" checked="@row.Checked"
-                                               aria-label="@L["WizardChecked"]" @onclick:stopPropagation="true"
-                                               @onchange="e => SetChecked(index, e.Value is true)" />
-                                    </td>
-                                }
-                                <td class="review-move-number">@MoveLabel(index)</td>
-                                <td>
-                                    <input class="review-move-input @(check.Status == MoveStatus.Illegal ? "illegal" : "")"
-                                           value="@row.Text" maxlength="20" spellcheck="false" autocomplete="off" autocapitalize="off"
-                                           aria-label="@L["WizardMove"]"
-                                           @onfocus="() => Select(index)"
-                                           @oninput="e => TextChanged(index, e.Value?.ToString())"
-                                           @onblur="() => Normalize(index)"
-                                           @onkeydown="e => KeyDown(index, e)" />
-                                </td>
-                                @if (!Manual)
-                                {
-                                    <td>@ConfidenceChip(row)</td>
-                                }
-                                <td>@StatusIcon(check)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            <div class="d-flex flex-wrap gap-1 mt-2">
-                <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAtEnd">
-                    @L["WizardAddMove"]
-                </MudButton>
-                <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.PlaylistAdd"
-                           OnClick="InsertBefore" Disabled="@(_rows.Count == 0)">@L["WizardInsertMove"]</MudButton>
-                <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Delete" Color="Color.Error"
-                           OnClick="DeleteSelected" Disabled="@(_rows.Count == 0)">@L["WizardDeleteMove"]</MudButton>
-            </div>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex flex-wrap gap-1">
+            <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAtEnd">
+                @L["WizardAddMove"]
+            </MudButton>
+            <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.PlaylistAdd"
+                       OnClick="InsertBefore" Disabled="@(_rows.Count == 0)">@L["WizardInsertMove"]</MudButton>
+            <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Delete" Color="Color.Error"
+                       OnClick="DeleteSelected" Disabled="@(_rows.Count == 0)">@L["WizardDeleteMove"]</MudButton>
         </div>
     </div>
 </div>
@@ -155,9 +128,6 @@
         var toCheck = Manual ? -1 : _rows.FindIndex(r => !r.Checked && r.Text.Length > 0);
         _selected = FirstIllegal >= 0 ? FirstIllegal : toCheck >= 0 ? toCheck : Manual ? _rows.Count - 1 : 0;
     }
-
-    /// <summary>The parent shows whether the moves can be saved: let it know right away (e.g. a pasted PGN that is fine).</summary>
-    protected override Task OnAfterRenderAsync(bool firstRender) => firstRender ? OnChange.InvokeAsync() : Task.CompletedTask;
 
     // ----- What the parent needs -----
 
@@ -321,41 +291,81 @@
         </div>
     };
 
-    private RenderFragment ConfidenceChip(Row row) => __builder =>
+    /// <summary>One half-move in the table: (checkbox,) the move, and how sure Claude was (a colored dot).</summary>
+    private RenderFragment HalfMove(int index) => __builder =>
     {
-        var (css, key) = row.Confidence switch
+        var row = _rows[index];
+        var check = _checks[index];
+        var css = "review-half" + (index == _selected ? " selected" : "")
+                  + (check.Status == MoveStatus.Illegal ? " illegal"
+                      : check.Status == MoveStatus.Unknown ? " unknown"
+                      : !row.Checked && !Manual && check.Status != MoveStatus.Empty ? " unchecked" : "");
+        var title = check.Status switch
         {
-            MoveConfidence.High => ("high", "ConfidenceHigh"),
-            MoveConfidence.Medium => ("medium", "ConfidenceMedium"),
-            _ => ("low", "ConfidenceLow")
+            MoveStatus.Illegal => L["WizardIllegal"].Value,
+            MoveStatus.Unknown => L["WizardUnknown"].Value,
+            _ => null
         };
-        if (row.ReadAs.Length == 0)
-        {
-            <span class="review-confidence low" title="@L["WizardAddedHelp"]">@L["WizardAdded"]</span>
-        }
-        else
-        {
-            <span class="review-confidence @css" title="@L[key + "Help"]">@L[key]</span>
-        }
+        var read = !Manual && check.Status != MoveStatus.Empty;
+        <div class="@css" @onclick="() => Select(index)">
+            @if (read)
+            {
+                <input type="checkbox" class="review-move-check" checked="@row.Checked"
+                       aria-label="@L["WizardChecked"]" @onclick:stopPropagation="true"
+                       @onchange="e => SetChecked(index, e.Value is true)" />
+            }
+            <input class="review-move-input" value="@row.Text" maxlength="20" spellcheck="false" autocomplete="off" autocapitalize="off"
+                   aria-label="@($"{MoveLabel(index)} {L["WizardMove"]}")" title="@title"
+                   @onfocus="() => Select(index)"
+                   @oninput="e => TextChanged(index, e.Value?.ToString())"
+                   @onblur="() => Normalize(index)"
+                   @onkeydown="e => KeyDown(index, e)" />
+            @if (read)
+            {
+                var (level, key) = row.ReadAs.Length == 0 ? ("added", "WizardAddedHelp") : row.Confidence switch
+                {
+                    MoveConfidence.High => ("high", "ConfidenceHighHelp"),
+                    MoveConfidence.Medium => ("medium", "ConfidenceMediumHelp"),
+                    _ => ("low", "ConfidenceLowHelp")
+                };
+                <span class="review-confidence-dot @level" title="@L[key]"></span>
+            }
+        </div>
     };
 
-    private RenderFragment StatusIcon(Check check) => __builder =>
+    /// <summary>The selected move stays in view in the list (and keeps the keyboard focus while typing).</summary>
+    private ElementReference _list;
+    private IJSObjectReference? _module;
+    private int _shown = -1;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        switch (check.Status)
+        // The parent shows whether the moves can be saved: let it know right away (e.g. a pasted PGN that is fine).
+        if (firstRender) await OnChange.InvokeAsync();
+        if (_shown == _selected) return;
+        _shown = _selected;
+        try
         {
-            case MoveStatus.Legal:
-                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Title="@L["WizardLegal"]" />
-                break;
-            case MoveStatus.Illegal:
-                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" Title="@L["WizardIllegal"]" />
-                break;
-            case MoveStatus.Empty:
-                break;
-            default:
-                <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" Class="mud-text-secondary" Title="@L["WizardUnknown"]" />
-                break;
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./Components/MoveReview.razor.js");
+            await _module.InvokeVoidAsync("showSelected", _list);
         }
-    };
+        catch (JSException)
+        {
+            // Only a convenience.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null) await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The page is gone.
+        }
+    }
 
     // ----- Editing -----
 

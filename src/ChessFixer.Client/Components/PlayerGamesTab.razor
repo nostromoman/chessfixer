@@ -130,13 +130,8 @@ else
             var gameDto = new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.HasPgn);
             if (!game.HasPgn)
             {
-                // Adds the moves (a photo, pasted PGN or by hand), then shows the analysis.
-                if (await ScoresheetWizardDialog.ShowAsync(Dialogs, Api, gameDto, game.TournamentId))
-                {
-                    Snackbar.Add(L["PgnSaved"], Severity.Success);
-                    Navigation.NavigateTo($"games/{game.GameId}");
-                }
-                else await ReloadAsync(); // a photo may have been kept
+                // Creates the analysis (a photo, the board or pasted PGN), on its own page.
+                Navigation.NavigateTo(CreateAnalysis.Url(game.TournamentId, game.GameId, Navigation.ToBaseRelativePath(Navigation.Uri)));
                 return;
             }
 
