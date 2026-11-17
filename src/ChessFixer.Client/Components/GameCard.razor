@@ -30,10 +30,10 @@
         }
         @if (CanHavePgn && OnPgn.HasDelegate)
         {
-            <MudTooltip Text="@(Game.HasPgn ? L["PgnView"] : L["PgnAdd"])" Class="game-card-pgn">
+            <MudTooltip Text="@(Game.HasPgn ? L["PgnEdit"] : L["PgnAdd"])" Class="game-card-pgn">
                 <MudIconButton Icon="@(Game.HasPgn ? Icons.Material.Filled.Description : Icons.Material.Outlined.NoteAdd)"
                                Color="@(Game.HasPgn ? Color.Primary : Color.Default)" Size="Size.Small"
-                               Disabled="Disabled" aria-label="PGN" OnClick="() => OnPgn.InvokeAsync()" />
+                               Disabled="Disabled" aria-label="@(Game.HasPgn ? L["PgnEdit"] : L["PgnAdd"])" OnClick="() => OnPgn.InvokeAsync()" />
             </MudTooltip>
         }
     </div>

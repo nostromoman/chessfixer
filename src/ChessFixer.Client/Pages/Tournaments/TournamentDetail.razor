@@ -179,7 +179,7 @@ else
             </MudTabPanel>
             <MudTabPanel Text="@L["Rounds"]" Icon="@Icons.Material.Filled.GridOn">
                 <TournamentMatchesTab Tournament="Tournament" Rounds="_rounds" Players="_players"
-                                      Disabled="IsBusy" OnResult="SetResultAsync" OnPgn="PgnAsync"
+                                      Disabled="IsBusy" OnResult="SetResultAsync" OnPgn="EditMoves"
                                       OnGenerateReport="GenerateRoundReportAsync" />
             </MudTabPanel>
             <MudTabPanel Text="@L["Standings"]" Icon="@Icons.Material.Filled.EmojiEvents">
@@ -451,42 +451,9 @@ else
         await RunAsync(() => Api.AddCatchUpGameAsync(Id, request), L["CatchUpSaved"]);
     }
 
-    /// <summary>
-    /// Without moves: adds them (a photo, pasted PGN or by hand) and then shows the analysis. With moves: shows them
-    /// (PGN), to change, copy or analyse them.
-    /// </summary>
-    private async Task PgnAsync(GameDto game)
-    {
-        if (!game.HasPgn)
-        {
-            Navigation.NavigateTo(CreateAnalysis.Url(Id, game.Id, Navigation.ToBaseRelativePath(Navigation.Uri)));
-            return;
-        }
-
-        string? pgn;
-        try
-        {
-            pgn = (await Api.GetPgnAsync(Id, game.Id)).Pgn;
-        }
-        catch (Exception e) when (e is ApiClientException or HttpRequestException)
-        {
-            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
-            return;
-        }
-
-        var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
-            new DialogParameters<PgnDialog>
-            {
-                { d => d.Game, game },
-                { d => d.Pgn, pgn },
-                { d => d.TournamentTitle, Tournament!.Title },
-                { d => d.TournamentId, Id }
-            },
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
-        if (await dialog.Result is not { Canceled: false, Data: string text }) return;
-
-        await RunAsync(() => Api.SetPgnAsync(Id, game.Id, text), text.Length == 0 ? L["PgnRemoved"] : L["PgnSaved"]);
-    }
+    /// <summary>Creates the analysis, or changes the moves, on the digital board (a page of its own).</summary>
+    private void EditMoves(GameDto game) =>
+        Navigation.NavigateTo(CreateAnalysis.Url(Id, game.Id, Navigation.ToBaseRelativePath(Navigation.Uri), edit: game.HasPgn));
 
     private Task GenerateReportAsync(GenerateReportRequest request) =>
         RunAsync(() => Api.GenerateReportAsync(Id, request), L["ReportRequested"]);

@@ -71,8 +71,8 @@ else
                             <MudTooltip Text="@(game.HasPgn ? L["PgnEdit"] : L["PgnAdd"])">
                                 <MudIconButton Icon="@(game.HasPgn ? Icons.Material.Filled.Description : Icons.Material.Outlined.NoteAdd)"
                                                Color="@(game.HasPgn ? Color.Primary : Color.Default)" Size="Size.Small"
-                                               aria-label="PGN" Disabled="_busy"
-                                               OnClick="() => EditPgnAsync(game)" />
+                                               aria-label="@(game.HasPgn ? L["PgnEdit"] : L["PgnAdd"])" Disabled="_busy"
+                                               OnClick="() => EditMoves(game)" />
                             </MudTooltip>
                         }
                     </td>
@@ -122,52 +122,10 @@ else
         if (CanOpen(game)) Navigation.NavigateTo($"games/{game.GameId}");
     }
 
-    private async Task EditPgnAsync(PlayerAnalysedGameDto game)
-    {
-        _busy = true;
-        try
-        {
-            var gameDto = new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.HasPgn);
-            if (!game.HasPgn)
-            {
-                // Creates the analysis (a photo, the board or pasted PGN), on its own page.
-                Navigation.NavigateTo(CreateAnalysis.Url(game.TournamentId, game.GameId, Navigation.ToBaseRelativePath(Navigation.Uri)));
-                return;
-            }
-
-            var pgn = (await Api.GetPgnAsync(game.TournamentId, game.GameId)).Pgn;
-            var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
-                new DialogParameters<PgnDialog>
-                {
-                    { d => d.Game, gameDto },
-                    { d => d.Pgn, pgn },
-                    { d => d.TournamentTitle, game.TournamentTitle },
-                    { d => d.TournamentId, game.TournamentId }
-                },
-                new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
-            if (await dialog.Result is not { Canceled: false, Data: string text })
-            {
-                await ReloadAsync(); // photos may have been added in the dialog
-                return;
-            }
-
-            await Api.SetPgnAsync(game.TournamentId, game.GameId, text);
-            Snackbar.Add(text.Length == 0 ? L["PgnRemoved"] : L["PgnSaved"], Severity.Success);
-            await ReloadAsync();
-        }
-        catch (ApiClientException e)
-        {
-            Snackbar.Add(e.Code is { } code ? L[$"Error_{code}"] : L["Error_Unknown"], Severity.Error);
-        }
-        catch (HttpRequestException)
-        {
-            Snackbar.Add(L["Error_ServerUnavailable"], Severity.Error);
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
+    /// <summary>Creates the analysis, or changes the moves, on the digital board (a page of its own).</summary>
+    private void EditMoves(PlayerAnalysedGameDto game) =>
+        Navigation.NavigateTo(CreateAnalysis.Url(game.TournamentId, game.GameId, Navigation.ToBaseRelativePath(Navigation.Uri),
+            edit: game.HasPgn));
 
     /// <summary>The player's own accuracy and blunders; the state while Stockfish is busy.</summary>
     private RenderFragment AnalysisCell(PlayerAnalysedGameDto game) => __builder =>
