@@ -816,7 +816,6 @@
   <data name="GameNotFound" xml:space="preserve"><value>Deze partij bestaat niet (meer), of er zijn geen zetten van.</value></data>
   <data name="Analysis" xml:space="preserve"><value>Analyse</value></data>
   <data name="Accuracy" xml:space="preserve"><value>Nauwkeurigheid</value></data>
-  <data name="AccuracyHelp" xml:space="preserve"><value>Nauwkeurigheid: hoe dicht de zetten bij de beste zet van Stockfish lagen (100% = steeds de beste zet). Een zet is een onnauwkeurigheid (?!), fout (?) of blunder (??) als de winstkans er 5, 10 of 15 procentpunt door daalt.</value></data>
   <data name="Inaccuracies" xml:space="preserve"><value>Onnauwkeurigheden</value></data>
   <data name="Mistakes" xml:space="preserve"><value>Fouten</value></data>
   <data name="Blunders" xml:space="preserve"><value>Blunders</value></data>
@@ -825,8 +824,6 @@
   <data name="AnalysisFailed" xml:space="preserve"><value>Analyse mislukt</value></data>
   <data name="AnalysisNone" xml:space="preserve"><value>Deze zetten zijn nog niet geanalyseerd.</value></data>
   <data name="AnalysisRequested" xml:space="preserve"><value>De partij wordt opnieuw geanalyseerd.</value></data>
-  <data name="AnalyseAgain" xml:space="preserve"><value>Opnieuw analyseren</value></data>
-  <data name="AnalysedWith" xml:space="preserve"><value>{0}, diepte {1}</value></data>
   <data name="PgnEdit" xml:space="preserve"><value>Zetten bewerken</value></data>
   <data name="PgnShowAnalysis" xml:space="preserve"><value>Analyse bekijken</value></data>
   <data name="PgnMoveError" xml:space="preserve"><value>De zetten konden niet verder gelezen worden: zet {0} van {1} ({2}) is niet mogelijk. Pas de PGN aan; de zetten ervoor zijn wel geanalyseerd.</value></data>
@@ -847,7 +844,6 @@
   <data name="MoveQuality_Blunder" xml:space="preserve"><value>Blunder</value></data>
   <data name="EvalGraphTitle" xml:space="preserve"><value>Verloop van de partij</value></data>
   <data name="EvalGraphLabel" xml:space="preserve"><value>Winstkans van wit per zet</value></data>
-  <data name="EvalGraphHelp" xml:space="preserve"><value>Winstkans van wit na elke zet: boven de middellijn staat wit beter, eronder zwart. Klik in de grafiek om naar die zet te gaan; de bolletjes zijn onnauwkeurigheden, fouten en blunders.</value></data>
   <data name="PlayerTabGames" xml:space="preserve"><value>Partijen</value></data>
   <data name="PlayerGamesIntro" xml:space="preserve"><value>Alle partijen van deze speler, de nieuwste bovenaan. Voeg met het notatie-icoon de zetten (PGN) toe; Stockfish analyseert ze dan. Klik op een partij met zetten om de analyse te bekijken.</value></data>
   <data name="PlayerGamesCountsHelp" xml:space="preserve"><value>{0} onnauwkeurigheden, {1} fouten, {2} blunders</value></data>
@@ -860,14 +856,12 @@
   <data name="ScoresheetStoredAnyway" xml:space="preserve"><value>De foto is wel bewaard.</value></data>
   <data name="ScoresheetPhotos" xml:space="preserve"><value>Notatieformulier</value></data>
   <data name="ScoresheetPhotosKept" xml:space="preserve"><value>Bewaarde foto’s van het notatieformulier ({0}); klik om groot te bekijken:</value></data>
-  <data name="ScoresheetPhotosHelp" xml:space="preserve"><value>De bewaarde foto’s van het handgeschreven notatieformulier. Klik op een foto om hem groot te openen (in een nieuw tabblad, daar kun je inzoomen).</value></data>
   <data name="ScoresheetOpen" xml:space="preserve"><value>Foto groot openen</value></data>
   <data name="ScoresheetUploadedBy" xml:space="preserve"><value>{0} door {1}</value></data>
   <data name="ScoresheetDelete" xml:space="preserve"><value>Foto verwijderen</value></data>
   <data name="ScoresheetDeleteConfirm" xml:space="preserve"><value>Deze foto van het notatieformulier verwijderen? Dit kan niet ongedaan worden gemaakt.</value></data>
-  <data name="ScoresheetDeleted" xml:space="preserve"><value>De foto is verwijderd.</value></data>
   <data name="ScoresheetCount" xml:space="preserve"><value>{0} foto(’s) van het notatieformulier</value></data>
-  <data name="NoMovesYet" xml:space="preserve"><value>Van deze partij zijn nog geen zetten ingevoerd, alleen foto’s van het notatieformulier (hieronder). Kies ‘Analyse aanmaken’ om de foto te laten lezen of de partij na te spelen.</value></data>
+  <data name="NoMovesYet" xml:space="preserve"><value>Van deze partij zijn nog geen zetten ingevoerd. Kies ‘Analyse aanmaken’ om een foto van het notatieformulier te laten lezen of de partij na te spelen.</value></data>
   <data name="PgnAddMoves" xml:space="preserve"><value>Analyse aanmaken</value></data>
   <data name="Error_ScoresheetNotFound" xml:space="preserve"><value>Deze foto bestaat niet (meer).</value></data>
   <data name="ActivityAction_Games_UploadScoresheet" xml:space="preserve"><value>Foto van notatieformulier bewaren</value></data>
@@ -972,4 +966,9 @@
   <data name="WizardGameWrong" xml:space="preserve"><value>De partij klopt niet: zet {0} is niet mogelijk.</value></data>
   <data name="WizardGameWrongHelp" xml:space="preserve"><value>Verbeter deze zet (typ hem of zet hem op het bord); de zetten erna kunnen pas daarna gecontroleerd worden.</value></data>
   <data name="WizardGoToMove" xml:space="preserve"><value>Naar deze zet</value></data>
+  <data name="Actions" xml:space="preserve"><value>Acties</value></data>
+  <data name="AnalysisDelete" xml:space="preserve"><value>Analyse verwijderen</value></data>
+  <data name="AnalysisDeleteConfirm" xml:space="preserve"><value>De zetten en de analyse van deze partij worden verwijderd. Foto’s van het notatieformulier blijven bewaard. Doorgaan?</value></data>
+  <data name="AnalysisDeleted" xml:space="preserve"><value>De analyse is verwijderd.</value></data>
+  <data name="AnalysisRetry" xml:space="preserve"><value>Opnieuw proberen</value></data>
 </root>

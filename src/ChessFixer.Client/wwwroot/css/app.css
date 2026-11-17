@@ -1576,9 +1576,24 @@ button.schedule-slot {
 }
 
 /* Move list: move number, White, Black. */
+/* Next to the board the move list is as high as the board column (and scrolls); below it (narrow screens) at most 480 px. */
+.analysis-side-column {
+    position: relative;
+    align-self: stretch;
+    min-height: 240px;
+}
+
 .move-list {
-    max-height: 480px;
+    position: absolute;
+    inset: 0;
     overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+    .move-list {
+        position: static;
+        max-height: 480px;
+    }
 }
 
 .move-list table {

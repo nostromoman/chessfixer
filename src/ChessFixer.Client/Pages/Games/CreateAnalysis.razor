@@ -17,7 +17,7 @@
    3. pasted PGN: the board starts with its moves; a move that is not possible shows in red.
    The work on a photo is kept on the server, so the user can continue later. At the end the moves are saved (and
    analysed) and the analysis page opens. *@
-<PageTitle>@L["PgnAddMoves"] – @L["AppTitle"]</PageTitle>
+<PageTitle>@Title – @L["AppTitle"]</PageTitle>
 
 <NavigationLock OnBeforeInternalNavigation="ConfirmLeaveAsync" />
 
@@ -25,22 +25,28 @@
     <div class="create-analysis-header">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="Leave" aria-label="@L["Cancel"]" />
         <div class="create-analysis-title">
-            <MudText Typo="Typo.h5">@L["PgnAddMoves"]</MudText>
+            <MudText Typo="Typo.h5">@Title</MudText>
             @if (_game is not null)
             {
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@_game.White.Name – @(_game.Black?.Name)</MudText>
             }
         </div>
-        <div class="wizard-steps">
-            @{ var steps = Steps; }
-            @for (var i = 0; i < steps.Count; i++)
-            {
-                @StepLabel(i, steps)
-            }
-        </div>
+        @if (!Edit)
+        {
+            <div class="wizard-steps">
+                @{ var steps = Steps; }
+                @for (var i = 0; i < steps.Count; i++)
+                {
+                    @StepLabel(i, steps)
+                }
+            </div>
+        }
         <MudSpacer />
         <div class="create-analysis-actions">
-            @if (_stage is Stage.Photo or Stage.Pgn || (_stage == Stage.Board && _method == Method.Board))
+            @if (Edit)
+            {
+            }
+            else if (_stage is Stage.Photo or Stage.Pgn || (_stage == Stage.Board && _method == Method.Board))
             {
                 <MudButton StartIcon="@Icons.Material.Filled.SwapHoriz" OnClick="BackToChoiceAsync" Disabled="_busy">@L["WizardOtherMethod"]</MudButton>
             }
@@ -110,10 +116,16 @@
     /// <summary>Where the user came from: back there when they cancel.</summary>
     [SupplyParameterFromQuery(Name = "terug")] public string? ReturnUrl { get; set; }
 
-    /// <summary>The address of this page for a game.</summary>
-    public static string Url(int tournamentId, int gameId, string? returnUrl = null) =>
+    /// <summary>Changes the moves of a game that has them already (on the board, filled in).</summary>
+    [SupplyParameterFromQuery(Name = "bewerken")] public bool Edit { get; set; }
+
+    /// <summary>The address of this page for a game; with <paramref name="edit"/> to change its moves.</summary>
+    public static string Url(int tournamentId, int gameId, string? returnUrl = null, bool edit = false) =>
         $"games/{gameId}/analyse-aanmaken?toernooi={tournamentId}"
+        + (edit ? "&bewerken=true" : "")
         + (string.IsNullOrEmpty(returnUrl) ? "" : $"&terug={Uri.EscapeDataString(returnUrl)}");
+
+    private string Title => Edit ? L["PgnEdit"] : L["PgnAddMoves"];
 
     /// <summary>Photos are scaled down to this size before uploading: plenty to read handwriting.</summary>
     private const int MaxPhotoPixels = 2000;
@@ -146,6 +158,15 @@
                 _error = L["Error_GameNotFound"];
                 return;
             }
+            if (Edit && _game.HasPgn)
+            {
+                // The moves as they are, on the board: the analysis is made again when they are saved.
+                var pgn = (await Api.GetPgnAsync(TournamentId, GameId)).Pgn ?? "";
+                _method = Method.Board;
+                ToBoard(new ScoresheetReviewDto(PgnText.MoveTokens(pgn)
+                    .Select(m => new ScoresheetReviewMoveDto(m, "", [], MoveConfidence.Low, true)).ToList()));
+                return;
+            }
             if (_game.HasPgn)
             {
                 // Already done (e.g. on a phone): show the analysis.
@@ -153,6 +174,7 @@
                 Navigation.NavigateTo($"games/{GameId}", replace: true);
                 return;
             }
+            Edit = false;
             _wizard = await Api.GetScoresheetWizardAsync(GameId);
         }
         catch (ApiClientException e) when (e.Code is ApiErrorCode.TournamentNotFound or ApiErrorCode.GameNotFound)
@@ -181,13 +203,14 @@
 
     /// <summary>Back to where the user came from (only an address within the app).</summary>
     private void Leave() =>
-        Navigation.NavigateTo(ReturnUrl is { Length: > 0 } url && Uri.IsWellFormedUriString(url, UriKind.Relative)
+        Navigation.NavigateTo(Edit && string.IsNullOrEmpty(ReturnUrl) ? $"games/{GameId}" :
+                              ReturnUrl is { Length: > 0 } url && Uri.IsWellFormedUriString(url, UriKind.Relative)
                               && !url.Contains(':') && !url.StartsWith('/') ? url : "games");
 
     /// <summary>Moves played on the board or pasted are only kept when saved: ask before leaving them.</summary>
     private async Task ConfirmLeaveAsync(LocationChangingContext context)
     {
-        if (_leaving || _wizard is not null || _stage != Stage.Board || _review is not { MoveCount: > 0 }) return;
+        if (_leaving || Edit || _wizard is not null || _stage != Stage.Board || _review is not { MoveCount: > 0 }) return;
         if (!await ConfirmDropAsync()) context.PreventNavigation();
     }
 

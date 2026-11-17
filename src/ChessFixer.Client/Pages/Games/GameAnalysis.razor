@@ -32,13 +32,19 @@ else
         </MudText>
         <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">@L[$"Result_{game.Result}"]</MudChip>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="EditPgnAsync" Disabled="_busy">
-            @(game.Pgn is null ? L["PgnAddMoves"] : L["PgnEdit"])
-        </MudButton>
-        @if (game.Pgn is not null)
+        @if (game.Pgn is null)
         {
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="AnalyseAsync"
-                       Disabled="@(_busy || game.Analysis.Status is AnalysisStatus.Pending or AnalysisStatus.Running)">@L["AnalyseAgain"]</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.QueryStats" OnClick="EditMoves">
+                @L["PgnAddMoves"]
+            </MudButton>
+        }
+        else
+        {
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                     aria-label="@L["Actions"]" Disabled="_busy">
+                <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="EditMoves">@L["PgnEdit"]</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Outlined.Delete" IconColor="Color.Error" OnClick="DeleteAnalysisAsync">@L["AnalysisDelete"]</MudMenuItem>
+            </MudMenu>
         }
     </div>
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
@@ -48,10 +54,6 @@ else
         {
             <span> · @date.ToLocalTime().ToString("d MMMM yyyy")</span>
         }
-        @if (game.Engine is not null && game.Analysis.Status == AnalysisStatus.Done)
-        {
-            <span> · @L["AnalysedWith", game.Engine, game.Depth ?? 0]</span>
-        }
     </MudText>
 
     @StatusAlert(game)
@@ -60,6 +62,27 @@ else
     {
     <div class="analysis-layout" tabindex="0" @onkeydown="OnKeyDown">
         <div class="analysis-board-column">
+            @if (game.Analysis.Status == AnalysisStatus.Done)
+            {
+                <MudPaper Class="pa-3 mb-2" Elevation="1">
+                    <table class="analysis-summary">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>@L["Accuracy"]</th>
+                                <th title="@L["Inaccuracies"]"><span class="move-quality inaccuracy">?!</span></th>
+                                <th title="@L["Mistakes"]"><span class="move-quality mistake">?</span></th>
+                                <th title="@L["Blunders"]"><span class="move-quality blunder">??</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @SummaryRow(game.White.Name, true, game.Analysis.WhiteAccuracy, game.Analysis.White!)
+                            @SummaryRow(game.Black.Name, false, game.Analysis.BlackAccuracy, game.Analysis.Black!)
+                        </tbody>
+                    </table>
+                </MudPaper>
+            }
+
             <div class="analysis-board-row">
                 <div class="eval-bar @(_flipped ? "flipped" : "")" title="@(CurrentEvaluation is { } ce ? Display.Evaluation(ce) : "")">
                     <div class="eval-bar-white" style="height: @F(CurrentEvaluation?.WhiteWinChance ?? 50)%"></div>
@@ -92,28 +115,6 @@ else
         </div>
 
         <div class="analysis-side-column">
-            @if (game.Analysis.Status == AnalysisStatus.Done)
-            {
-                <MudPaper Class="pa-3 mb-3" Elevation="1">
-                    <table class="analysis-summary">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th>@L["Accuracy"]</th>
-                                <th title="@L["Inaccuracies"]"><span class="move-quality inaccuracy">?!</span></th>
-                                <th title="@L["Mistakes"]"><span class="move-quality mistake">?</span></th>
-                                <th title="@L["Blunders"]"><span class="move-quality blunder">??</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @SummaryRow(game.White.Name, true, game.Analysis.WhiteAccuracy, game.Analysis.White!)
-                            @SummaryRow(game.Black.Name, false, game.Analysis.BlackAccuracy, game.Analysis.Black!)
-                        </tbody>
-                    </table>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">@L["AccuracyHelp"]</MudText>
-                </MudPaper>
-            }
-
             <MudPaper Class="pa-2 move-list" Elevation="1">
                 <button type="button" class="move-list-start @(_ply < 0 ? "selected" : "")" @onclick="() => Go(-1)">@L["StartPosition"]</button>
                 <table>
@@ -137,19 +138,10 @@ else
         <MudPaper Class="pa-3 mt-4" Elevation="1">
             <MudText Typo="Typo.subtitle2" Class="mb-2">@L["EvalGraphTitle"]</MudText>
             <EvalGraph Plies="game.Plies" Current="_ply" OnSelect="Go" />
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">@L["EvalGraphHelp"]</MudText>
         </MudPaper>
     }
     }
 
-    @if (game.Scoresheets is { Count: > 0 } photos)
-    {
-        <MudPaper Class="pa-3 mt-4" Elevation="1">
-            <MudText Typo="Typo.subtitle2" Class="mb-1">@L["ScoresheetPhotos"]</MudText>
-            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2">@L["ScoresheetPhotosHelp"]</MudText>
-            <ScoresheetPhotos Photos="photos" CanDelete="true" OnDeleted="PhotoDeletedAsync" />
-        </MudPaper>
-    }
 }
 
 @code {
@@ -244,47 +236,26 @@ else
         }
     }
 
-    private async Task EditPgnAsync()
+    /// <summary>Adds the moves, or changes them, on the digital board ('Analyse aanmaken' page).</summary>
+    private void EditMoves()
     {
         if (_game is not { } game) return;
-        var gameDto = new GameDto(game.GameId, 0, null, game.White, game.Black, game.Result, HasPgn: game.Pgn is not null);
-        if (game.Pgn is null)
-        {
-            // Only photos so far: create the analysis (a photo, the board or pasted PGN).
-            Navigation.NavigateTo(CreateAnalysis.Url(game.TournamentId, game.GameId, Navigation.ToBaseRelativePath(Navigation.Uri)));
-            return;
-        }
+        Navigation.NavigateTo(CreateAnalysis.Url(game.TournamentId, game.GameId, $"games/{game.GameId}", edit: game.Pgn is not null));
+    }
 
-        var dialog = await Dialogs.ShowAsync<PgnDialog>(null,
-            new DialogParameters<PgnDialog>
-            {
-                { d => d.Game, gameDto },
-                { d => d.Pgn, game.Pgn },
-                { d => d.TournamentTitle, game.TournamentTitle },
-                { d => d.TournamentId, game.TournamentId },
-                { d => d.ShowAnalysisLink, false }
-            },
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
-        if (await dialog.Result is not { Canceled: false, Data: string text })
-        {
-            await ReloadAsync(); // photos may have been added in the dialog
-            return;
-        }
-
+    /// <summary>Removes the moves and with them the analysis (after asking).</summary>
+    private async Task DeleteAnalysisAsync()
+    {
+        if (_game is not { } game) return;
+        var confirmed = await Dialogs.ShowMessageBoxAsync(L["AnalysisDelete"], L["AnalysisDeleteConfirm"],
+            yesText: L["AnalysisDelete"], cancelText: L["Cancel"]);
+        if (confirmed != true) return;
         _busy = true;
         try
         {
-            await Api.SetPgnAsync(game.TournamentId, game.GameId, text);
-            if (text.Length == 0)
-            {
-                Snackbar.Add(L["PgnRemoved"], Severity.Success);
-                await ReloadAsync();
-                if (_notFound) Navigation.NavigateTo("games"); // no moves and no photos: no longer in the list
-                return;
-            }
-            Snackbar.Add(L["PgnSaved"], Severity.Success);
-            _ply = int.MaxValue; // show the final position of the new moves
-            await ReloadAsync();
+            await Api.SetPgnAsync(game.TournamentId, game.GameId, "");
+            Snackbar.Add(L["AnalysisDeleted"], Severity.Success);
+            Navigation.NavigateTo("games");
         }
         catch (ApiClientException e)
         {
@@ -298,13 +269,6 @@ else
         {
             _busy = false;
         }
-    }
-
-    private async Task PhotoDeletedAsync(ScoresheetPhotoDto photo)
-    {
-        Snackbar.Add(L["ScoresheetDeleted"], Severity.Success);
-        await ReloadAsync();
-        if (_notFound) Navigation.NavigateTo("games"); // the last photo of a game without moves
     }
 
     private RenderFragment StatusAlert(GameAnalysisDto game) => __builder =>
@@ -334,7 +298,11 @@ else
                 </MudAlert>
                 break;
             case AnalysisStatus.Failed:
-                <MudAlert Severity="Severity.Error" Class="mb-3">@L["AnalysisFailed"]: @game.AnalysisError</MudAlert>
+                <MudAlert Severity="Severity.Error" Class="mb-3">
+                    @L["AnalysisFailed"]: @game.AnalysisError
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="AnalyseAsync" Disabled="_busy" Class="ml-2">@L["AnalysisRetry"]</MudButton>
+                </MudAlert>
                 break;
             case AnalysisStatus.None:
                 <MudAlert Severity="Severity.Info" Class="mb-3">@L["AnalysisNone"]</MudAlert>
