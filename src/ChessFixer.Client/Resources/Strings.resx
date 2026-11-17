@@ -792,7 +792,7 @@
   <data name="ResetDatabaseConfirmText" xml:space="preserve"><value>Alle toernooien, spelers, clubs en ratings worden verwijderd en vervangen door testgegevens. Dit is bedoeld om de applicatie uit te proberen, niet voor echte clubgegevens.</value></data>
   <data name="ResetDatabaseDone" xml:space="preserve"><value>De database is gereset: {0} spelers en {1} clubs. Back-up: {2}</value></data>
   <data name="ActivityAction_Development_Reset" xml:space="preserve"><value>Database resetten</value></data>
-  <data name="PgnAdd" xml:space="preserve"><value>Zetten toevoegen</value></data>
+  <data name="PgnAdd" xml:space="preserve"><value>Analyse aanmaken</value></data>
   <data name="PgnView" xml:space="preserve"><value>Zetten bekijken (PGN)</value></data>
   <data name="PgnTitle" xml:space="preserve"><value>{0} – {1} ({2})</value></data>
   <data name="PgnHelp" xml:space="preserve"><value>Plak hier de notatie van de partij in PGN (Portable Game Notation), bijvoorbeeld uit een notatie-app of overgetypt van het notatieformulier. Zo kan de partij later geanalyseerd worden.</value></data>
@@ -867,32 +867,32 @@
   <data name="ScoresheetDeleteConfirm" xml:space="preserve"><value>Deze foto van het notatieformulier verwijderen? Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="ScoresheetDeleted" xml:space="preserve"><value>De foto is verwijderd.</value></data>
   <data name="ScoresheetCount" xml:space="preserve"><value>{0} foto(’s) van het notatieformulier</value></data>
-  <data name="NoMovesYet" xml:space="preserve"><value>Van deze partij zijn nog geen zetten ingevoerd, alleen foto’s van het notatieformulier (hieronder). Kies ‘Zetten toevoegen’ om ze over te typen of de foto te laten lezen.</value></data>
-  <data name="PgnAddMoves" xml:space="preserve"><value>Zetten toevoegen</value></data>
+  <data name="NoMovesYet" xml:space="preserve"><value>Van deze partij zijn nog geen zetten ingevoerd, alleen foto’s van het notatieformulier (hieronder). Kies ‘Analyse aanmaken’ om de foto te laten lezen of de partij na te spelen.</value></data>
+  <data name="PgnAddMoves" xml:space="preserve"><value>Analyse aanmaken</value></data>
   <data name="Error_ScoresheetNotFound" xml:space="preserve"><value>Deze foto bestaat niet (meer).</value></data>
   <data name="ActivityAction_Games_UploadScoresheet" xml:space="preserve"><value>Foto van notatieformulier bewaren</value></data>
   <data name="ActivityAction_Games_DeleteScoresheet" xml:space="preserve"><value>Foto van notatieformulier verwijderen</value></data>
-  <data name="WizardTitle" xml:space="preserve"><value>Zetten toevoegen: {0} – {1}</value></data>
-  <data name="WizardStepPhoto" xml:space="preserve"><value>Invoer</value></data>
+  <data name="WizardTitle" xml:space="preserve"><value>Analyse aanmaken: {0} – {1}</value></data>
+  <data name="WizardStepPhoto" xml:space="preserve"><value>Foto</value></data>
   <data name="WizardStepRead" xml:space="preserve"><value>Lezen door AI</value></data>
   <data name="WizardStepCheck" xml:space="preserve"><value>Controleren</value></data>
-  <data name="WizardSave" xml:space="preserve"><value>Opslaan en analyseren</value></data>
+  <data name="WizardSave" xml:space="preserve"><value>Akkoord, naar de analyse</value></data>
   <data name="WizardPhotoHelp" xml:space="preserve"><value>Leg het notatieformulier plat, in goed licht, met alle zetten scherp in beeld.</value></data>
-  <data name="WizardChoosePhoto" xml:space="preserve"><value>Foto op deze computer selecteren</value></data>
+  <data name="WizardChoosePhoto" xml:space="preserve"><value>Foto uploaden</value></data>
   <data name="WizardTakePhoto" xml:space="preserve"><value>Foto maken met webcam</value></data>
   <data name="WizardPhotoCheck" xml:space="preserve"><value>Staan alle zetten scherp en leesbaar op de foto? Dan kan Claude ze lezen.</value></data>
   <data name="WizardOtherPhoto" xml:space="preserve"><value>Andere foto</value></data>
   <data name="WizardRead" xml:space="preserve"><value>Laten lezen</value></data>
   <data name="WizardReadFailed" xml:space="preserve"><value>Het lezen is niet gelukt.</value></data>
-  <data name="WizardTypeMoves" xml:space="preserve"><value>Zetten zelf invoeren</value></data>
+  <data name="WizardTypeMoves" xml:space="preserve"><value>Zelf naspelen op het bord</value></data>
   <data name="WizardReading" xml:space="preserve"><value>Claude leest het notatieformulier…</value></data>
-  <data name="WizardReadingHelp" xml:space="preserve"><value>Dit duurt meestal een tot twee minuten. Je mag dit venster sluiten: het lezen gaat door, en als je later weer op ‘Zetten toevoegen’ klikt, kun je verdergaan met controleren.</value></data>
+  <data name="WizardReadingHelp" xml:space="preserve"><value>Dit duurt meestal een tot twee minuten. Je mag dit venster sluiten: het lezen gaat door, en als je later weer op ‘Analyse aanmaken’ klikt, kun je verdergaan met controleren.</value></data>
   <data name="WizardNoMoves" xml:space="preserve"><value>Nog geen zetten</value></data>
   <data name="WizardIllegalMove" xml:space="preserve"><value>Zet {0} is niet mogelijk</value></data>
   <data name="WizardToCheck" xml:space="preserve"><value>Nog {0} zet(ten) te controleren</value></data>
   <data name="WizardAllChecked" xml:space="preserve"><value>Alle {0} zetten gecontroleerd</value></data>
   <data name="WizardRemarks" xml:space="preserve"><value>Opmerking van Claude:</value></data>
-  <data name="WizardCheckHelp" xml:space="preserve"><value>Vergelijk elke zet met de foto. Een zet waar Claude zeker van was, is al aangevinkt; vink de andere aan als ze kloppen. Klopt een zet niet, typ dan de juiste zet (bijvoorbeeld Pf3 of Nf3) of zet hem op het bord. Elke zet wordt op het bord nagespeeld: een rode zet is niet mogelijk.</value></data>
+  <data name="WizardCheckHelp" xml:space="preserve"><value>Vergelijk elke zet met de foto. Een zet waar Claude zeker van was, is al aangevinkt; vink de andere aan als ze kloppen. Klopt een zet niet, typ dan de juiste zet (bijvoorbeeld Pf3 of Nf3) of zet hem op het bord. Een rode zet is niet mogelijk.</value></data>
   <data name="WizardZoom" xml:space="preserve"><value>Klik om in of uit te zoomen</value></data>
   <data name="WizardChecked" xml:space="preserve"><value>Gecontroleerd</value></data>
   <data name="WizardMove" xml:space="preserve"><value>Zet</value></data>
@@ -909,7 +909,7 @@
   <data name="WizardNext" xml:space="preserve"><value>Volgende zet</value></data>
   <data name="WizardConfirm" xml:space="preserve"><value>Klopt</value></data>
   <data name="WizardShowAfter" xml:space="preserve"><value>Na de zet</value></data>
-  <data name="WizardBoardHelp" xml:space="preserve"><value>Klopt de pijl niet? Klik op het stuk en dan op het veld waar het heen ging.</value></data>
+  <data name="WizardBoardHelp" xml:space="preserve"><value>Klopt de pijl niet? Sleep het stuk naar het juiste veld, of klik op het stuk en dan op het veld.</value></data>
   <data name="WizardReadAs" xml:space="preserve"><value>Gelezen als:</value></data>
   <data name="WizardAlternatives" xml:space="preserve"><value>Ook mogelijk:</value></data>
   <data name="ConfidenceHigh" xml:space="preserve"><value>zeker</value></data>
@@ -926,35 +926,52 @@
   <data name="ActivityAction_Games_ReadScoresheet" xml:space="preserve"><value>Foto van notatieformulier laten lezen</value></data>
   <data name="ActivityAction_Games_CloseWizard" xml:space="preserve"><value>Inlezen van notatieformulier opnieuw begonnen</value></data>
   <data name="ActivityProblem" xml:space="preserve"><value>Uitgevoerd, met een probleem</value></data>
-  <data name="WizardQrTitle" xml:space="preserve"><value>Scan het notatieformulier met je telefoon</value></data>
-  <data name="WizardQrHelp" xml:space="preserve"><value>Scan deze QR-code met de camera van je telefoon en maak daar de foto. De wizard gaat daarna vanzelf verder.</value></data>
+  <data name="WizardQrTitle" xml:space="preserve"><value>Scan met je telefoon</value></data>
+  <data name="WizardQrHelp" xml:space="preserve"><value>Scan deze QR-code met de camera van je telefoon. Daarna gaat alles verder op de telefoon (foto, lezen, controleren) en sluit dit venster, zodat de computer vrij is voor de volgende.</value></data>
   <data name="WizardQrValidUntil" xml:space="preserve"><value>Geldig tot {0}</value></data>
   <data name="WizardQrLocalhost" xml:space="preserve"><value>Je gebruikt ChessFixer via {0}: dat adres werkt niet op een telefoon. Open ChessFixer via het netwerkadres van de server (bijvoorbeeld http://192.168.…:5016) om de QR-code te gebruiken.</value></data>
-  <data name="WizardQrOpened" xml:space="preserve"><value>De pagina is geopend op een telefoon. Wachten op de foto…</value></data>
   <data name="WizardQrExpired" xml:space="preserve"><value>De QR-code is verlopen.</value></data>
   <data name="WizardQrCancelled" xml:space="preserve"><value>De QR-code is geannuleerd.</value></data>
   <data name="WizardQrNew" xml:space="preserve"><value>Nieuwe QR-code</value></data>
-  <data name="WizardQrReceived" xml:space="preserve"><value>Foto ontvangen van de telefoon; Claude gaat hem lezen.</value></data>
-  <data name="PhoneUploadTitle" xml:space="preserve"><value>Foto van notatieformulier</value></data>
-  <data name="PhoneUploadHelp" xml:space="preserve"><value>Maak een foto van het hele notatieformulier: leg het plat neer, zorg voor goed licht en houd alle zetten scherp in beeld. De foto wordt meteen verstuurd.</value></data>
+  <data name="PhoneUploadTitle" xml:space="preserve"><value>Analyse aanmaken</value></data>
+  <data name="PhoneUploadHelp" xml:space="preserve"><value>Maak een foto van het hele notatieformulier: leg het plat neer, zorg voor goed licht en houd alle zetten scherp in beeld. Daarna leest Claude de zetten en controleer je ze hier op het bord.</value></data>
   <data name="PhoneUploadTake" xml:space="preserve"><value>Foto maken</value></data>
-  <data name="PhoneUploadSent" xml:space="preserve"><value>De foto is verstuurd. Ga verder op de computer; je kunt deze pagina sluiten.</value></data>
   <data name="Error_UploadLinkInvalid" xml:space="preserve"><value>Deze QR-code is verlopen, al gebruikt of geannuleerd. Vraag om een nieuwe QR-code.</value></data>
   <data name="WizardOr" xml:space="preserve"><value>of</value></data>
-  <data name="WizardAllReadSaving" xml:space="preserve"><value>Alle zetten zijn met zekerheid gelezen en mogelijk: ze worden opgeslagen en de analyse wordt geopend…</value></data>
-  <data name="WizardFromPhoto" xml:space="preserve"><value>Foto van het notatieformulier</value></data>
-  <data name="WizardPastePgn" xml:space="preserve"><value>PGN plakken</value></data>
   <data name="WizardPastePgnHelp" xml:space="preserve"><value>Plak de notatie in PGN (Portable Game Notation), bijvoorbeeld uit een notatie-app.</value></data>
-  <data name="WizardManual" xml:space="preserve"><value>Zelf invoeren</value></data>
-  <data name="WizardManualIntro" xml:space="preserve"><value>Geen foto of PGN? Voer de zetten zelf in: typ ze, of zet ze op het bord.</value></data>
-  <data name="WizardEnterByHand" xml:space="preserve"><value>Zetten zelf invoeren</value></data>
-  <data name="WizardManualHelp" xml:space="preserve"><value>Typ elke zet (bijvoorbeeld e4, Pf3 of Nf3) of zet hem op het bord: klik op het stuk en dan op het veld waar het heen gaat. Een zet op het bord bij de laatste zet voegt meteen een nieuwe zet toe. Een rode zet is niet mogelijk.</value></data>
+  <data name="WizardManualHelp" xml:space="preserve"><value>Speel de partij na: sleep een stuk naar het veld waar het heen gaat (of klik op het stuk en dan op het veld), of typ de zet (bijvoorbeeld e4, Pf3 of Nf3). Na elke zet ben je meteen bij de volgende. Een rode zet is niet mogelijk.</value></data>
   <data name="WizardMoveCount" xml:space="preserve"><value>{0} zet(ten) ingevoerd</value></data>
   <data name="WizardPositionWhite" xml:space="preserve"><value>Stelling vóór de zet, wit aan zet.</value></data>
   <data name="WizardPositionBlack" xml:space="preserve"><value>Stelling vóór de zet, zwart aan zet.</value></data>
-  <data name="WizardBoardHelpManual" xml:space="preserve"><value>Klik op het stuk en dan op het veld waar het heen gaat.</value></data>
-  <data name="WizardCloseUnsaved" xml:space="preserve"><value>De ingevoerde zetten zijn nog niet opgeslagen en gaan verloren. Toch sluiten?</value></data>
+  <data name="WizardBoardHelpManual" xml:space="preserve"><value>Sleep het stuk naar het veld, of klik op het stuk en dan op het veld.</value></data>
+  <data name="WizardCloseUnsaved" xml:space="preserve"><value>De ingevoerde zetten zijn nog niet opgeslagen en gaan verloren. Doorgaan?</value></data>
   <data name="WizardFillEarlier" xml:space="preserve"><value>Vul eerst de zet ervoor in.</value></data>
   <data name="PhoneUploadSending" xml:space="preserve"><value>De foto wordt verstuurd…</value></data>
   <data name="PhoneUploadStuck" xml:space="preserve"><value>Het versturen duurde te lang. Probeer het opnieuw.</value></data>
+  <data name="WizardStepMethod" xml:space="preserve"><value>Methode kiezen</value></data>
+  <data name="WizardStepInput" xml:space="preserve"><value>Invoer</value></data>
+  <data name="WizardStepPgn" xml:space="preserve"><value>PGN plakken</value></data>
+  <data name="WizardStepBoard" xml:space="preserve"><value>Controleren op het bord</value></data>
+  <data name="WizardStepAnalysis" xml:space="preserve"><value>Analyse</value></data>
+  <data name="WizardChooseIntro" xml:space="preserve"><value>Hoe wil je de zetten van deze partij invoeren? Je controleert ze daarna altijd op het digitale schaakbord, en dan maakt ChessFixer de analyse.</value></data>
+  <data name="WizardMethodPhoto" xml:space="preserve"><value>Foto van het notatieformulier</value></data>
+  <data name="WizardMethodPhotoHelp" xml:space="preserve"><value>Upload een foto, maak er een met de webcam of scan een QR-code met je telefoon. Claude leest de zetten; daarna controleer je ze op het bord.</value></data>
+  <data name="WizardMethodBoard" xml:space="preserve"><value>Naspelen op het digitale schaakbord</value></data>
+  <data name="WizardMethodBoardHelp" xml:space="preserve"><value>Speel de partij zelf na: sleep of klik de stukken, of typ de zetten.</value></data>
+  <data name="WizardMethodPgn" xml:space="preserve"><value>PGN-tekst plakken</value></data>
+  <data name="WizardMethodPgnHelp" xml:space="preserve"><value>Heb je de partij al als PGN, bijvoorbeeld uit een notatie-app? Plak de tekst; daarna controleer je de zetten op het bord.</value></data>
+  <data name="WizardOtherMethod" xml:space="preserve"><value>Andere methode</value></data>
+  <data name="WizardDiscard" xml:space="preserve"><value>Weggooien</value></data>
+  <data name="WizardToBoard" xml:space="preserve"><value>Verder naar het bord</value></data>
+  <data name="WizardBackToPgn" xml:space="preserve"><value>Terug naar de PGN</value></data>
+  <data name="WizardPgnBoardHelp" xml:space="preserve"><value>De zetten uit de PGN staan op het bord. Een rode zet is niet mogelijk: verbeter hem door de juiste zet te typen of op het bord te zetten. Klopt alles, klik dan op ‘Akkoord, naar de analyse’.</value></data>
+  <data name="WizardQrHandedOver" xml:space="preserve"><value>De telefoon heeft de QR-code geopend: {0} – {1} gaat verder op de telefoon.</value></data>
+  <data name="PhoneReadingHelp" xml:space="preserve"><value>Dit duurt meestal een tot twee minuten. Houd deze pagina open; sluit je hem toch, scan dan dezelfde QR-code opnieuw om verder te gaan.</value></data>
+  <data name="PhoneDone" xml:space="preserve"><value>De zetten zijn opgeslagen en de analyse is gestart. Je vindt hem in ChessFixer bij Analyses; je kunt deze pagina sluiten.</value></data>
+  <data name="PhoneOpenAnalysis" xml:space="preserve"><value>Analyse bekijken</value></data>
+  <data name="Error_GameHasMoves" xml:space="preserve"><value>Van deze partij zijn de zetten al opgeslagen.</value></data>
+  <data name="ActivityAction_ScoresheetUpload_Open" xml:space="preserve"><value>QR-code geopend op een telefoon</value></data>
+  <data name="ActivityAction_ScoresheetUpload_Upload" xml:space="preserve"><value>Foto van notatieformulier via telefoon</value></data>
+  <data name="ActivityAction_ScoresheetUpload_Read" xml:space="preserve"><value>Foto van notatieformulier laten lezen (telefoon)</value></data>
+  <data name="ActivityAction_ScoresheetUpload_SaveMoves" xml:space="preserve"><value>Zetten opgeslagen via telefoon</value></data>
 </root>

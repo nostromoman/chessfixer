@@ -109,18 +109,22 @@ public class ScoresheetService(
         return photo;
     }
 
-    // ----- A QR code to send the photo from a phone (no login there) -----
+    // ----- A QR code: the phone does the rest (photo, reading, checking, saving), no login there -----
 
-    /// <summary>How long a QR code can be used.</summary>
+    /// <summary>How long a QR code can be scanned.</summary>
     public static readonly TimeSpan LinkLifetime = TimeSpan.FromMinutes(20);
 
-    /// <summary>A new QR code for the game; an earlier one that is still open is cancelled.</summary>
+    /// <summary>Once opened on a phone, how long the phone can go on with it (reading and checking the moves).</summary>
+    public static readonly TimeSpan PhoneSessionLifetime = TimeSpan.FromHours(3);
+
+    /// <summary>A new QR code for the game; an earlier one that was not opened yet is cancelled.</summary>
     public async Task<ScoresheetLinkDto> CreateLinkAsync(int gameId, ClaimsPrincipal user)
     {
-        await LoadPlayedGameAsync(g => g.Id == gameId, CancellationToken.None);
+        var game = await LoadPlayedGameAsync(g => g.Id == gameId, CancellationToken.None);
+        if (game.Pgn is not null) throw new ApiException(ApiErrorCode.GameHasMoves);
         var now = DateTime.UtcNow;
         await db.ScoresheetUploadLinks
-            .Where(l => l.GameId == gameId && l.UsedAt == null && l.CancelledAt == null && l.ExpiresAt > now)
+            .Where(l => l.GameId == gameId && l.OpenedAt == null && l.CancelledAt == null && l.ExpiresAt > now)
             .ExecuteUpdateAsync(u => u.SetProperty(l => l.CancelledAt, now));
 
         var userId = UserSession.GetUserId(user);
@@ -146,12 +150,12 @@ public class ScoresheetService(
         return LinkDto(link, DateTime.UtcNow);
     }
 
-    /// <summary>Cancels the QR code: the phone can no longer send a photo with it.</summary>
+    /// <summary>Cancels a QR code that was not opened yet (once opened, it belongs to the phone).</summary>
     public async Task<ScoresheetLinkDto> CancelLinkAsync(int gameId, int linkId)
     {
         var link = await db.ScoresheetUploadLinks.SingleOrDefaultAsync(l => l.Id == linkId && l.GameId == gameId)
                    ?? throw new ApiException(ApiErrorCode.UploadLinkInvalid);
-        if (link.UsedAt is null && link.CancelledAt is null)
+        if (link.OpenedAt is null && link.CancelledAt is null)
         {
             link.CancelledAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
@@ -163,13 +167,13 @@ public class ScoresheetService(
         new(link.Id, link.Token, link.ExpiresAt, Status(link, now), link.PhotoId);
 
     private static ScoresheetLinkStatus Status(ScoresheetUploadLink link, DateTime now) =>
-        link.UsedAt is not null ? ScoresheetLinkStatus.Uploaded
-        : link.CancelledAt is not null ? ScoresheetLinkStatus.Cancelled
+        link.CancelledAt is not null ? ScoresheetLinkStatus.Cancelled
+        : link.UsedAt is not null ? ScoresheetLinkStatus.Uploaded
         : link.ExpiresAt <= now ? ScoresheetLinkStatus.Expired
         : link.OpenedAt is not null ? ScoresheetLinkStatus.Opened
         : ScoresheetLinkStatus.Waiting;
 
-    /// <summary>A link that can still be used (open or waiting), with its game; otherwise UploadLinkInvalid.</summary>
+    /// <summary>A link that can still be used (not cancelled, expired or finished), with its game; otherwise UploadLinkInvalid.</summary>
     private async Task<ScoresheetUploadLink> UsableLinkAsync(string token)
     {
         var link = await db.ScoresheetUploadLinks
@@ -178,24 +182,35 @@ public class ScoresheetService(
                        .Include(l => l.Game).ThenInclude(g => g.Black!).ThenInclude(p => p.Player)
                        .SingleOrDefaultAsync(l => l.Token == token)
                    ?? throw new ApiException(ApiErrorCode.UploadLinkInvalid);
-        if (Status(link, DateTime.UtcNow) is not (ScoresheetLinkStatus.Waiting or ScoresheetLinkStatus.Opened))
-            throw new ApiException(ApiErrorCode.UploadLinkInvalid);
+        if (link.CancelledAt is not null || link.ExpiresAt <= DateTime.UtcNow) throw new ApiException(ApiErrorCode.UploadLinkInvalid);
+        if (link.Game.Pgn is not null) throw new ApiException(ApiErrorCode.GameHasMoves);
         return link;
     }
 
-    /// <summary>The phone opened the page: the wizard shows that it waits for the photo.</summary>
+    /// <summary>
+    /// The phone opened the page: from now on the phone does the rest (the computer closes its wizard). Also used to
+    /// continue after a reload: returns the reading of the last photo the phone sent.
+    /// </summary>
     public async Task<ScoresheetUploadInfoDto> OpenLinkAsync(string token)
     {
         var link = await UsableLinkAsync(token);
-        link.OpenedAt ??= DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        if (link.OpenedAt is null)
+        {
+            link.OpenedAt = DateTime.UtcNow;
+            link.ExpiresAt = link.OpenedAt.Value + PhoneSessionLifetime;
+            await db.SaveChangesAsync();
+        }
         var game = link.Game;
-        return new ScoresheetUploadInfoDto(game.White.Player.Name, game.Black?.Player.Name ?? "", game.Round.Tournament.Title,
-            link.ExpiresAt);
+        return new ScoresheetUploadInfoDto(game.Id, game.White.Player.Name, game.Black?.Player.Name ?? "", game.Round.Tournament.Title,
+            link.ExpiresAt, await LinkWizardAsync(link));
     }
 
-    /// <summary>The photo from the phone: kept with the game, and the link can no longer be used.</summary>
-    public async Task UploadViaLinkAsync(string token, byte[] image, string? contentType)
+    /// <summary>The wizard of the last photo the phone sent, while it is open.</summary>
+    private async Task<ScoresheetWizardDto?> LinkWizardAsync(ScoresheetUploadLink link) =>
+        link.PhotoId is { } photoId && await GetWizardAsync(link.GameId) is { } wizard && wizard.PhotoId == photoId ? wizard : null;
+
+    /// <summary>A photo from the phone: kept with the game; the phone then has it read.</summary>
+    public async Task<ScoresheetPhotoDto> UploadViaLinkAsync(string token, byte[] image, string? contentType)
     {
         var mediaType = ValidImageType(image, contentType);
         var link = await UsableLinkAsync(token);
@@ -215,7 +230,55 @@ public class ScoresheetService(
         link.OpenedAt ??= link.UsedAt;
         link.PhotoId = photo.Id;
         await db.SaveChangesAsync();
+        return new ScoresheetPhotoDto(photo.Id, photo.GameId, photo.UploadedAt, photo.UploadedBy, photo.Data.Length);
     }
+
+    /// <summary>The last photo the phone sent: its game and id; otherwise ScoresheetNotFound.</summary>
+    private async Task<(int GameId, int PhotoId)> LinkPhotoAsync(string token)
+    {
+        var link = await UsableLinkAsync(token);
+        return link.PhotoId is { } photoId ? (link.GameId, photoId) : throw new ApiException(ApiErrorCode.ScoresheetNotFound);
+    }
+
+    /// <summary>The phone: Claude reads the last photo it sent.</summary>
+    public async Task<ScoresheetWizardDto> ReadViaLinkAsync(string token)
+    {
+        var (gameId, photoId) = await LinkPhotoAsync(token);
+        return await ReadAsync(gameId, photoId);
+    }
+
+    /// <summary>The phone: the reading of its last photo (polled while Claude reads); null when there is none.</summary>
+    public async Task<ScoresheetWizardDto?> GetWizardViaLinkAsync(string token) => await LinkWizardAsync(await UsableLinkAsync(token));
+
+    /// <summary>The phone: the image of the last photo it sent.</summary>
+    public async Task<(byte[] Data, string ContentType)?> GetImageViaLinkAsync(string token)
+    {
+        var (gameId, photoId) = await LinkPhotoAsync(token);
+        return await GetImageAsync(gameId, photoId);
+    }
+
+    /// <summary>The phone: saves the moves being checked.</summary>
+    public async Task SaveReviewViaLinkAsync(string token, ScoresheetReviewDto review)
+    {
+        var (gameId, photoId) = await LinkPhotoAsync(token);
+        await SaveReviewAsync(gameId, photoId, review);
+    }
+
+    /// <summary>
+    /// The phone: the checked moves as PGN, with the tournament to save them in. The caller saves them and then calls
+    /// <see cref="FinishLinkAsync"/>.
+    /// </summary>
+    public async Task<(int TournamentId, int GameId, string Pgn)> BuildPgnViaLinkAsync(string token, ScoresheetPgnRequest request)
+    {
+        var link = await UsableLinkAsync(token);
+        var pgn = await BuildPgnAsync(link.GameId, request with { FromPhoto = true });
+        return (link.Game.Round.TournamentId, link.GameId, pgn.Pgn);
+    }
+
+    /// <summary>The moves were saved: the link can no longer be used.</summary>
+    public Task FinishLinkAsync(string token) =>
+        db.ScoresheetUploadLinks.Where(l => l.Token == token)
+            .ExecuteUpdateAsync(u => u.SetProperty(l => l.ExpiresAt, DateTime.UtcNow));
 
     // ----- The wizard: read the photo with Claude, the user checks the moves -----
 
@@ -416,7 +479,7 @@ public class ScoresheetService(
             sans.Add(position.ToSan(move));
             position = position.Play(move);
         }
-        return new GamePgnDto(BuildPgn(game, sans, ResultTag(game.Result)));
+        return new GamePgnDto(BuildPgn(game, sans, ResultTag(game.Result), request.FromPhoto));
     }
 
     private static string ResultTag(GameResult result) => result switch
@@ -431,7 +494,7 @@ public class ScoresheetService(
     /// The tags come from the app (not from the sheet: names there are often abbreviated), the moves in SAN, in lines
     /// of at most 80 characters as is usual in PGN.
     /// </summary>
-    public static string BuildPgn(Game game, IReadOnlyList<string> moves, string result)
+    public static string BuildPgn(Game game, IReadOnlyList<string> moves, string result, bool fromPhoto = true)
     {
         var pgn = new StringBuilder();
         void Tag(string name, string value) =>
@@ -444,7 +507,7 @@ public class ScoresheetService(
         Tag("White", game.White.Player.Name);
         Tag("Black", game.Black!.Player.Name);
         Tag("Result", result);
-        Tag("Annotator", "Ingelezen van een foto van het notatieformulier");
+        if (fromPhoto) Tag("Annotator", "Ingelezen van een foto van het notatieformulier");
         pgn.Append('\n');
 
         var tokens = new List<string>();

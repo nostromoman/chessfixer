@@ -150,14 +150,18 @@ public record ScoresheetReviewMoveDto(
     bool Checked);
 
 /// <summary>
-/// A link (shown as a QR code) to take the scoresheet photo with a phone: the phone opens the page
-/// /foto/{Token} without logging in and sends one photo. Valid for 20 minutes, until the photo is sent or it is cancelled.
+/// A link (shown as a QR code) to read a scoresheet with a phone: the phone opens the page /foto/{Token} without
+/// logging in and does the rest there (photo, reading, checking the moves, saving). The QR code must be scanned within
+/// 20 minutes; once opened, the phone can use it for a few hours, until the moves are saved or it is cancelled.
 /// </summary>
-/// <param name="PhotoId">The photo that was sent (when Uploaded).</param>
+/// <param name="PhotoId">The last photo the phone sent.</param>
 public record ScoresheetLinkDto(int Id, string Token, DateTime ExpiresAt, ScoresheetLinkStatus Status, int? PhotoId);
 
-/// <summary>What the phone page shows about the game the photo is for.</summary>
-public record ScoresheetUploadInfoDto(string White, string Black, string Tournament, DateTime ExpiresAt);
+/// <summary>What the phone page shows about the game, and where the phone got to (to continue after a reload).</summary>
+/// <param name="Wizard">The reading of the last photo the phone sent; null before the first photo.</param>
+public record ScoresheetUploadInfoDto(int GameId, string White, string Black, string Tournament, DateTime ExpiresAt,
+    ScoresheetWizardDto? Wizard = null);
 
 /// <summary>The checked moves (SAN), to turn into PGN with the game's tags.</summary>
-public record ScoresheetPgnRequest(IReadOnlyList<string> Moves);
+/// <param name="FromPhoto">Read from a photo of the scoresheet (noted in the PGN), not entered by hand or pasted.</param>
+public record ScoresheetPgnRequest(IReadOnlyList<string> Moves, bool FromPhoto = true);

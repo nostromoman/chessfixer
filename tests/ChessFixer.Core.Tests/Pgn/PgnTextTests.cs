@@ -41,6 +41,14 @@ public class PgnTextTests
             PgnText.MoveText("1. e4 {best by test} e5 (1... c5 2. Nf3 (2. c3)) 2. Nf3 ; a comment\n1-0"));
     }
 
+    [Fact]
+    public void MoveTokens_AreTheMovesAsWritten_EvenWhenNotPossible()
+    {
+        Assert.Equal(["e4", "e5", "Nf3", "Pf6", "Lc4"],
+            PgnText.MoveTokens("[White \"A\"]\n\n1. e4 {x} e5 2.Nf3 !? Pf6 (2... d6) 3. Lc4 $1 1-0"));
+        Assert.Equal(["d4", "d5", "c4"], PgnText.MoveTokens("1.d4 d5 2.c4 *"));
+    }
+
     [Theory]
     [InlineData("1. e4 e5")]
     [InlineData("1.d4 d5 2.c4")]

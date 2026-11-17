@@ -1,7 +1,11 @@
 @* A chess board drawn from a FEN, with the last move highlighted and optionally an arrow (the engine's best move).
-   With OnSquareClick the squares can be clicked (e.g. to enter a move: piece, then target square).
+   With OnSquareClick the squares can be clicked (e.g. to enter a move: piece, then target square); with OnPieceDrop
+   the pieces can also be dragged (mouse or finger, see ChessBoard.razor.js).
    Pieces are the "cburnett" SVG set (wwwroot/pieces/cburnett, GPLv2+, see LICENSE.txt there). *@
-<div class="chess-board @(Flipped ? "flipped" : "") @(Clickable ? "clickable" : "")" role="@(Clickable ? "grid" : "img")" aria-label="@Fen">
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div @ref="_element" class="chess-board @(Flipped ? "flipped" : "") @(Clickable ? "clickable" : "") @(Draggable ? "draggable" : "")"
+     role="@(Clickable ? "grid" : "img")" aria-label="@Fen">
     @for (var row = 0; row < 8; row++)
     {
         @for (var col = 0; col < 8; col++)
@@ -13,7 +17,7 @@
                       + (square == _checkSquare ? " in-check" : "")
                       + (square == SelectedSquare ? " selected" : "")
                       + (Targets?.Contains(square) == true ? (piece == '\0' ? " target" : " target-capture") : "");
-            <div class="@css" @onclick="() => ClickAsync(square)">
+            <div class="@css" data-square="@square" @onclick="() => ClickAsync(square)">
                 @if (piece != '\0')
                 {
                     <img class="chess-piece" src="@PieceUrl(piece)" alt="@PieceName(piece)" draggable="false" />
@@ -63,7 +67,64 @@
     /// <summary>Squares marked with a dot, e.g. where the selected piece can go.</summary>
     [Parameter] public IReadOnlyCollection<int>? Targets { get; set; }
 
-    private bool Clickable => OnSquareClick.HasDelegate;
+    /// <summary>A piece was dragged from one square to another (0 = a1, 63 = h8); the parent checks the move.</summary>
+    [Parameter] public EventCallback<PieceDrop> OnPieceDrop { get; set; }
+
+    /// <summary>A piece started being dragged from this square (e.g. to show where it can go).</summary>
+    [Parameter] public EventCallback<int> OnPieceDragStart { get; set; }
+
+    public readonly record struct PieceDrop(int From, int To);
+
+    private bool Clickable => OnSquareClick.HasDelegate || OnPieceDrop.HasDelegate;
+    private bool Draggable => OnPieceDrop.HasDelegate;
+
+    private ElementReference _element;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ChessBoard>? _self;
+    private bool _attached;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Draggable == _attached) return;
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./Components/ChessBoard.razor.js");
+            if (Draggable)
+            {
+                _self ??= DotNetObjectReference.Create(this);
+                await _module.InvokeVoidAsync("attach", _element, _self);
+            }
+            else await _module.InvokeVoidAsync("detach", _element);
+            _attached = Draggable;
+        }
+        catch (JSException)
+        {
+            // Dragging is a convenience: clicking still works.
+        }
+    }
+
+    [JSInvokable]
+    public Task DragStarted(int square) => OnPieceDragStart.InvokeAsync(square);
+
+    [JSInvokable]
+    public Task Dropped(int from, int to) => OnPieceDrop.InvokeAsync(new PieceDrop(from, to));
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null)
+            {
+                if (_attached) await _module.InvokeVoidAsync("detach", _element);
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The page is gone.
+        }
+        _self?.Dispose();
+    }
 
     private Task ClickAsync(int square) => Clickable ? OnSquareClick.InvokeAsync(square) : Task.CompletedTask;
 

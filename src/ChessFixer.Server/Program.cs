@@ -70,10 +70,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(AuthController.LoginRateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
-    // The phone page of a scoresheet QR code needs no login: limit guessing.
+    // The phone page of a scoresheet QR code needs no login: limit guessing (enough for checking the moves there).
     options.AddPolicy(ScoresheetUploadController.RateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) }));
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
 });
 
 // Behind a reverse proxy (e.g. Nginx Proxy Manager with Let's Encrypt) every request comes from the proxy.

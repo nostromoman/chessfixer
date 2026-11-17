@@ -161,21 +161,53 @@ public class TournamentApi(HttpClient http, ServerAuthenticationStateProvider au
     public Task<ScoresheetLinkDto> CancelScoresheetLinkAsync(int gameId, int linkId) =>
         SendAsync<ScoresheetLinkDto>(HttpMethod.Delete, $"api/games/{gameId}/scoresheet-links/{linkId}");
 
-    /// <summary>The phone page (no login): which game the photo is for; tells the wizard the page was opened.</summary>
-    public Task<ScoresheetUploadInfoDto> OpenScoresheetUploadAsync(string token) =>
-        SendAsync<ScoresheetUploadInfoDto>(HttpMethod.Post, $"api/scoresheet-upload/{Uri.EscapeDataString(token)}/open");
+    // ----- The phone page behind the QR code (no login: the token is the key) -----
 
-    /// <summary>The phone page (no login): sends the photo; the link can then no longer be used.</summary>
-    public async Task UploadScoresheetViaLinkAsync(string token, byte[] image, string contentType)
+    private static string LinkUrl(string token, string path = "") =>
+        $"api/scoresheet-upload/{Uri.EscapeDataString(token)}{path}";
+
+    /// <summary>Which game it is for, and where the phone got to; tells the computer to close its wizard.</summary>
+    public Task<ScoresheetUploadInfoDto> OpenScoresheetUploadAsync(string token) =>
+        SendAsync<ScoresheetUploadInfoDto>(HttpMethod.Post, LinkUrl(token, "/open"));
+
+    /// <summary>Sends a photo of the scoresheet.</summary>
+    public Task<ScoresheetPhotoDto> UploadScoresheetViaLinkAsync(string token, byte[] image, string contentType)
     {
         var content = new ByteArrayContent(image);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-        using var _ = await SendCoreAsync(HttpMethod.Post, $"api/scoresheet-upload/{Uri.EscapeDataString(token)}", content);
+        return SendAsync<ScoresheetPhotoDto>(HttpMethod.Post, LinkUrl(token), content);
+    }
+
+    /// <summary>The URL of the last photo the phone sent (the photo id makes a new photo a new URL).</summary>
+    public static string ScoresheetImageViaLinkUrl(string token, int photoId) => LinkUrl(token, $"/image?photo={photoId}");
+
+    /// <summary>Claude reads the last photo (takes a minute or two).</summary>
+    public Task<ScoresheetWizardDto> ReadScoresheetViaLinkAsync(string token) =>
+        SendAsync<ScoresheetWizardDto>(HttpMethod.Post, LinkUrl(token, "/read"));
+
+    /// <summary>The reading of the last photo; null when there is none.</summary>
+    public async Task<ScoresheetWizardDto?> GetScoresheetWizardViaLinkAsync(string token)
+    {
+        using var response = await SendCoreAsync(HttpMethod.Get, LinkUrl(token, "/wizard"));
+        return response.StatusCode == System.Net.HttpStatusCode.NoContent
+            ? null
+            : await response.Content.ReadFromJsonAsync<ScoresheetWizardDto>();
+    }
+
+    public async Task SaveScoresheetReviewViaLinkAsync(string token, ScoresheetReviewDto review)
+    {
+        using var _ = await SendCoreAsync(HttpMethod.Put, LinkUrl(token, "/review"), review);
+    }
+
+    /// <summary>Saves the checked moves as the game's PGN; the link can then no longer be used.</summary>
+    public async Task SaveMovesViaLinkAsync(string token, IReadOnlyList<string> moves)
+    {
+        using var _ = await SendCoreAsync(HttpMethod.Post, LinkUrl(token, "/moves"), new ScoresheetPgnRequest(moves));
     }
 
     /// <summary>The checked moves as PGN with the game's tags (not saved).</summary>
-    public Task<GamePgnDto> BuildScoresheetPgnAsync(int gameId, IReadOnlyList<string> moves) =>
-        SendAsync<GamePgnDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheet-pgn", new ScoresheetPgnRequest(moves));
+    public Task<GamePgnDto> BuildScoresheetPgnAsync(int gameId, IReadOnlyList<string> moves, bool fromPhoto = true) =>
+        SendAsync<GamePgnDto>(HttpMethod.Post, $"api/games/{gameId}/scoresheet-pgn", new ScoresheetPgnRequest(moves, fromPhoto));
 
     public Task<List<StandingDto>> GetStandingsAsync(int id) =>
         SendAsync<List<StandingDto>>(HttpMethod.Get, $"api/tournaments/{id}/standings");

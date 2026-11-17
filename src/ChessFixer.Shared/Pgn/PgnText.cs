@@ -70,6 +70,29 @@ public static partial class PgnText
         return Whitespace().Replace(moves, " ").Trim();
     }
 
+    /// <summary>
+    /// The moves one by one, as written (without move numbers, the result and annotation-only tokens such as "!?"),
+    /// not checked on a board: e.g. "1. e4 e5 2. Nf3 1-0" gives e4, e5, Nf3.
+    /// </summary>
+    public static List<string> MoveTokens(string pgn)
+    {
+        var tokens = new List<string>();
+        foreach (var raw in MoveText(pgn).Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (raw is "1-0" or "0-1" or "1/2-1/2" or "½-½" or "*") continue;
+            var token = MoveNumber().Replace(raw, "");
+            if (token.Length == 0 || AnnotationOnly().IsMatch(token)) continue;
+            tokens.Add(token);
+        }
+        return tokens;
+    }
+
+    [GeneratedRegex(@"^\d+\.*")]
+    private static partial Regex MoveNumber();
+
+    [GeneratedRegex(@"^[!?]+$")]
+    private static partial Regex AnnotationOnly();
+
     [GeneratedRegex(@"^\s*\[\s*(\w+)\s+""((?:[^""\\]|\\.)*)""\s*\]", RegexOptions.Multiline)]
     private static partial Regex HeaderLine();
 

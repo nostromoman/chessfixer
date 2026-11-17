@@ -1,57 +1,98 @@
 @page "/foto/{Token}"
 @layout LoginLayout
 @attribute [AllowAnonymous]
+@implements IAsyncDisposable
 @inject TournamentApi Api
 @inject IStringLocalizer<Strings> L
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
 
-@* The page behind the QR code of the scoresheet wizard, opened on a phone: no login (the token in the link is the
-   key), only to take one photo of the scoresheet and send it. Opening it tells the wizard that it waits for the photo. *@
+@* The page behind the QR code of the 'Analyse aanmaken' wizard, opened on a phone: no login (the token in the link is
+   the key). The phone does everything for this one game: take the photo of the scoresheet, let Claude read it, check
+   the moves on the digital chess board and save them; the analysis then starts. Opening the page closes the wizard
+   on the computer, so others can use it meanwhile. After a reload the page continues where it was. *@
 <PageTitle>@L["PhoneUploadTitle"] – @L["AppTitle"]</PageTitle>
 
-<MudPaper Elevation="3" Class="pa-6" Style="width: 100%; max-width: 30em">
-    <div class="d-flex align-center gap-2 mb-4">
-        <MudIcon Icon="@Icons.Material.Filled.DocumentScanner" Color="Color.Primary" Size="Size.Large" />
-        <MudText Typo="Typo.h6">@L["PhoneUploadTitle"]</MudText>
+<MudPaper Elevation="3" Class="@(_stage == Stage.Board ? "phone-wizard wide" : "phone-wizard")">
+    <div class="d-flex align-center gap-2 mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.QueryStats" Color="Color.Primary" Size="Size.Large" />
+        <div>
+            <MudText Typo="Typo.h6">@L["PhoneUploadTitle"]</MudText>
+            @if (_info is { } header)
+            {
+                <MudText Typo="Typo.body2"><b>@header.White</b> – <b>@header.Black</b> · <span class="mud-text-secondary">@header.Tournament</span></MudText>
+            }
+        </div>
     </div>
 
-    @if (_info is null && _error is null)
-    {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-    }
-    else if (_error is not null)
-    {
-        <MudAlert Severity="Severity.Error">@_error</MudAlert>
-    }
-    else if (_sent)
-    {
-        <MudAlert Severity="Severity.Success">@L["PhoneUploadSent"]</MudAlert>
-    }
-    else if (_info is { } info)
-    {
-        <MudText Typo="Typo.subtitle1"><b>@info.White</b> – <b>@info.Black</b></MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            @info.Tournament · @L["WizardQrValidUntil", info.ExpiresAt.ToLocalTime().ToString("HH:mm")]
-        </MudText>
+    @* The file input must stay on the page while the photo is read from it: removing it would leave reading the photo
+       waiting forever. *@
+    <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden disabled="@_busy" />
 
-        @* The file input must stay on the page while the photo is read from it: removing it would leave reading the
-           photo waiting forever. *@
-        <InputFile id="phone-photo" OnChange="PhotoTakenAsync" accept="image/*" capture="environment" hidden disabled="@_busy" />
-        @if (_busy)
-        {
-            @if (_photoUrl is not null)
-            {
-                <img class="wizard-preview mb-3" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
-            }
-            <MudText Typo="Typo.body2" Class="mb-2">@L["PhoneUploadSending"]</MudText>
+    @switch (_stage)
+    {
+        case Stage.Loading:
             <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-        }
-        else
-        {
-            <MudText Typo="Typo.body2" Class="mb-4">@L["PhoneUploadHelp"]</MudText>
-            <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.PhotoCamera">@L["PhoneUploadTake"]</MudButton>
-        }
+            break;
+        case Stage.Error:
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+            break;
+        case Stage.Photo:
+            @if (_busy)
+            {
+                @if (_photoUrl is not null)
+                {
+                    <img class="wizard-preview mb-3" src="@_photoUrl" alt="@L["ScoresheetPhotos"]" />
+                }
+                <MudText Typo="Typo.body2" Class="mb-2">@L["PhoneUploadSending"]</MudText>
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="mb-4">@L["PhoneUploadHelp"]</MudText>
+                <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.PhotoCamera">@L["PhoneUploadTake"]</MudButton>
+            }
+            break;
+        case Stage.Read:
+            @if (_wizard is { ReadStatus: ScoresheetReadStatus.Failed } || _readError is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@(_readError ?? $"{L["WizardReadFailed"]} {_wizard?.ReadError}")</MudAlert>
+                <div class="d-flex flex-column gap-2">
+                    <MudButton HtmlTag="label" for="phone-photo" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PhotoCamera"
+                               Disabled="_busy">@L["WizardOtherPhoto"]</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Grid4x4"
+                               OnClick="ReplayAsync" Disabled="_busy">@L["WizardTypeMoves"]</MudButton>
+                </div>
+            }
+            else
+            {
+                @if (_wizard is not null)
+                {
+                    <img class="wizard-preview mb-3" style="max-height: 40vh" src="@PhotoUrl" alt="@L["ScoresheetPhotos"]" />
+                }
+                <MudText Typo="Typo.subtitle1" Class="mb-2">@L["WizardReading"]</MudText>
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" />
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["PhoneReadingHelp"]</MudText>
+            }
+            break;
+        case Stage.Board:
+            <MoveReview @key="_boardKey" @ref="_review" Review="_startReview" Remarks="@_wizard?.Remarks" PhotoUrl="@PhotoUrl"
+                        Help="@(_startReview.Moves.Count > 0 ? L["WizardCheckHelp"] : L["WizardManualHelp"])" OnChange="ScheduleSave" />
+            <div class="phone-wizard-actions">
+                @if (_review is not null)
+                {
+                    <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text" : "mud-text-secondary")">@_review.SaveHint</MudText>
+                }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.QueryStats"
+                           Disabled="@(_review is not { CanSave: true } || _busy)" OnClick="SaveAsync">@L["WizardSave"]</MudButton>
+            </div>
+            break;
+        case Stage.Done:
+            <MudAlert Severity="Severity.Success" Class="mb-3">@L["PhoneDone"]</MudAlert>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.QueryStats"
+                       Href="@($"games/{_info?.GameId}")">@L["PhoneOpenAnalysis"]</MudButton>
+            break;
     }
 </MudPaper>
 
@@ -62,28 +103,59 @@
     private const int MaxPhotoPixels = 2000;
     private const long MaxUploadBytes = 5 * 1024 * 1024;
 
+    private enum Stage { Loading, Error, Photo, Read, Board, Done }
+
+    private Stage _stage = Stage.Loading;
     private ScoresheetUploadInfoDto? _info;
+    private ScoresheetWizardDto? _wizard;
     private string? _error;
+    private string? _readError;
     private string? _photoUrl;
     private bool _busy;
-    private bool _sent;
+    private bool _disposed;
+
+    private string? PhotoUrl => _wizard is null ? null : TournamentApi.ScoresheetImageViaLinkUrl(Token, _wizard.PhotoId);
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             _info = await Api.OpenScoresheetUploadAsync(Token);
+            _wizard = _info.Wizard;
+            if (_wizard is null) _stage = Stage.Photo;
+            else if (_wizard.Review is { } review) ToBoard(review);
+            else _stage = Stage.Read;
         }
         catch (Exception e) when (e is ApiClientException or HttpRequestException)
         {
-            _error = ErrorText(e);
+            Fail(e);
         }
     }
 
-    /// <summary>The photo is sent right away (the phone's camera already asked to keep it); the computer goes on.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Reloaded while Claude was reading: wait for it.
+        if (firstRender && _wizard is { ReadStatus: ScoresheetReadStatus.Reading }) await PollAsync();
+    }
+
+    private void Fail(Exception e)
+    {
+        _error = e switch
+        {
+            ApiClientException { Code: { } code } => L[$"Error_{code}"],
+            ApiClientException => L["Error_Unknown"],
+            _ => L["Error_ServerUnavailable"]
+        };
+        _stage = Stage.Error;
+    }
+
+    // ----- The photo: sent right away, then Claude reads it -----
+
     private async Task PhotoTakenAsync(InputFileChangeEventArgs e)
     {
         _busy = true;
+        _stage = Stage.Photo;
+        _readError = null;
         try
         {
             var photo = await e.File.RequestImageFileAsync("image/jpeg", MaxPhotoPixels, MaxPhotoPixels);
@@ -94,8 +166,13 @@
             var bytes = buffer.ToArray();
             _photoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
             StateHasChanged();
-            await Api.UploadScoresheetViaLinkAsync(Token, bytes, "image/jpeg");
-            _sent = true;
+            var uploaded = await Api.UploadScoresheetViaLinkAsync(Token, bytes, "image/jpeg");
+            _wizard = new ScoresheetWizardDto(uploaded.Id, uploaded.GameId, uploaded.UploadedAt, ScoresheetReadStatus.Reading, null, null, "", null);
+            _stage = Stage.Read;
+            _busy = false;
+            _photoUrl = null;
+            StateHasChanged();
+            await ReadAsync();
         }
         catch (IOException)
         {
@@ -111,7 +188,7 @@
         }
         catch (Exception ex) when (ex is ApiClientException or HttpRequestException)
         {
-            _error = ErrorText(ex);
+            Fail(ex);
         }
         finally
         {
@@ -120,10 +197,149 @@
         }
     }
 
-    private string ErrorText(Exception e) => e switch
+    private async Task ReadAsync()
     {
-        ApiClientException { Code: { } code } => L[$"Error_{code}"],
-        ApiClientException => L["Error_Unknown"],
-        _ => L["Error_ServerUnavailable"]
-    };
+        _busy = true;
+        try
+        {
+            var wizard = await Api.ReadScoresheetViaLinkAsync(Token);
+            if (_disposed) return;
+            _wizard = wizard;
+            if (wizard.ReadStatus == ScoresheetReadStatus.Reading) await PollAsync();
+            else if (wizard.Review is { } review) ToBoard(review);
+        }
+        catch (ApiClientException e) when (e.Code is ApiErrorCode.ScoresheetNeedsClaude)
+        {
+            _readError = $"{L["Error_ScoresheetNeedsClaude"]} {L["ScoresheetStoredAnyway"]}";
+        }
+        catch (TaskCanceledException)
+        {
+            await PollAsync(); // the phone gave up waiting; the server goes on reading
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            Fail(e);
+        }
+        finally
+        {
+            _busy = false;
+        }
+        if (!_disposed) StateHasChanged();
+    }
+
+    private async Task PollAsync()
+    {
+        while (!_disposed && _wizard is { ReadStatus: ScoresheetReadStatus.Reading })
+        {
+            await Task.Delay(3000);
+            if (_disposed) return;
+            try
+            {
+                var wizard = await Api.GetScoresheetWizardViaLinkAsync(Token);
+                if (wizard is null) return;
+                _wizard = wizard;
+                if (wizard.ReadStatus != ScoresheetReadStatus.Reading && wizard.Review is { } review) ToBoard(review);
+                StateHasChanged();
+            }
+            catch (Exception e) when (e is ApiClientException or HttpRequestException)
+            {
+                // Try again at the next tick (a phone often loses its connection for a moment).
+            }
+        }
+    }
+
+    /// <summary>Reading failed: replay the game on the board next to the photo.</summary>
+    private async Task ReplayAsync()
+    {
+        _readError = null;
+        ToBoard(new ScoresheetReviewDto([]));
+        await SaveReviewAsync();
+    }
+
+    // ----- The digital chess board -----
+
+    private MoveReview? _review;
+    private ScoresheetReviewDto _startReview = new([]);
+    private int _boardKey;
+
+    private void ToBoard(ScoresheetReviewDto review)
+    {
+        _startReview = review;
+        _boardKey++;
+        _stage = Stage.Board;
+    }
+
+    private CancellationTokenSource? _saveDelay;
+    private bool _dirty;
+
+    private void ScheduleSave()
+    {
+        _dirty = true;
+        _saveDelay?.Cancel();
+        _saveDelay = new CancellationTokenSource();
+        _ = SaveLaterAsync(_saveDelay.Token);
+    }
+
+    private async Task SaveLaterAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(1500, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        await SaveReviewAsync();
+    }
+
+    private async Task SaveReviewAsync()
+    {
+        if (_wizard is null || _stage != Stage.Board) return;
+        _dirty = false;
+        try
+        {
+            await Api.SaveScoresheetReviewViaLinkAsync(Token, _review?.Current ?? _startReview);
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            _dirty = true; // tried again with the next change
+        }
+    }
+
+    /// <summary>The moves are saved as the game's PGN and the analysis starts; the link is then used up.</summary>
+    private async Task SaveAsync()
+    {
+        if (_review is not { CanSave: true } review) return;
+        _busy = true;
+        try
+        {
+            _saveDelay?.Cancel();
+            await Api.SaveMovesViaLinkAsync(Token, review.Moves);
+            _dirty = false;
+            _stage = Stage.Done;
+        }
+        catch (Exception e) when (e is ApiClientException or HttpRequestException)
+        {
+            var message = e switch
+            {
+                ApiClientException { Code: { } code } api => L[$"Error_{code}"].Value + (api.Detail is { } detail ? " " + detail : ""),
+                ApiClientException => L["Error_Unknown"].Value,
+                _ => L["Error_ServerUnavailable"].Value
+            };
+            Snackbar.Add(message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _saveDelay?.Cancel();
+        if (_dirty) await SaveReviewAsync();
+        _saveDelay?.Dispose();
+    }
 }

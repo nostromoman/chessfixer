@@ -79,5 +79,7 @@ public enum ApiErrorCode
     /// <summary>The scoresheet photo does not exist (any more).</summary>
     ScoresheetNotFound,
     /// <summary>The QR code (link) to send a scoresheet photo is unknown, expired, used or cancelled.</summary>
-    UploadLinkInvalid
+    UploadLinkInvalid,
+    /// <summary>The game already has moves (e.g. saved meanwhile on another device).</summary>
+    GameHasMoves
 }

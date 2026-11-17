@@ -257,7 +257,13 @@ public class ScoresheetTests : ApiTestBase
         Assert.Contains($"[Black \"{game.Black!.Name}\"]", pgn);
         Assert.Contains("[Result \"1-0\"]", pgn);
         Assert.Contains("1. e4 e5 2. Nf3 Nc6 3. Bb5 1-0", pgn);
+        Assert.Contains("[Annotator \"Ingelezen van een foto", pgn);
         Assert.Null(PgnGame.Parse(pgn).Error);
+
+        // Replayed on the board or pasted: not from a photo.
+        var byHand = (await PostAsync<GamePgnDto>($"api/games/{game.Id}/scoresheet-pgn",
+            new ScoresheetPgnRequest(["e4"], FromPhoto: false))).Pgn!;
+        Assert.DoesNotContain("Annotator", byHand);
 
         var response = await Client.PostAsJsonAsync($"api/games/{game.Id}/scoresheet-pgn", new ScoresheetPgnRequest(["e4", "e4"]));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -319,38 +325,77 @@ public class ScoresheetTests : ApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"api/games/{game.Id}")).StatusCode);
     }
 
-    [Fact]
-    public async Task QrCode_ThePhoneSendsOnePhoto_WithoutLogin()
+    private static ByteArrayContent PhotoContent()
     {
-        var (_, game) = await PlayedGameAsync();
+        var content = new ByteArrayContent(Photo);
+        content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        return content;
+    }
+
+    [Fact]
+    public async Task QrCode_ThePhoneDoesEverything_WithoutLogin()
+    {
+        await UseClaudeAsync();
+        var (id, game) = await PlayedGameAsync();
+        _reader.Moves = [W(1, "e4"), B(1, "e5"), W(2, "Pf3", MoveConfidence.Medium)];
         var link = await PostAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links", null);
         Assert.Equal(ScoresheetLinkStatus.Waiting, link.Status);
         Assert.True(link.ExpiresAt > DateTime.UtcNow.AddMinutes(19) && link.ExpiresAt <= DateTime.UtcNow.AddMinutes(20));
         Assert.True(link.Token.Length >= 32);
+        var url = $"api/scoresheet-upload/{link.Token}";
 
+        // Opened on the phone: the computer sees it (and closes its wizard); the phone has a few hours now.
         using var phone = await CreateClientAsync(); // not logged in
-        var info = await ReadAsync<ScoresheetUploadInfoDto>(await phone.PostAsync($"api/scoresheet-upload/{link.Token}/open", null));
-        Assert.Equal((game.White.Name, game.Black!.Name), (info.White, info.Black));
+        var info = await ReadAsync<ScoresheetUploadInfoDto>(await phone.PostAsync($"{url}/open", null));
+        Assert.Equal((game.Id, game.White.Name, game.Black!.Name, (ScoresheetWizardDto?)null), (info.GameId, info.White, info.Black, info.Wizard));
+        Assert.True(info.ExpiresAt > DateTime.UtcNow.AddHours(2));
         Assert.Equal(ScoresheetLinkStatus.Opened,
             (await GetAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links/{link.Id}")).Status);
+        // Cancelling it on the computer (closing the wizard) no longer stops the phone.
+        await Client.DeleteAsync($"api/games/{game.Id}/scoresheet-links/{link.Id}");
 
-        var content = new ByteArrayContent(Photo);
-        content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-        Assert.Equal(HttpStatusCode.NoContent, (await phone.PostAsync($"api/scoresheet-upload/{link.Token}", content)).StatusCode);
+        // The photo, read by Claude.
+        var photo = await ReadAsync<ScoresheetPhotoDto>(await phone.PostAsync(url, PhotoContent()));
+        Assert.Equal($"{LeaderDisplayName} (telefoon)", photo.UploadedBy);
+        Assert.Equal(Photo, await (await phone.GetAsync($"{url}/image")).Content.ReadAsByteArrayAsync());
+        var wizard = await ReadAsync<ScoresheetWizardDto>(await phone.PostAsync($"{url}/read", null));
+        Assert.Equal((photo.Id, ScoresheetReadStatus.Done), (wizard.PhotoId, wizard.ReadStatus));
+        Assert.Equal(["e4", "e5", "Nf3"], wizard.Review!.Moves.Select(m => m.Text));
 
-        var sent = await GetAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links/{link.Id}");
-        Assert.Equal(ScoresheetLinkStatus.Uploaded, sent.Status);
-        var photo = Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
-        Assert.Equal((sent.PhotoId, $"{LeaderDisplayName} (telefoon)"), (photo.Id, photo.UploadedBy));
+        // Checking the moves is kept: a reload continues there.
+        var review = new ScoresheetReviewDto(wizard.Review.Moves.Select(m => m with { Checked = true }).ToList(), 2);
+        Assert.Equal(HttpStatusCode.NoContent, (await phone.PutAsJsonAsync($"{url}/review", review)).StatusCode);
+        var reloaded = await ReadAsync<ScoresheetUploadInfoDto>(await phone.PostAsync($"{url}/open", null));
+        Assert.Equal(2, reloaded.Wizard!.Review!.Selected);
+        Assert.All(reloaded.Wizard.Review.Moves, m => Assert.True(m.Checked));
 
-        // Used: the QR code no longer works.
-        await AssertErrorAsync(await phone.PostAsync($"api/scoresheet-upload/{link.Token}/open", null),
-            HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
-        var again = new ByteArrayContent(Photo);
-        again.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-        await AssertErrorAsync(await phone.PostAsync($"api/scoresheet-upload/{link.Token}", again),
-            HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
-        Assert.Single(await GetAsync<List<ScoresheetPhotoDto>>($"api/games/{game.Id}/scoresheets"));
+        // Saved: the game has its moves (from a photo), and the QR code is used up.
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await phone.PostAsJsonAsync($"{url}/moves", new ScoresheetPgnRequest(["e4", "e5", "Nf3"], FromPhoto: false))).StatusCode);
+        var pgn = (await GetAsync<GamePgnDto>($"api/tournaments/{id}/games/{game.Id}/pgn")).Pgn!;
+        Assert.Contains("1. e4 e5 2. Nf3 1-0", pgn);
+        Assert.Contains("Annotator", pgn);
+        Assert.Null(await GetWizardAsync(game.Id));
+        await AssertErrorAsync(await phone.PostAsync($"{url}/open", null), HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
+        await AssertErrorAsync(await phone.PostAsync(url, PhotoContent()), HttpStatusCode.NotFound, ApiErrorCode.UploadLinkInvalid);
+
+        // A game with moves gets no new QR code.
+        await AssertErrorAsync(await Client.PostAsync($"api/games/{game.Id}/scoresheet-links", null),
+            HttpStatusCode.Conflict, ApiErrorCode.GameHasMoves);
+    }
+
+    [Fact]
+    public async Task QrCode_BeforeAPhoto_ThereIsNothingToRead()
+    {
+        var (_, game) = await PlayedGameAsync();
+        var link = await PostAsync<ScoresheetLinkDto>($"api/games/{game.Id}/scoresheet-links", null);
+        using var phone = await CreateClientAsync();
+        var url = $"api/scoresheet-upload/{link.Token}";
+        await phone.PostAsync($"{url}/open", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await phone.GetAsync($"{url}/wizard")).StatusCode);
+        await AssertErrorAsync(await phone.PostAsync($"{url}/read", null), HttpStatusCode.NotFound, ApiErrorCode.ScoresheetNotFound);
+        Assert.Equal(HttpStatusCode.NotFound, (await phone.GetAsync($"{url}/image")).StatusCode);
     }
 
     [Fact]

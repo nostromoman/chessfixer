@@ -31,9 +31,9 @@ public enum ScoresheetLinkStatus
 {
     /// <summary>Not scanned yet.</summary>
     Waiting,
-    /// <summary>The page was opened on a phone: waiting for the photo.</summary>
+    /// <summary>The page was opened on a phone: the phone does the rest.</summary>
     Opened,
-    /// <summary>The photo was sent (and the link can no longer be used).</summary>
+    /// <summary>The phone sent a photo.</summary>
     Uploaded,
     Expired,
     Cancelled
