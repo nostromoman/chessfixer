@@ -50,7 +50,7 @@
             }
             @if (_stage == Stage.Board && _review is not null)
             {
-                <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text" : "mud-text-secondary")">@_review.SaveHint</MudText>
+                <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text" : _review.HasIllegal ? "mud-error-text" : "mud-text-secondary")">@_review.SaveHint</MudText>
             }
             @if (_stage == Stage.Pgn)
             {
@@ -75,7 +75,7 @@
     }
     else if (_stage == Stage.Board)
     {
-        <MoveReview @key="_boardKey" @ref="_review" Review="_startReview" Remarks="@_wizard?.Remarks" Help="@BoardHelp"
+        <MoveReview @key="_boardKey" @ref="_review" Review="_startReview"
                     PhotoUrl="@(_wizard is null ? null : TournamentApi.ScoresheetImageUrl(_wizard.GameId, _wizard.PhotoId))"
                     OnChange="ScheduleSave" />
     }
@@ -708,13 +708,6 @@
         _boardKey++;
         _stage = Stage.Board;
     }
-
-    private string BoardHelp => _method switch
-    {
-        Method.Pgn => L["WizardPgnBoardHelp"],
-        _ when _wizard is not null && _startReview.Moves.Count > 0 => L["WizardCheckHelp"],
-        _ => L["WizardManualHelp"]
-    };
 
     // ----- Saving: the work on a photo (to continue later), and at the end the moves -----
 

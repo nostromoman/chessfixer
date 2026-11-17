@@ -890,8 +890,6 @@
   <data name="WizardIllegalMove" xml:space="preserve"><value>Zet {0} is niet mogelijk</value></data>
   <data name="WizardToCheck" xml:space="preserve"><value>Nog {0} zet(ten) te controleren</value></data>
   <data name="WizardAllChecked" xml:space="preserve"><value>Alle {0} zetten gecontroleerd</value></data>
-  <data name="WizardRemarks" xml:space="preserve"><value>Opmerking van Claude:</value></data>
-  <data name="WizardCheckHelp" xml:space="preserve"><value>Vergelijk elke zet met de foto. Een zet waar Claude zeker van was, is al aangevinkt; vink de andere aan als ze kloppen. Klopt een zet niet, typ dan de juiste zet (bijvoorbeeld Pf3 of Nf3) of zet hem op het bord. Een rode zet is niet mogelijk.</value></data>
   <data name="WizardZoom" xml:space="preserve"><value>Klik om in of uit te zoomen</value></data>
   <data name="WizardChecked" xml:space="preserve"><value>Gecontroleerd</value></data>
   <data name="WizardMove" xml:space="preserve"><value>Zet</value></data>
@@ -932,7 +930,6 @@
   <data name="Error_UploadLinkInvalid" xml:space="preserve"><value>Deze QR-code is verlopen, al gebruikt of geannuleerd. Vraag om een nieuwe QR-code.</value></data>
   <data name="WizardOr" xml:space="preserve"><value>of</value></data>
   <data name="WizardPastePgnHelp" xml:space="preserve"><value>Plak de notatie in PGN (Portable Game Notation), bijvoorbeeld uit een notatie-app.</value></data>
-  <data name="WizardManualHelp" xml:space="preserve"><value>Speel de partij na: sleep een stuk naar het veld waar het heen gaat (of klik op het stuk en dan op het veld), of typ de zet (bijvoorbeeld e4, Pf3 of Nf3). Na elke zet ben je meteen bij de volgende. Een rode zet is niet mogelijk.</value></data>
   <data name="WizardMoveCount" xml:space="preserve"><value>{0} zet(ten) ingevoerd</value></data>
   <data name="WizardPositionWhite" xml:space="preserve"><value>Stelling vóór de zet, wit aan zet.</value></data>
   <data name="WizardPositionBlack" xml:space="preserve"><value>Stelling vóór de zet, zwart aan zet.</value></data>
@@ -957,7 +954,6 @@
   <data name="WizardDiscard" xml:space="preserve"><value>Weggooien</value></data>
   <data name="WizardToBoard" xml:space="preserve"><value>Verder naar het bord</value></data>
   <data name="WizardBackToPgn" xml:space="preserve"><value>Terug naar de PGN</value></data>
-  <data name="WizardPgnBoardHelp" xml:space="preserve"><value>De zetten uit de PGN staan op het bord. Een rode zet is niet mogelijk: verbeter hem door de juiste zet te typen of op het bord te zetten. Klopt alles, klik dan op ‘Akkoord, naar de analyse’.</value></data>
   <data name="WizardQrHandedOver" xml:space="preserve"><value>De telefoon heeft de QR-code geopend: {0} – {1} gaat verder op de telefoon.</value></data>
   <data name="PhoneReadingHelp" xml:space="preserve"><value>Dit duurt meestal een tot twee minuten. Houd deze pagina open; sluit je hem toch, scan dan dezelfde QR-code opnieuw om verder te gaan.</value></data>
   <data name="PhoneDone" xml:space="preserve"><value>De zetten zijn opgeslagen en de analyse is gestart. Je vindt hem in ChessFixer bij Analyses; je kunt deze pagina sluiten.</value></data>
@@ -969,4 +965,11 @@
   <data name="ActivityAction_ScoresheetUpload_SaveMoves" xml:space="preserve"><value>Zetten opgeslagen via telefoon</value></data>
   <data name="WizardWhite" xml:space="preserve"><value>Wit</value></data>
   <data name="WizardBlack" xml:space="preserve"><value>Zwart</value></data>
+  <data name="ConfidenceHigh" xml:space="preserve"><value>zeker</value></data>
+  <data name="ConfidenceMedium" xml:space="preserve"><value>twijfel</value></data>
+  <data name="ConfidenceLow" xml:space="preserve"><value>onzeker</value></data>
+  <data name="WizardAdded" xml:space="preserve"><value>toegevoegd</value></data>
+  <data name="WizardGameWrong" xml:space="preserve"><value>De partij klopt niet: zet {0} is niet mogelijk.</value></data>
+  <data name="WizardGameWrongHelp" xml:space="preserve"><value>Verbeter deze zet (typ hem of zet hem op het bord); de zetten erna kunnen pas daarna gecontroleerd worden.</value></data>
+  <data name="WizardGoToMove" xml:space="preserve"><value>Naar deze zet</value></data>
 </root>

@@ -5,7 +5,7 @@
 @inject IJSRuntime JS
 
 @* The digital chess board on which the moves of a game are entered or checked, filling the screen: the photo of the
-   scoresheet (when there is one) small on the left, the board in the middle and the moves on the right, White and Black
+   scoresheet (when there is one) on the left, the board in the middle and the moves on the right, White and Black
    next to each other per move number as on a scoresheet. Every move is replayed on the board: a move that is not
    possible is red. A move is typed (e4, Pf3 or Nf3) or played on the board by dragging or clicking the piece. Moves
    read by Claude are checked off against the photo (a move Claude was sure of is checked already); moves played on the
@@ -24,13 +24,22 @@
     </div>
 
     <div class="review-list">
-        @if (!string.IsNullOrWhiteSpace(Remarks))
+        @if (FirstIllegal is var illegal and >= 0 && _checks[illegal].Status == MoveStatus.Illegal)
         {
-            <MudAlert Severity="Severity.Info" Dense="true">@L["WizardRemarks"] <i>@Remarks</i></MudAlert>
-        }
-        @if (Help is not null)
-        {
-            <MudText Typo="Typo.caption" Class="mud-text-secondary review-help">@Help</MudText>
+            @* The game does not add up from this move on: impossible to miss, and one click away. *@
+            <div class="review-illegal-banner" role="alert">
+                <MudIcon Icon="@Icons.Material.Filled.Error" />
+                <div class="flex-grow-1">
+                    <b>@L["WizardGameWrong", $"{MoveLabel(illegal)} {_rows[illegal].Text}"]</b>
+                    <div>@L["WizardGameWrongHelp"]</div>
+                </div>
+                @if (_selected != illegal)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="() => Select(illegal)">
+                        @L["WizardGoToMove"]
+                    </MudButton>
+                }
+            </div>
         }
         <div class="review-moves" @ref="_list">
             <table>
@@ -77,12 +86,6 @@
 
     /// <summary>The photo of the scoresheet, shown next to the moves; null when there is none.</summary>
     [Parameter] public string? PhotoUrl { get; set; }
-
-    /// <summary>Notes of Claude about the photo.</summary>
-    [Parameter] public string? Remarks { get; set; }
-
-    /// <summary>What the user does here, above the board.</summary>
-    [Parameter] public string? Help { get; set; }
 
     /// <summary>Something changed: the parent saves <see cref="Current"/> (and re-renders its buttons).</summary>
     [Parameter] public EventCallback OnChange { get; set; }
@@ -159,6 +162,9 @@
     /// against a reading, so no checkboxes and no confidence.
     /// </summary>
     public bool Manual => _rows.All(r => r.ReadAs.Length == 0);
+
+    /// <summary>A move is not possible: the game does not add up (the parent shows its hint in red).</summary>
+    public bool HasIllegal => FirstIllegal >= 0;
 
     // ----- Replaying the moves -----
 
@@ -320,15 +326,19 @@
                    @oninput="e => TextChanged(index, e.Value?.ToString())"
                    @onblur="() => Normalize(index)"
                    @onkeydown="e => KeyDown(index, e)" />
-            @if (read)
+            @if (check.Status == MoveStatus.Illegal)
             {
-                var (level, key) = row.ReadAs.Length == 0 ? ("added", "WizardAddedHelp") : row.Confidence switch
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Small" Title="@title" />
+            }
+            else if (read)
+            {
+                var (level, key) = row.ReadAs.Length == 0 ? ("added", "WizardAdded") : row.Confidence switch
                 {
-                    MoveConfidence.High => ("high", "ConfidenceHighHelp"),
-                    MoveConfidence.Medium => ("medium", "ConfidenceMediumHelp"),
-                    _ => ("low", "ConfidenceLowHelp")
+                    MoveConfidence.High => ("high", "ConfidenceHigh"),
+                    MoveConfidence.Medium => ("medium", "ConfidenceMedium"),
+                    _ => ("low", "ConfidenceLow")
                 };
-                <span class="review-confidence-dot @level" title="@L[key]"></span>
+                <span class="review-confidence @level" title="@L[key + "Help"]">@L[key]</span>
             }
         </div>
     };

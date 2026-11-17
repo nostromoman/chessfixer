@@ -77,12 +77,11 @@
             }
             break;
         case Stage.Board:
-            <MoveReview @key="_boardKey" @ref="_review" Review="_startReview" Remarks="@_wizard?.Remarks" PhotoUrl="@PhotoUrl"
-                        Help="@(_startReview.Moves.Count > 0 ? L["WizardCheckHelp"] : L["WizardManualHelp"])" OnChange="ScheduleSave" />
+            <MoveReview @key="_boardKey" @ref="_review" Review="_startReview" PhotoUrl="@PhotoUrl" OnChange="ScheduleSave" />
             <div class="phone-wizard-actions">
                 @if (_review is not null)
                 {
-                    <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text" : "mud-text-secondary")">@_review.SaveHint</MudText>
+                    <MudText Typo="Typo.body2" Class="@(_review.CanSave ? "mud-success-text" : _review.HasIllegal ? "mud-error-text" : "mud-text-secondary")">@_review.SaveHint</MudText>
                 }
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.QueryStats"
                            Disabled="@(_review is not { CanSave: true } || _busy)" OnClick="SaveAsync">@L["WizardSave"]</MudButton>
