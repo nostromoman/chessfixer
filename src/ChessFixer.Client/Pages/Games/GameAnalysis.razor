@@ -330,6 +330,7 @@ else
                     {
                         <span class="move-quality-label @QualityClass(quality)">@L[$"MoveQuality_{quality}"]</span>
                     }
+                    <GameEndChip Fen="@ply.Fen" />
                     <MudSpacer />
                     @if (ply.Evaluation is { } evaluation)
                     {

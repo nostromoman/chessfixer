@@ -913,6 +913,8 @@
   <data name="WizardPositionWhite" xml:space="preserve"><value>Stelling vóór de zet, wit aan zet.</value></data>
   <data name="WizardPositionBlack" xml:space="preserve"><value>Stelling vóór de zet, zwart aan zet.</value></data>
   <data name="WizardBoardHelpManual" xml:space="preserve"><value>Sleep het stuk naar het veld, of klik op het stuk en dan op het veld.</value></data>
+  <data name="GameEndMate" xml:space="preserve"><value>Mat, {0} wint</value></data>
+  <data name="GameEndStalemate" xml:space="preserve"><value>Pat, remise</value></data>
   <data name="PromoteTo" xml:space="preserve"><value>Promoveren tot {0}</value></data>
   <data name="PieceQueen" xml:space="preserve"><value>dame</value></data>
   <data name="PieceRook" xml:space="preserve"><value>toren</value></data>

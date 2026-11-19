@@ -1,0 +1,38 @@
+@using Position = ChessFixer.Core.Chess.Position
+@inject IStringLocalizer<Strings> L
+@* "Mat, wit wint" or "Pat, remise" when the game is over in this position; nothing otherwise. *@
+@if (_text is not null)
+{
+    <span class="game-end-chip @_css">@_text</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Fen { get; set; } = "";
+
+    private string? _text;
+    private string _css = "";
+
+    protected override void OnParametersSet()
+    {
+        _text = null;
+        if (string.IsNullOrWhiteSpace(Fen)) return;
+        try
+        {
+            var position = Position.FromFen(Fen);
+            if (position.IsCheckmate)
+            {
+                _text = L["GameEndMate", L[position.WhiteToMove ? "Black" : "White"].Value];
+                _css = "mate";
+            }
+            else if (position.IsStalemate)
+            {
+                _text = L["GameEndStalemate"];
+                _css = "stalemate";
+            }
+        }
+        catch (Exception e) when (e is FormatException or ArgumentException or InvalidOperationException)
+        {
+            // Not a position we can judge: no chip.
+        }
+    }
+}

@@ -24,6 +24,14 @@
                 {
                     <img class="chess-piece" src="@PieceUrl(piece)" alt="@PieceName(piece)" draggable="false" />
                 }
+                @if (_mated == square)
+                {
+                    <span class="chess-game-end mate" aria-hidden="true">#</span>
+                }
+                else if (_stalemated && char.ToUpperInvariant(piece) == 'K')
+                {
+                    <span class="chess-game-end stalemate" aria-hidden="true">½</span>
+                }
                 @if (col == 0)
                 {
                     <span class="chess-coord rank">@(square / 8 + 1)</span>
@@ -161,6 +169,10 @@
 
     private readonly char[] _board = new char[64];
     private int _lastFrom = -1, _lastTo = -1, _checkSquare = -1;
+
+    /// <summary>Game over: the king that is mated gets a #, with stalemate both kings get a ½.</summary>
+    private int _mated = -1;
+    private bool _stalemated;
     private (double X1, double Y1, double X2, double Y2)? _arrow;
 
     protected override void OnParametersSet()
@@ -179,6 +191,17 @@
 
         (_lastFrom, _lastTo) = Squares(LastMove) ?? (-1, -1);
         _checkSquare = IsCheckMarked ? KingOfSideToMove() : -1;
+        (_mated, _stalemated) = (-1, false);
+        try
+        {
+            var position = ChessFixer.Core.Chess.Position.FromFen(Fen);
+            if (position.IsCheckmate) _mated = KingOfSideToMove();
+            else _stalemated = position.IsStalemate;
+        }
+        catch (Exception e) when (e is FormatException or ArgumentException or InvalidOperationException or IndexOutOfRangeException)
+        {
+            // Not a full position (e.g. while loading): no mate or stalemate to show.
+        }
 
         _arrow = Squares(Arrow) is var (from, to) ? Line(from, to) : null;
     }

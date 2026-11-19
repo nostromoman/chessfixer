@@ -1738,6 +1738,45 @@ button.schedule-slot {
     pointer-events: none;
 }
 
+/* Game over: a badge on the king that is mated (#) or on both kings with stalemate (½). */
+.chess-game-end {
+    position: absolute;
+    top: 3%;
+    right: 3%;
+    z-index: 1;
+    min-width: 34%;
+    height: 34%;
+    padding: 0 4%;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.6cqw;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+.chess-game-end.mate { background: #d32f2f; }
+.chess-game-end.stalemate { background: #616161; }
+
+/* Next to the move: "Mat, wit wint" or "Pat, remise". */
+.game-end-chip {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 10px;
+    color: #fff;
+    vertical-align: middle;
+}
+
+.game-end-chip.mate { background: #d32f2f; }
+.game-end-chip.stalemate { background: #616161; }
+
 /* Promotion: the pieces to choose from in a column over the board, the rest dimmed (a click there cancels). */
 .chess-promotion-backdrop {
     position: absolute;

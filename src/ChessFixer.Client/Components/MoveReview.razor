@@ -234,6 +234,10 @@
         <div>
         <MudText Typo="Typo.subtitle2" Class="mb-1">
             @MoveLabel(_selected) @(check.San ?? row.Text)
+            @if (check.After is { } after)
+            {
+                <GameEndChip Fen="@after.ToFen()" />
+            }
         </MudText>
         @if (check.Before is null && FirstIllegal < 0)
         {
