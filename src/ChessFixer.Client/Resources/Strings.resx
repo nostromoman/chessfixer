@@ -913,6 +913,11 @@
   <data name="WizardPositionWhite" xml:space="preserve"><value>Stelling vóór de zet, wit aan zet.</value></data>
   <data name="WizardPositionBlack" xml:space="preserve"><value>Stelling vóór de zet, zwart aan zet.</value></data>
   <data name="WizardBoardHelpManual" xml:space="preserve"><value>Sleep het stuk naar het veld, of klik op het stuk en dan op het veld.</value></data>
+  <data name="PromoteTo" xml:space="preserve"><value>Promoveren tot {0}</value></data>
+  <data name="PieceQueen" xml:space="preserve"><value>dame</value></data>
+  <data name="PieceRook" xml:space="preserve"><value>toren</value></data>
+  <data name="PieceBishop" xml:space="preserve"><value>loper</value></data>
+  <data name="PieceKnight" xml:space="preserve"><value>paard</value></data>
   <data name="WizardCloseUnsaved" xml:space="preserve"><value>De ingevoerde zetten zijn nog niet opgeslagen en gaan verloren. Doorgaan?</value></data>
   <data name="WizardFillEarlier" xml:space="preserve"><value>Vul eerst de zet ervoor in.</value></data>
   <data name="PhoneUploadSending" xml:space="preserve"><value>De foto wordt verstuurd…</value></data>

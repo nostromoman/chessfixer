@@ -112,6 +112,9 @@
     private bool _zoomed;
     private int? _fromSquare;
 
+    /// <summary>A pawn moved to the last rank: waiting for the piece it becomes.</summary>
+    private (int From, int To)? _promotion;
+
     private static Row EmptyRow() => new() { Confidence = MoveConfidence.Low };
 
     protected override void OnInitialized()
@@ -206,6 +209,7 @@
         }
         _checks = checks;
         _fromSquare = null;
+        _promotion = null;
     }
 
     private int FirstIllegal => _checks.FindIndex(c => c.Status is MoveStatus.Illegal or MoveStatus.Unknown);
@@ -255,7 +259,8 @@
             {
                 <ChessBoard Fen="@check.Before.ToFen()" Arrow="@check.Move?.ToUci()" IsCheckMarked="@check.Before.InCheck"
                             OnSquareClick="SquareClicked" OnPieceDrop="PieceDropped" OnPieceDragStart="PieceDragStarted"
-                            SelectedSquare="_fromSquare" Targets="Targets" />
+                            SelectedSquare="_fromSquare" Targets="Targets"
+                            PromotionSquare="@_promotion?.To" OnPromotionChoice="PromotionChosen" />
             }
             <div class="d-flex align-center flex-wrap gap-1 mt-1">
                 <MudTooltip Text="@L["WizardPrevious"]">
@@ -386,6 +391,7 @@
         if (index < 0 || index >= _rows.Count || index == _selected) return;
         _selected = index;
         _fromSquare = null;
+        _promotion = null;
         Changed();
     }
 
@@ -490,7 +496,7 @@
 
     private void SquareClicked(int square)
     {
-        if (_checks[_selected].Before is not { } position) return;
+        if (_checks[_selected].Before is not { } position || _promotion is not null) return;
         if (_fromSquare is { } from && TryPlay(position, from, square)) return;
         _fromSquare = position.LegalMoves().Any(m => m.From == square) && square != _fromSquare ? square : null;
     }
@@ -506,14 +512,36 @@
         _fromSquare = null; // not a legal move: the piece goes back
     }
 
-    /// <summary>Plays the move on the board as the selected move, when it is legal.</summary>
+    /// <summary>
+    /// Plays the move on the board as the selected move, when it is legal. A pawn that reaches the last rank first asks
+    /// which piece it becomes (underpromotion is allowed).
+    /// </summary>
     private bool TryPlay(Position position, int from, int to)
     {
         var moves = position.LegalMoves().Where(m => m.From == from && m.To == to).ToList();
         if (moves.Count == 0) return false;
-        // A promotion becomes a queen; another piece can be typed (e.g. e8=N).
-        var move = moves.FirstOrDefault(m => m.Promotion is '\0' or 'Q');
-        if (move == default) move = moves[0];
+        if (moves.Any(m => m.Promotion != '\0'))
+        {
+            _promotion = (from, to);
+            _fromSquare = from;
+            return true;
+        }
+        Play(position, moves[0]);
+        return true;
+    }
+
+    /// <summary>The piece for the promotion was chosen ('\0': cancelled, the pawn stays where it was).</summary>
+    private void PromotionChosen(char piece)
+    {
+        if (_promotion is not var (from, to) || _checks[_selected].Before is not { } position) return;
+        _promotion = null;
+        _fromSquare = null;
+        var move = position.LegalMoves().FirstOrDefault(m => m.From == from && m.To == to && m.Promotion == piece);
+        if (piece != '\0' && move != default) Play(position, move);
+    }
+
+    private void Play(Position position, Move move)
+    {
         _rows[_selected].Text = position.ToSan(move);
         _rows[_selected].Checked = true;
         if (_selected == _rows.Count - 1)
@@ -525,6 +553,5 @@
         if (Manual || _rows[_selected + 1].Text.Length == 0) _selected++;
         Validate();
         Changed();
-        return true;
     }
 }

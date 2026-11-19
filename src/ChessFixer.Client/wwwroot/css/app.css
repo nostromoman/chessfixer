@@ -1738,6 +1738,54 @@ button.schedule-slot {
     pointer-events: none;
 }
 
+/* Promotion: the pieces to choose from in a column over the board, the rest dimmed (a click there cancels). */
+.chess-promotion-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+}
+
+.chess-promotion {
+    position: absolute;
+    top: 0;
+    z-index: 3;
+    width: 12.5%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.chess-promotion.from-bottom {
+    top: auto;
+    bottom: 0;
+    flex-direction: column-reverse;
+}
+
+.chess-promotion-piece {
+    aspect-ratio: 1;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: #f4f4f2;
+    cursor: pointer;
+}
+
+.chess-promotion-piece:hover,
+.chess-promotion-piece:focus-visible {
+    background: #cdd26a;
+    outline: none;
+}
+
+.chess-promotion-piece img {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 .chess-square.target-capture::after {
     content: "";
     position: absolute;

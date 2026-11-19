@@ -1,9 +1,11 @@
 @* A chess board drawn from a FEN, with the last move highlighted and optionally an arrow (the engine's best move).
    With OnSquareClick the squares can be clicked (e.g. to enter a move: piece, then target square); with OnPieceDrop
-   the pieces can also be dragged (mouse or finger, see ChessBoard.razor.js).
+   the pieces can also be dragged (mouse or finger, see ChessBoard.razor.js). With PromotionSquare the board asks which
+   piece a promoted pawn becomes.
    Pieces are the "cburnett" SVG set (wwwroot/pieces/cburnett, GPLv2+, see LICENSE.txt there). *@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IStringLocalizer<Strings> L
 <div @ref="_element" class="chess-board @(Flipped ? "flipped" : "") @(Clickable ? "clickable" : "") @(Draggable ? "draggable" : "")"
      role="@(Clickable ? "grid" : "img")" aria-label="@Fen">
     @for (var row = 0; row < 8; row++)
@@ -44,6 +46,26 @@
             <line x1="@F(arrow.X1)" y1="@F(arrow.Y1)" x2="@F(arrow.X2)" y2="@F(arrow.Y2)" stroke-width="0.17" marker-end="url(#arrowhead)" />
         </svg>
     }
+    @if (PromotionSquare is { } promotion)
+    {
+        @* A pawn reaches the last rank: the pieces it can become, in a column from that square towards the middle
+           (as on lichess). A click next to it cancels the move. *@
+        var white = promotion / 8 == 7;
+        var col = Flipped ? 7 - promotion % 8 : promotion % 8;
+        var atTop = (Flipped ? promotion / 8 : 7 - promotion / 8) == 0;
+        <div class="chess-promotion-backdrop" @onclick="() => OnPromotionChoice.InvokeAsync('\0')"></div>
+        <div class="chess-promotion @(atTop ? "" : "from-bottom")" style="left: @F(col * 12.5)%" role="menu">
+            @foreach (var (letter, key) in PromotionPieces)
+            {
+                var piece = white ? letter : char.ToLowerInvariant(letter);
+                var name = L["PromoteTo", L[key].Value].Value;
+                <button type="button" class="chess-promotion-piece" role="menuitem" title="@name" aria-label="@name"
+                        @onclick="() => OnPromotionChoice.InvokeAsync(letter)">
+                    <img src="@PieceUrl(piece)" alt="" draggable="false" />
+                </button>
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -74,6 +96,15 @@
     [Parameter] public EventCallback<int> OnPieceDragStart { get; set; }
 
     public readonly record struct PieceDrop(int From, int To);
+
+    /// <summary>A pawn is promoted on this square: the board shows the pieces to choose from.</summary>
+    [Parameter] public int? PromotionSquare { get; set; }
+
+    /// <summary>The piece chosen for the promotion (Q, R, B or N), or '\0' when the move was cancelled.</summary>
+    [Parameter] public EventCallback<char> OnPromotionChoice { get; set; }
+
+    private static readonly (char Letter, string Key)[] PromotionPieces =
+        [('Q', "PieceQueen"), ('R', "PieceRook"), ('B', "PieceBishop"), ('N', "PieceKnight")];
 
     private bool Clickable => OnSquareClick.HasDelegate || OnPieceDrop.HasDelegate;
     private bool Draggable => OnPieceDrop.HasDelegate;
